@@ -1,0 +1,15 @@
+pandas
+numpy
+matplotlib
+seaborn
+scikit-learn
+scipy
+jupyter
+jupyterlab
+h5py
+plotly
+statsmodels
+openpyxl
+xlrd
+gdal
+rasterio 
