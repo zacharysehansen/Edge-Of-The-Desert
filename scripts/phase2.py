@@ -19,6 +19,9 @@ SOURCES = {
     "powell":      "powell_combined.csv",
     "population":  "azpop_monthly.csv",
     "ndvi":        "modis_ndvi.csv",
+    "precip":      "merra_precipitation.csv",
+    "temperature": "merra_temperature_2m.csv",
+    "grace":       "grace_groundwater_anomaly.csv",
     "streamflow":  "usgs_streamflow.csv",
     "usdm":        "usdm_sustainability.csv",
 }
@@ -79,6 +82,10 @@ merged = merged[merged["usdm_sustainability"].notna()]
 
 merged[snotel_col] = merged[snotel_col].clip(lower=0)
 
+grace_start = pd.Period("2002-04", freq="M")
+merged["grace_available"] = (merged.index >= grace_start).astype(float)
+merged.loc[merged.index < grace_start, "grace_groundwater_anomaly"] = 0.0
+
 # =============================================================================
 # SECTION 4: FEATURE ENGINEERING
 # =============================================================================
@@ -86,6 +93,11 @@ merged[snotel_col] = merged[snotel_col].clip(lower=0)
 months = merged.index.month
 merged["month_sin"] = np.sin(2 * np.pi * months / 12)
 merged["month_cos"] = np.cos(2 * np.pi * months / 12)
+temperature_monthly_median = (
+    merged.groupby(merged.index.month)["temperature_2m_c"]
+    .transform("median")
+)
+merged["temperature_2m_c_anomaly"] = merged["temperature_2m_c"] - temperature_monthly_median
 
 lag_targets = {
     "usdm_sustainability_lag1": ("usdm_sustainability", 1),
@@ -95,6 +107,11 @@ lag_features = {
     "streamflow_cfs_lag1":           ("streamflow_cfs", 1),
     "snow_water_equivalent_in_lag1": ("snow_water_equivalent_in", 1),
     "powell_storage_lag1":           ("powell_storage", 1),
+    "powell_pool_elevation_lag1":    ("powell_pool_elevation", 1),
+    "precipitation_mm_day_lag1":     ("precipitation_mm_day", 1),
+    "temperature_2m_c_lag1":         ("temperature_2m_c", 1),
+    "temperature_2m_c_anomaly_lag1": ("temperature_2m_c_anomaly", 1),
+    "grace_groundwater_anomaly_lag1": ("grace_groundwater_anomaly", 1),
     "ndvi_lag1":                     ("ndvi", 1),
 }
 for name, (col, k) in {**lag_targets, **lag_features}.items():
@@ -108,6 +125,27 @@ merged["usdm_sustainability_roll6"] = (
 )
 merged["streamflow_cfs_roll3"] = (
     merged["streamflow_cfs"].shift(1).rolling(3).mean()
+)
+merged["precipitation_mm_day_roll3"] = (
+    merged["precipitation_mm_day"].shift(1).rolling(3).mean()
+)
+merged["precipitation_mm_day_roll6"] = (
+    merged["precipitation_mm_day"].shift(1).rolling(6).mean()
+)
+merged["temperature_2m_c_roll3"] = (
+    merged["temperature_2m_c"].shift(1).rolling(3).mean()
+)
+merged["temperature_2m_c_roll6"] = (
+    merged["temperature_2m_c"].shift(1).rolling(6).mean()
+)
+merged["temperature_2m_c_anomaly_roll3"] = (
+    merged["temperature_2m_c_anomaly"].shift(1).rolling(3).mean()
+)
+merged["grace_groundwater_anomaly_roll3"] = (
+    merged["grace_groundwater_anomaly"].shift(1).rolling(3).mean()
+)
+merged["grace_groundwater_anomaly_roll6"] = (
+    merged["grace_groundwater_anomaly"].shift(1).rolling(6).mean()
 )
 
 merged["AZPOP_pct_change"] = merged["AZPOP"].pct_change()
@@ -174,12 +212,62 @@ compact_feature_cols = [
     "ndvi_lag1",
 ]
 
+compact_plus_endpoint_feature_cols = compact_feature_cols + [
+    "precipitation_mm_day",
+    "precipitation_mm_day_lag1",
+    "grace_groundwater_anomaly",
+    "grace_groundwater_anomaly_lag1",
+    "grace_available",
+]
+
+compact_plus_endpoint_dynamics_feature_cols = compact_plus_endpoint_feature_cols + [
+    "powell_pool_elevation_lag1",
+    "precipitation_mm_day_roll3",
+    "precipitation_mm_day_roll6",
+    "grace_groundwater_anomaly_roll3",
+    "grace_groundwater_anomaly_roll6",
+]
+
+compact_plus_hydroclimate_feature_cols = compact_plus_endpoint_dynamics_feature_cols + [
+    "temperature_2m_c",
+    "temperature_2m_c_lag1",
+    "temperature_2m_c_roll3",
+    "temperature_2m_c_roll6",
+    "temperature_2m_c_anomaly",
+    "temperature_2m_c_anomaly_lag1",
+    "temperature_2m_c_anomaly_roll3",
+]
+
 missing_compact_features = [col for col in compact_feature_cols if col not in feature_cols]
 assert not missing_compact_features, f"Missing compact features: {missing_compact_features}"
+missing_compact_plus_endpoint_features = [
+    col for col in compact_plus_endpoint_feature_cols if col not in feature_cols
+]
+assert not missing_compact_plus_endpoint_features, (
+    "Missing compact+endpoint features: "
+    f"{missing_compact_plus_endpoint_features}"
+)
+missing_compact_plus_endpoint_dynamics_features = [
+    col for col in compact_plus_endpoint_dynamics_feature_cols if col not in feature_cols
+]
+assert not missing_compact_plus_endpoint_dynamics_features, (
+    "Missing compact+endpoint dynamics features: "
+    f"{missing_compact_plus_endpoint_dynamics_features}"
+)
+missing_compact_plus_hydroclimate_features = [
+    col for col in compact_plus_hydroclimate_feature_cols if col not in feature_cols
+]
+assert not missing_compact_plus_hydroclimate_features, (
+    "Missing compact+hydroclimate features: "
+    f"{missing_compact_plus_hydroclimate_features}"
+)
 
 feature_sets = {
     "full": feature_cols,
     "compact": compact_feature_cols,
+    "compact_plus_endpoints": compact_plus_endpoint_feature_cols,
+    "compact_plus_endpoint_dynamics": compact_plus_endpoint_dynamics_feature_cols,
+    "compact_plus_hydroclimate": compact_plus_hydroclimate_feature_cols,
 }
 X_by_set = {
     name: merged[cols].copy()
@@ -324,6 +412,17 @@ XGB_PARAM_DIST = {
     "model__reg_lambda":        [1, 2, 5],
 }
 
+XGB_PARAM_DIST_FOCUSED = {
+    "model__n_estimators":      [300, 500, 800, 1000, 1200],
+    "model__max_depth":         [3, 4, 5],
+    "model__learning_rate":     [0.01, 0.03, 0.05, 0.08, 0.1, 0.15, 0.2],
+    "model__subsample":         [0.6, 0.7, 0.8, 0.9, 1.0],
+    "model__colsample_bytree":  [0.6, 0.7, 0.8, 0.9, 1.0],
+    "model__min_child_weight":  [1, 2, 3, 4, 5],
+    "model__reg_alpha":         [0, 0.05, 0.1, 0.2, 0.5],
+    "model__reg_lambda":        [1, 2, 3, 5, 7],
+}
+
 RIDGE_PARAM_GRID = {
     "model__alpha": np.logspace(-3, 3, 13),
 }
@@ -334,51 +433,51 @@ ELASTICNET_PARAM_GRID = {
 }
 
 
-def build_xgb_search(n_iter):
+def build_xgb_search(n_iter, param_dist=None, cv=None):
     return RandomizedSearchCV(
         build_xgb_pipeline(),
-        param_distributions=XGB_PARAM_DIST,
+        param_distributions=param_dist or XGB_PARAM_DIST,
         n_iter=n_iter,
         scoring="r2",
-        cv=tscv,
+        cv=cv or tscv,
         random_state=42,
         n_jobs=-1,
         verbose=0,
     )
 
 
-def build_ridge_search():
+def build_ridge_search(cv=None):
     return GridSearchCV(
         build_pipeline(Ridge()),
         param_grid=RIDGE_PARAM_GRID,
         scoring="r2",
-        cv=tscv,
+        cv=cv or tscv,
         n_jobs=-1,
         verbose=0,
     )
 
 
-def build_elasticnet_search():
+def build_elasticnet_search(cv=None):
     return GridSearchCV(
         build_pipeline(ElasticNet(max_iter=20000, random_state=42)),
         param_grid=ELASTICNET_PARAM_GRID,
         scoring="r2",
-        cv=tscv,
+        cv=cv or tscv,
         n_jobs=-1,
         verbose=0,
     )
 
 
-def build_residual_xgb_search(lag_feature_index, n_iter):
+def build_residual_xgb_search(lag_feature_index, n_iter, param_dist=None, cv=None):
     return RandomizedSearchCV(
         ResidualLag1Regressor(
             base_estimator=build_xgb_pipeline(),
             lag_feature_index=lag_feature_index,
         ),
-        param_distributions=prefixed_params(XGB_PARAM_DIST, "base_estimator__"),
+        param_distributions=prefixed_params(param_dist or XGB_PARAM_DIST, "base_estimator__"),
         n_iter=n_iter,
         scoring="r2",
-        cv=tscv,
+        cv=cv or tscv,
         random_state=42,
         n_jobs=-1,
         verbose=0,
@@ -427,9 +526,17 @@ def extract_feature_importance(estimator, candidate_feature_cols):
     }
 
 
-def run_candidate(candidate):
+def run_candidate(candidate, X_candidate_df=None, y_values=None, year_month_values=None, cv=None):
     candidate_feature_cols = feature_sets[candidate["feature_set"]]
-    X_candidate_df = X_by_set[candidate["feature_set"]]
+    if X_candidate_df is None:
+        X_candidate_df = X_by_set[candidate["feature_set"]]
+    if y_values is None:
+        y_values = y
+    if year_month_values is None:
+        year_month_values = year_months
+    if cv is None:
+        cv = tscv
+
     X_candidate = X_candidate_df.to_numpy()
 
     print("\n" + "=" * 60)
@@ -441,8 +548,8 @@ def run_candidate(candidate):
     )
     print(f"  Search:      {candidate['search_note']}")
 
-    search = candidate["build_search"]()
-    search.fit(X_candidate, y)
+    search = candidate["build_search"](cv)
+    search.fit(X_candidate, y_values)
 
     best_estimator = search.best_estimator_
     best_params = {
@@ -455,13 +562,13 @@ def run_candidate(candidate):
     for key, value in best_params.items():
         print(f"    {key}: {value}")
 
-    cv_summary = evaluate_estimator_cv(best_estimator, X_candidate, y, year_months, tscv)
+    cv_summary = evaluate_estimator_cv(best_estimator, X_candidate, y_values, year_month_values, cv)
     print_cv_summary("Cross-validation", cv_summary)
 
     train_preds = best_estimator.predict(X_candidate)
     train_summary = {
-        "r2": float(r2_score(y, train_preds)),
-        "mae": float(mean_absolute_error(y, train_preds)),
+        "r2": float(r2_score(y_values, train_preds)),
+        "mae": float(mean_absolute_error(y_values, train_preds)),
     }
 
     print("\n  Train fit:")
@@ -512,7 +619,7 @@ if XGBRegressor is not None:
             "prediction_mode": "level",
             "export_compatible": True,
             "search_note": "RandomizedSearchCV, 40 iterations",
-            "build_search": lambda: build_xgb_search(n_iter=40),
+            "build_search": lambda cv: build_xgb_search(n_iter=40, cv=cv),
         },
         {
             "name": "xgb_compact",
@@ -522,7 +629,7 @@ if XGBRegressor is not None:
             "prediction_mode": "level",
             "export_compatible": True,
             "search_note": "RandomizedSearchCV, 40 iterations",
-            "build_search": lambda: build_xgb_search(n_iter=40),
+            "build_search": lambda cv: build_xgb_search(n_iter=40, cv=cv),
         },
         {
             "name": "xgb_compact_residual_lag1",
@@ -532,9 +639,107 @@ if XGBRegressor is not None:
             "prediction_mode": "residual_lag1",
             "export_compatible": True,
             "search_note": "RandomizedSearchCV, 40 iterations on residual target",
-            "build_search": lambda: build_residual_xgb_search(
+            "build_search": lambda cv: build_residual_xgb_search(
                 lag_feature_index=feature_sets["compact"].index("usdm_sustainability_lag1"),
                 n_iter=40,
+                cv=cv,
+            ),
+        },
+        {
+            "name": "xgb_full_residual_lag1",
+            "label": "XGBoost (all features, residual over lag1)",
+            "model_family": "xgboost",
+            "feature_set": "full",
+            "prediction_mode": "residual_lag1",
+            "export_compatible": True,
+            "search_note": "RandomizedSearchCV, 40 iterations on residual target",
+            "build_search": lambda cv: build_residual_xgb_search(
+                lag_feature_index=feature_sets["full"].index("usdm_sustainability_lag1"),
+                n_iter=40,
+                cv=cv,
+            ),
+        },
+        {
+            "name": "xgb_full_residual_lag1_focused",
+            "label": "XGBoost (all features, residual over lag1, focused search)",
+            "model_family": "xgboost",
+            "feature_set": "full",
+            "prediction_mode": "residual_lag1",
+            "export_compatible": True,
+            "search_note": "RandomizedSearchCV, 80 focused iterations on residual target",
+            "build_search": lambda cv: build_residual_xgb_search(
+                lag_feature_index=feature_sets["full"].index("usdm_sustainability_lag1"),
+                n_iter=80,
+                param_dist=XGB_PARAM_DIST_FOCUSED,
+                cv=cv,
+            ),
+        },
+        {
+            "name": "xgb_compact_plus_endpoints",
+            "label": "XGBoost (compact + precip/GRACE)",
+            "model_family": "xgboost",
+            "feature_set": "compact_plus_endpoints",
+            "prediction_mode": "level",
+            "export_compatible": True,
+            "search_note": "RandomizedSearchCV, 40 iterations",
+            "build_search": lambda cv: build_xgb_search(n_iter=40, cv=cv),
+        },
+        {
+            "name": "xgb_compact_plus_endpoints_residual_lag1",
+            "label": "XGBoost (compact + precip/GRACE, residual over lag1)",
+            "model_family": "xgboost",
+            "feature_set": "compact_plus_endpoints",
+            "prediction_mode": "residual_lag1",
+            "export_compatible": True,
+            "search_note": "RandomizedSearchCV, 40 iterations on residual target",
+            "build_search": lambda cv: build_residual_xgb_search(
+                lag_feature_index=feature_sets["compact_plus_endpoints"].index("usdm_sustainability_lag1"),
+                n_iter=40,
+                cv=cv,
+            ),
+        },
+        {
+            "name": "xgb_compact_plus_endpoint_dynamics_residual_lag1",
+            "label": "XGBoost (compact + precip/GRACE dynamics, residual over lag1)",
+            "model_family": "xgboost",
+            "feature_set": "compact_plus_endpoint_dynamics",
+            "prediction_mode": "residual_lag1",
+            "export_compatible": True,
+            "search_note": "RandomizedSearchCV, 40 iterations on residual target",
+            "build_search": lambda cv: build_residual_xgb_search(
+                lag_feature_index=feature_sets["compact_plus_endpoint_dynamics"].index("usdm_sustainability_lag1"),
+                n_iter=40,
+                cv=cv,
+            ),
+        },
+        {
+            "name": "xgb_compact_plus_endpoint_dynamics_residual_lag1_focused",
+            "label": "XGBoost (compact + precip/GRACE dynamics, residual over lag1, focused search)",
+            "model_family": "xgboost",
+            "feature_set": "compact_plus_endpoint_dynamics",
+            "prediction_mode": "residual_lag1",
+            "export_compatible": True,
+            "search_note": "RandomizedSearchCV, 80 focused iterations on residual target",
+            "build_search": lambda cv: build_residual_xgb_search(
+                lag_feature_index=feature_sets["compact_plus_endpoint_dynamics"].index("usdm_sustainability_lag1"),
+                n_iter=80,
+                param_dist=XGB_PARAM_DIST_FOCUSED,
+                cv=cv,
+            ),
+        },
+        {
+            "name": "xgb_compact_plus_hydroclimate_residual_lag1_focused",
+            "label": "XGBoost (compact + precip/GRACE dynamics + temperature, residual over lag1, focused search)",
+            "model_family": "xgboost",
+            "feature_set": "compact_plus_hydroclimate",
+            "prediction_mode": "residual_lag1",
+            "export_compatible": True,
+            "search_note": "RandomizedSearchCV, 80 focused iterations on residual target",
+            "build_search": lambda cv: build_residual_xgb_search(
+                lag_feature_index=feature_sets["compact_plus_hydroclimate"].index("usdm_sustainability_lag1"),
+                n_iter=80,
+                param_dist=XGB_PARAM_DIST_FOCUSED,
+                cv=cv,
             ),
         },
     ])
@@ -550,7 +755,7 @@ candidate_configs.extend([
         "prediction_mode": "level",
         "export_compatible": True,
         "search_note": "GridSearchCV over alpha",
-        "build_search": build_ridge_search,
+        "build_search": lambda cv: build_ridge_search(cv=cv),
     },
     {
         "name": "elasticnet_compact",
@@ -560,7 +765,7 @@ candidate_configs.extend([
         "prediction_mode": "level",
         "export_compatible": True,
         "search_note": "GridSearchCV over alpha and l1_ratio",
-        "build_search": build_elasticnet_search,
+        "build_search": lambda cv: build_elasticnet_search(cv=cv),
     },
 ])
 
@@ -577,10 +782,147 @@ for name, summary in baseline_cv.items():
 
 candidate_results = {}
 fitted_estimators = {}
+candidate_frames = {}
 for candidate in candidate_configs:
     result, estimator = run_candidate(candidate)
     candidate_results[candidate["name"]] = result
     fitted_estimators[candidate["name"]] = estimator
+    candidate_frames[candidate["name"]] = X_by_set[candidate["feature_set"]]
+
+
+def run_grace_observed_window_experiments():
+    grace_window_start = pd.Period("2002-10", freq="M")
+    grace_mask = merged.index >= grace_window_start
+    grace_window_year_months = merged.index[grace_mask].astype(str).to_numpy()
+    grace_window_y = merged.loc[grace_mask, "usdm_sustainability"].to_numpy()
+    grace_window_cv = TimeSeriesSplit(n_splits=5)
+
+    baseline_predictions_window = {
+        "lag1_persistence": merged.loc[grace_mask, "usdm_sustainability_lag1"].to_numpy(),
+        "roll3_mean": merged.loc[grace_mask, "usdm_sustainability_roll3"].to_numpy(),
+    }
+
+    print("\n" + "=" * 60)
+    print("GRACE OBSERVED WINDOW")
+    print("=" * 60)
+    print(f"  Window start: {grace_window_start}")
+    print(f"  Rows:         {len(grace_window_year_months)}")
+    print("  Note: this window starts after GRACE has enough observed history to support lag/rolling features.")
+
+    baseline_window_cv = {
+        name: evaluate_baseline_cv(preds, grace_window_y, grace_window_year_months, grace_window_cv)
+        for name, preds in baseline_predictions_window.items()
+    }
+    for name, summary in baseline_window_cv.items():
+        print_cv_summary(f"Grace-window baseline: {name}", summary)
+
+    grace_window_candidates = [
+        {
+            "name": "grace_window_xgb_full_residual_lag1_focused",
+            "label": "XGBoost (all features, residual over lag1, focused search, GRACE window)",
+            "model_family": "xgboost",
+            "feature_set": "full",
+            "prediction_mode": "residual_lag1",
+            "export_compatible": True,
+            "search_note": "RandomizedSearchCV, 80 focused iterations on residual target",
+            "build_search": lambda cv: build_residual_xgb_search(
+                lag_feature_index=feature_sets["full"].index("usdm_sustainability_lag1"),
+                n_iter=80,
+                param_dist=XGB_PARAM_DIST_FOCUSED,
+                cv=cv,
+            ),
+        },
+        {
+            "name": "grace_window_xgb_compact_plus_endpoint_dynamics_residual_lag1_focused",
+            "label": "XGBoost (compact + precip/GRACE dynamics, residual over lag1, focused search, GRACE window)",
+            "model_family": "xgboost",
+            "feature_set": "compact_plus_endpoint_dynamics",
+            "prediction_mode": "residual_lag1",
+            "export_compatible": True,
+            "search_note": "RandomizedSearchCV, 80 focused iterations on residual target",
+            "build_search": lambda cv: build_residual_xgb_search(
+                lag_feature_index=feature_sets["compact_plus_endpoint_dynamics"].index("usdm_sustainability_lag1"),
+                n_iter=80,
+                param_dist=XGB_PARAM_DIST_FOCUSED,
+                cv=cv,
+            ),
+        },
+        {
+            "name": "grace_window_xgb_compact_plus_hydroclimate_residual_lag1_focused",
+            "label": "XGBoost (compact + precip/GRACE dynamics + temperature, residual over lag1, focused search, GRACE window)",
+            "model_family": "xgboost",
+            "feature_set": "compact_plus_hydroclimate",
+            "prediction_mode": "residual_lag1",
+            "export_compatible": True,
+            "search_note": "RandomizedSearchCV, 80 focused iterations on residual target",
+            "build_search": lambda cv: build_residual_xgb_search(
+                lag_feature_index=feature_sets["compact_plus_hydroclimate"].index("usdm_sustainability_lag1"),
+                n_iter=80,
+                param_dist=XGB_PARAM_DIST_FOCUSED,
+                cv=cv,
+            ),
+        },
+    ]
+
+    grace_window_results = {}
+    grace_window_estimators = {}
+    grace_window_frames = {}
+    for candidate in grace_window_candidates:
+        X_candidate_df = X_by_set[candidate["feature_set"]].loc[grace_mask]
+        result, estimator = run_candidate(
+            candidate,
+            X_candidate_df=X_candidate_df,
+            y_values=grace_window_y,
+            year_month_values=grace_window_year_months,
+            cv=grace_window_cv,
+        )
+        grace_window_results[candidate["name"]] = result
+        grace_window_estimators[candidate["name"]] = estimator
+        grace_window_frames[candidate["name"]] = X_candidate_df
+
+    grace_window_leaderboard = sorted(
+        [
+            {
+                "name": name,
+                "label": result["label"],
+                "kind": "candidate",
+                "mean_r2": result["cv"]["mean_r2"],
+                "mean_mae": result["cv"]["mean_mae"],
+            }
+            for name, result in grace_window_results.items()
+        ] + [
+            {
+                "name": name,
+                "label": name,
+                "kind": "baseline",
+                "mean_r2": summary["mean_r2"],
+                "mean_mae": summary["mean_mae"],
+            }
+            for name, summary in baseline_window_cv.items()
+        ],
+        key=lambda row: (-row["mean_r2"], row["mean_mae"], row["label"]),
+    )
+
+    print("\n" + "=" * 60)
+    print("GRACE WINDOW LEADERBOARD")
+    print("=" * 60)
+    for rank, row in enumerate(grace_window_leaderboard, 1):
+        print(
+            f"  {rank:>2}. {row['label']:<28}  "
+            f"R2={row['mean_r2']:.4f}  MAE={row['mean_mae']:.4f}  "
+            f"[{row['kind']}]"
+        )
+
+    return {
+        "window_start": str(grace_window_start),
+        "n_rows": int(len(grace_window_year_months)),
+        "baselines": baseline_window_cv,
+        "experiments": grace_window_results,
+        "leaderboard": grace_window_leaderboard,
+    }, grace_window_estimators, grace_window_frames
+
+
+grace_window_report, grace_window_fitted_estimators, grace_window_candidate_frames = run_grace_observed_window_experiments()
 
 leaderboard = []
 for name, result in candidate_results.items():
@@ -616,17 +958,49 @@ leaderboard = sorted(
     key=lambda row: (-row["mean_r2"], row["mean_mae"], row["label"]),
 )
 
+all_candidate_results = {
+    **candidate_results,
+    **grace_window_report["experiments"],
+}
+all_fitted_estimators = {
+    **fitted_estimators,
+    **grace_window_fitted_estimators,
+}
+all_candidate_frames = {
+    **candidate_frames,
+    **grace_window_candidate_frames,
+}
+
+overall_candidate_rows = sorted(
+    [
+        {
+            "name": name,
+            "label": result["label"],
+            "kind": "candidate",
+            "model_family": result["model_family"],
+            "feature_set": result["feature_set"],
+            "prediction_mode": result["prediction_mode"],
+            "export_compatible": result["export_compatible"],
+            "n_features": result["n_features"],
+            "mean_r2": result["cv"]["mean_r2"],
+            "mean_mae": result["cv"]["mean_mae"],
+        }
+        for name, result in all_candidate_results.items()
+    ],
+    key=lambda row: (-row["mean_r2"], row["mean_mae"], row["label"]),
+)
+
 best_candidate_name = min(
-    candidate_results,
+    all_candidate_results,
     key=lambda name: (
-        -candidate_results[name]["cv"]["mean_r2"],
-        candidate_results[name]["cv"]["mean_mae"],
-        candidate_results[name]["label"],
+        -all_candidate_results[name]["cv"]["mean_r2"],
+        all_candidate_results[name]["cv"]["mean_mae"],
+        all_candidate_results[name]["label"],
     ),
 )
 export_candidate_names = [
     name
-    for name, result in candidate_results.items()
+    for name, result in all_candidate_results.items()
     if result["export_compatible"]
 ]
 assert export_candidate_names, "At least one export-compatible candidate is required."
@@ -634,17 +1008,17 @@ assert export_candidate_names, "At least one export-compatible candidate is requ
 selected_export_candidate_name = min(
     export_candidate_names,
     key=lambda name: (
-        -candidate_results[name]["cv"]["mean_r2"],
-        candidate_results[name]["cv"]["mean_mae"],
-        candidate_results[name]["label"],
+        -all_candidate_results[name]["cv"]["mean_r2"],
+        all_candidate_results[name]["cv"]["mean_mae"],
+        all_candidate_results[name]["label"],
     ),
 )
 
-best_result = candidate_results[best_candidate_name]
-selected_result = candidate_results[selected_export_candidate_name]
-selected_pipeline = fitted_estimators[selected_export_candidate_name]
+best_result = all_candidate_results[best_candidate_name]
+selected_result = all_candidate_results[selected_export_candidate_name]
+selected_pipeline = all_fitted_estimators[selected_export_candidate_name]
 selected_feature_cols = selected_result["feature_names"]
-selected_X_df = X_by_set[selected_result["feature_set"]]
+selected_X_df = all_candidate_frames[selected_export_candidate_name]
 selected_X = selected_X_df.to_numpy()
 
 print("\n" + "=" * 60)
@@ -666,6 +1040,8 @@ print(f"  Mean CV MAE:        {best_result['cv']['mean_mae']:.4f}")
 print(f"  Prediction mode:    {best_result['prediction_mode']}")
 print(f"  Selected export:    {selected_result['label']}")
 print(f"  Export feature set: {selected_result['feature_set']} ({selected_result['n_features']} features)")
+if selected_export_candidate_name.startswith("grace_window_"):
+    print(f"  Export window:      GRACE observed window starting {grace_window_report['window_start']}")
 if leaderboard[0]["kind"] == "baseline":
     print(f"  Benchmark leader:   {leaderboard[0]['label']} (still beats every learned model)")
 else:
@@ -715,6 +1091,13 @@ comparison_rows = [
     }
     for rank, row in enumerate(leaderboard, 1)
 ]
+overall_candidate_leaderboard_rows = [
+    {
+        **row,
+        "rank": rank,
+    }
+    for rank, row in enumerate(overall_candidate_rows, 1)
+]
 
 cv_results = {
     "best_learned_model_name": best_candidate_name,
@@ -734,8 +1117,10 @@ cv_results = {
     "best_cv_r2": selected_result["search_best_score"],
     "best_params": selected_result["best_params"],
     "leaderboard": comparison_rows,
-    "experiments": candidate_results,
+    "overall_candidate_leaderboard": overall_candidate_leaderboard_rows,
+    "experiments": all_candidate_results,
     "baselines": baseline_cv,
+    "grace_window_report": grace_window_report,
 }
 with open(MODEL_DIR / "cv_results.json", "w") as f:
     json.dump(cv_results, f, indent=2)
@@ -748,8 +1133,10 @@ with open(MODEL_DIR / "model_comparison.json", "w") as f:
             "selected_model_name": selected_export_candidate_name,
             "report_feature_importance": report_feature_importance,
             "leaderboard": comparison_rows,
-            "experiments": candidate_results,
+            "overall_candidate_leaderboard": overall_candidate_leaderboard_rows,
+            "experiments": all_candidate_results,
             "baselines": baseline_cv,
+            "grace_window_report": grace_window_report,
         },
         f,
         indent=2,

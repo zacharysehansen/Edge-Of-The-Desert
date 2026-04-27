@@ -1,105 +1,187 @@
 {
-  "best_learned_model_name": "xgb_compact_residual_lag1",
-  "best_learned_model_label": "XGBoost (compact, residual over lag1)",
+  "best_learned_model_name": "grace_window_xgb_full_residual_lag1_focused",
+  "best_learned_model_label": "XGBoost (all features, residual over lag1, focused search, GRACE window)",
   "best_learned_model_prediction_mode": "residual_lag1",
-  "selected_model_name": "xgb_compact_residual_lag1",
-  "selected_model_label": "XGBoost (compact, residual over lag1)",
+  "selected_model_name": "grace_window_xgb_full_residual_lag1_focused",
+  "selected_model_label": "XGBoost (all features, residual over lag1, focused search, GRACE window)",
   "selected_model_family": "xgboost",
-  "selected_feature_set": "compact",
+  "selected_feature_set": "full",
   "report_feature_importance": {
-    "model_name": "xgb_compact_residual_lag1",
-    "model_label": "XGBoost (compact, residual over lag1)",
+    "model_name": "grace_window_xgb_full_residual_lag1_focused",
+    "model_label": "XGBoost (all features, residual over lag1, focused search, GRACE window)",
     "label": "Gain",
     "kind": "gain",
     "top_items": [
       {
+        "feature": "precipitation_mm_day_lag1",
+        "score": 101.0537109375
+      },
+      {
         "feature": "usdm_sustainability_lag3",
-        "score": 598.8180541992188
+        "score": 72.40084075927734
+      },
+      {
+        "feature": "precipitation_mm_day_roll3",
+        "score": 58.712520599365234
+      },
+      {
+        "feature": "temperature_2m_c_lag1",
+        "score": 54.945274353027344
+      },
+      {
+        "feature": "temperature_2m_c_anomaly",
+        "score": 45.63296127319336
       },
       {
         "feature": "ndvi",
-        "score": 466.1211242675781
+        "score": 42.434486389160156
+      },
+      {
+        "feature": "temperature_2m_c_anomaly_lag1",
+        "score": 41.00539016723633
       },
       {
         "feature": "usdm_sustainability_roll6",
-        "score": 434.17120361328125
+        "score": 40.921356201171875
       },
       {
-        "feature": "ndvi_lag1",
-        "score": 354.7754211425781
-      },
-      {
-        "feature": "streamflow_cfs",
-        "score": 254.6071014404297
-      },
-      {
-        "feature": "snow_water_equivalent_in",
-        "score": 229.73736572265625
+        "feature": "precipitation_mm_day",
+        "score": 30.469160079956055
       },
       {
         "feature": "month_cos",
-        "score": 225.90037536621094
+        "score": 27.017648696899414
       },
       {
         "feature": "usdm_sustainability_roll3",
-        "score": 199.29237365722656
+        "score": 19.211044311523438
       },
       {
-        "feature": "usdm_sustainability_lag1",
-        "score": 171.43472290039062
+        "feature": "grace_groundwater_anomaly",
+        "score": 17.107038497924805
       },
       {
-        "feature": "month_sin",
-        "score": 164.70252990722656
+        "feature": "streamflow_cfs",
+        "score": 16.913005828857422
       },
       {
-        "feature": "streamflow_cfs_lag1",
-        "score": 152.66378784179688
+        "feature": "grace_groundwater_anomaly_roll6",
+        "score": 15.872584342956543
       },
       {
-        "feature": "streamflow_cfs_roll3",
-        "score": 105.9860610961914
-      },
-      {
-        "feature": "powell_pool_elevation",
-        "score": 74.94160461425781
-      },
-      {
-        "feature": "snow_water_equivalent_in_lag1",
-        "score": 40.302547454833984
+        "feature": "grace_groundwater_anomaly_lag1",
+        "score": 15.143122673034668
       }
     ]
   },
   "fold_r2": [
-    0.8471390274935955,
-    0.7109900874754906,
-    0.7600238125795172,
-    0.9181154339541271,
-    0.8764979422811202
+    0.9148101413512858,
+    0.8733164716503422,
+    0.8620482898053213,
+    0.9278530066380406,
+    0.8948113116822172
   ],
   "fold_mae": [
-    5.236248346536587,
-    5.13659637168432,
-    3.2406917065611243,
-    2.9398898353637786,
-    6.934945155922799
+    4.159257324536641,
+    3.8490192469540574,
+    2.29320150163542,
+    2.268958900032772,
+    5.621175218973723
   ],
-  "mean_r2": 0.82255326075677,
-  "std_r2": 0.07616152711040311,
-  "mean_mae": 4.697674283213722,
-  "std_mae": 1.4629217322246806,
-  "best_cv_r2": 0.82255326075677,
+  "mean_r2": 0.8945678442254416,
+  "std_r2": 0.024604284838927598,
+  "mean_mae": 3.6383224384265227,
+  "std_mae": 1.2595219954323975,
+  "best_cv_r2": 0.8945678442254416,
   "best_params": {
-    "base_estimator__model__subsample": 0.8,
-    "base_estimator__model__reg_lambda": 5,
-    "base_estimator__model__reg_alpha": 0,
-    "base_estimator__model__n_estimators": 100,
+    "base_estimator__model__subsample": 1.0,
+    "base_estimator__model__reg_lambda": 1,
+    "base_estimator__model__reg_alpha": 0.05,
+    "base_estimator__model__n_estimators": 800,
     "base_estimator__model__min_child_weight": 1,
     "base_estimator__model__max_depth": 3,
-    "base_estimator__model__learning_rate": 0.01,
-    "base_estimator__model__colsample_bytree": 0.8
+    "base_estimator__model__learning_rate": 0.05,
+    "base_estimator__model__colsample_bytree": 0.7
   },
   "leaderboard": [
+    {
+      "name": "xgb_full_residual_lag1_focused",
+      "label": "XGBoost (all features, residual over lag1, focused search)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "full",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "n_features": 39,
+      "mean_r2": 0.8842698869688539,
+      "mean_mae": 3.7769398087224895,
+      "rank": 1
+    },
+    {
+      "name": "xgb_full_residual_lag1",
+      "label": "XGBoost (all features, residual over lag1)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "full",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "n_features": 39,
+      "mean_r2": 0.8768053044956075,
+      "mean_mae": 3.9375894461549246,
+      "rank": 2
+    },
+    {
+      "name": "xgb_compact_plus_endpoint_dynamics_residual_lag1_focused",
+      "label": "XGBoost (compact + precip/GRACE dynamics, residual over lag1, focused search)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "compact_plus_endpoint_dynamics",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "n_features": 24,
+      "mean_r2": 0.8753265162723725,
+      "mean_mae": 4.000165402898803,
+      "rank": 3
+    },
+    {
+      "name": "xgb_compact_plus_hydroclimate_residual_lag1_focused",
+      "label": "XGBoost (compact + precip/GRACE dynamics + temperature, residual over lag1, focused search)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "compact_plus_hydroclimate",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "n_features": 31,
+      "mean_r2": 0.8750459504947807,
+      "mean_mae": 3.979646033420012,
+      "rank": 4
+    },
+    {
+      "name": "xgb_compact_plus_endpoint_dynamics_residual_lag1",
+      "label": "XGBoost (compact + precip/GRACE dynamics, residual over lag1)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "compact_plus_endpoint_dynamics",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "n_features": 24,
+      "mean_r2": 0.8684561235165613,
+      "mean_mae": 4.046227328330469,
+      "rank": 5
+    },
+    {
+      "name": "xgb_compact_plus_endpoints_residual_lag1",
+      "label": "XGBoost (compact + precip/GRACE, residual over lag1)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "compact_plus_endpoints",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "n_features": 19,
+      "mean_r2": 0.8636970904057432,
+      "mean_mae": 4.070240955403217,
+      "rank": 6
+    },
     {
       "name": "xgb_compact_residual_lag1",
       "label": "XGBoost (compact, residual over lag1)",
@@ -111,7 +193,7 @@
       "n_features": 14,
       "mean_r2": 0.82255326075677,
       "mean_mae": 4.697674283213722,
-      "rank": 1
+      "rank": 7
     },
     {
       "name": "lag1_persistence",
@@ -124,7 +206,20 @@
       "n_features": 1,
       "mean_r2": 0.7899148661106519,
       "mean_mae": 5.129128205128206,
-      "rank": 2
+      "rank": 8
+    },
+    {
+      "name": "xgb_compact_plus_endpoints",
+      "label": "XGBoost (compact + precip/GRACE)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "compact_plus_endpoints",
+      "prediction_mode": "level",
+      "export_compatible": true,
+      "n_features": 19,
+      "mean_r2": 0.6824046339379908,
+      "mean_mae": 6.403624356000852,
+      "rank": 9
     },
     {
       "name": "xgb_compact",
@@ -137,7 +232,7 @@
       "n_features": 14,
       "mean_r2": 0.6590159874251903,
       "mean_mae": 6.438940653483073,
-      "rank": 3
+      "rank": 10
     },
     {
       "name": "elasticnet_compact",
@@ -150,7 +245,20 @@
       "n_features": 14,
       "mean_r2": 0.6008816657333139,
       "mean_mae": 6.558893177744383,
-      "rank": 4
+      "rank": 11
+    },
+    {
+      "name": "xgb_full",
+      "label": "XGBoost (all features)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "full",
+      "prediction_mode": "level",
+      "export_compatible": true,
+      "n_features": 39,
+      "mean_r2": 0.5565318525119543,
+      "mean_mae": 7.468258299607497,
+      "rank": 12
     },
     {
       "name": "ridge_compact",
@@ -163,20 +271,7 @@
       "n_features": 14,
       "mean_r2": 0.5510541797470603,
       "mean_mae": 5.679504572318028,
-      "rank": 5
-    },
-    {
-      "name": "xgb_full",
-      "label": "XGBoost (all features)",
-      "kind": "candidate",
-      "model_family": "xgboost",
-      "feature_set": "full",
-      "prediction_mode": "level",
-      "export_compatible": true,
-      "n_features": 22,
-      "mean_r2": 0.5242702192173793,
-      "mean_mae": 7.727334122095352,
-      "rank": 6
+      "rank": 13
     },
     {
       "name": "roll3_mean",
@@ -189,7 +284,204 @@
       "n_features": 1,
       "mean_r2": 0.46569803313820374,
       "mean_mae": 8.794427350427348,
+      "rank": 14
+    }
+  ],
+  "overall_candidate_leaderboard": [
+    {
+      "name": "grace_window_xgb_full_residual_lag1_focused",
+      "label": "XGBoost (all features, residual over lag1, focused search, GRACE window)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "full",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "n_features": 39,
+      "mean_r2": 0.8945678442254416,
+      "mean_mae": 3.6383224384265227,
+      "rank": 1
+    },
+    {
+      "name": "grace_window_xgb_compact_plus_hydroclimate_residual_lag1_focused",
+      "label": "XGBoost (compact + precip/GRACE dynamics + temperature, residual over lag1, focused search, GRACE window)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "compact_plus_hydroclimate",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "n_features": 31,
+      "mean_r2": 0.8922358204450024,
+      "mean_mae": 3.8480970703719395,
+      "rank": 2
+    },
+    {
+      "name": "grace_window_xgb_compact_plus_endpoint_dynamics_residual_lag1_focused",
+      "label": "XGBoost (compact + precip/GRACE dynamics, residual over lag1, focused search, GRACE window)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "compact_plus_endpoint_dynamics",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "n_features": 24,
+      "mean_r2": 0.8842767272143336,
+      "mean_mae": 3.9609623307420145,
+      "rank": 3
+    },
+    {
+      "name": "xgb_full_residual_lag1_focused",
+      "label": "XGBoost (all features, residual over lag1, focused search)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "full",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "n_features": 39,
+      "mean_r2": 0.8842698869688539,
+      "mean_mae": 3.7769398087224895,
+      "rank": 4
+    },
+    {
+      "name": "xgb_full_residual_lag1",
+      "label": "XGBoost (all features, residual over lag1)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "full",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "n_features": 39,
+      "mean_r2": 0.8768053044956075,
+      "mean_mae": 3.9375894461549246,
+      "rank": 5
+    },
+    {
+      "name": "xgb_compact_plus_endpoint_dynamics_residual_lag1_focused",
+      "label": "XGBoost (compact + precip/GRACE dynamics, residual over lag1, focused search)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "compact_plus_endpoint_dynamics",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "n_features": 24,
+      "mean_r2": 0.8753265162723725,
+      "mean_mae": 4.000165402898803,
+      "rank": 6
+    },
+    {
+      "name": "xgb_compact_plus_hydroclimate_residual_lag1_focused",
+      "label": "XGBoost (compact + precip/GRACE dynamics + temperature, residual over lag1, focused search)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "compact_plus_hydroclimate",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "n_features": 31,
+      "mean_r2": 0.8750459504947807,
+      "mean_mae": 3.979646033420012,
       "rank": 7
+    },
+    {
+      "name": "xgb_compact_plus_endpoint_dynamics_residual_lag1",
+      "label": "XGBoost (compact + precip/GRACE dynamics, residual over lag1)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "compact_plus_endpoint_dynamics",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "n_features": 24,
+      "mean_r2": 0.8684561235165613,
+      "mean_mae": 4.046227328330469,
+      "rank": 8
+    },
+    {
+      "name": "xgb_compact_plus_endpoints_residual_lag1",
+      "label": "XGBoost (compact + precip/GRACE, residual over lag1)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "compact_plus_endpoints",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "n_features": 19,
+      "mean_r2": 0.8636970904057432,
+      "mean_mae": 4.070240955403217,
+      "rank": 9
+    },
+    {
+      "name": "xgb_compact_residual_lag1",
+      "label": "XGBoost (compact, residual over lag1)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "compact",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "n_features": 14,
+      "mean_r2": 0.82255326075677,
+      "mean_mae": 4.697674283213722,
+      "rank": 10
+    },
+    {
+      "name": "xgb_compact_plus_endpoints",
+      "label": "XGBoost (compact + precip/GRACE)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "compact_plus_endpoints",
+      "prediction_mode": "level",
+      "export_compatible": true,
+      "n_features": 19,
+      "mean_r2": 0.6824046339379908,
+      "mean_mae": 6.403624356000852,
+      "rank": 11
+    },
+    {
+      "name": "xgb_compact",
+      "label": "XGBoost (compact features)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "compact",
+      "prediction_mode": "level",
+      "export_compatible": true,
+      "n_features": 14,
+      "mean_r2": 0.6590159874251903,
+      "mean_mae": 6.438940653483073,
+      "rank": 12
+    },
+    {
+      "name": "elasticnet_compact",
+      "label": "ElasticNet (compact features)",
+      "kind": "candidate",
+      "model_family": "elasticnet",
+      "feature_set": "compact",
+      "prediction_mode": "level",
+      "export_compatible": true,
+      "n_features": 14,
+      "mean_r2": 0.6008816657333139,
+      "mean_mae": 6.558893177744383,
+      "rank": 13
+    },
+    {
+      "name": "xgb_full",
+      "label": "XGBoost (all features)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "full",
+      "prediction_mode": "level",
+      "export_compatible": true,
+      "n_features": 39,
+      "mean_r2": 0.5565318525119543,
+      "mean_mae": 7.468258299607497,
+      "rank": 14
+    },
+    {
+      "name": "ridge_compact",
+      "label": "Ridge (compact features)",
+      "kind": "candidate",
+      "model_family": "ridge",
+      "feature_set": "compact",
+      "prediction_mode": "level",
+      "export_compatible": true,
+      "n_features": 14,
+      "mean_r2": 0.5510541797470603,
+      "mean_mae": 5.679504572318028,
+      "rank": 15
     }
   ],
   "experiments": {
@@ -209,30 +501,47 @@
         "powell_storage",
         "powell_pool_elevation",
         "ndvi",
+        "precipitation_mm_day",
+        "temperature_2m_c",
+        "grace_groundwater_anomaly",
         "streamflow_cfs",
+        "grace_available",
         "month_sin",
         "month_cos",
+        "temperature_2m_c_anomaly",
         "usdm_sustainability_lag1",
         "usdm_sustainability_lag3",
         "streamflow_cfs_lag1",
         "snow_water_equivalent_in_lag1",
         "powell_storage_lag1",
+        "powell_pool_elevation_lag1",
+        "precipitation_mm_day_lag1",
+        "temperature_2m_c_lag1",
+        "temperature_2m_c_anomaly_lag1",
+        "grace_groundwater_anomaly_lag1",
         "ndvi_lag1",
         "usdm_sustainability_roll3",
         "usdm_sustainability_roll6",
         "streamflow_cfs_roll3",
+        "precipitation_mm_day_roll3",
+        "precipitation_mm_day_roll6",
+        "temperature_2m_c_roll3",
+        "temperature_2m_c_roll6",
+        "temperature_2m_c_anomaly_roll3",
+        "grace_groundwater_anomaly_roll3",
+        "grace_groundwater_anomaly_roll6",
         "AZPOP_pct_change"
       ],
-      "n_features": 22,
+      "n_features": 39,
       "search_note": "RandomizedSearchCV, 40 iterations",
-      "search_best_score": 0.5242702192173793,
+      "search_best_score": 0.5565318525119543,
       "best_params": {
         "model__subsample": 0.6,
-        "model__reg_lambda": 2,
-        "model__reg_alpha": 0.5,
-        "model__n_estimators": 500,
-        "model__min_child_weight": 1,
-        "model__max_depth": 3,
+        "model__reg_lambda": 5,
+        "model__reg_alpha": 0,
+        "model__n_estimators": 800,
+        "model__min_child_weight": 3,
+        "model__max_depth": 5,
         "model__learning_rate": 0.1,
         "model__colsample_bytree": 1.0
       },
@@ -246,8 +555,8 @@
             "test_end": "2007-12",
             "n_train": 42,
             "n_test": 39,
-            "r2": -0.15852223355452932,
-            "mae": 15.44890363644331
+            "r2": -0.1338478151298268,
+            "mae": 15.101204681396485
           },
           {
             "fold": 2,
@@ -257,8 +566,8 @@
             "test_end": "2011-03",
             "n_train": 81,
             "n_test": 39,
-            "r2": 0.39431291510641375,
-            "mae": 7.655579204070263
+            "r2": 0.6059814628014866,
+            "mae": 6.242713231795873
           },
           {
             "fold": 3,
@@ -268,8 +577,8 @@
             "test_end": "2014-06",
             "n_train": 120,
             "n_test": 39,
-            "r2": 0.6408764543785742,
-            "mae": 4.060564997746393
+            "r2": 0.5770843554842939,
+            "mae": 4.5528055611634874
           },
           {
             "fold": 4,
@@ -279,8 +588,8 @@
             "test_end": "2017-09",
             "n_train": 159,
             "n_test": 39,
-            "r2": 0.8935164474397396,
-            "mae": 3.598023454715044
+            "r2": 0.8671708332555181,
+            "mae": 3.895769109481421
           },
           {
             "fold": 5,
@@ -290,32 +599,32 @@
             "test_end": "2020-12",
             "n_train": 198,
             "n_test": 39,
-            "r2": 0.851167512716698,
-            "mae": 7.873599317501753
+            "r2": 0.8662704261482992,
+            "mae": 7.548798914200222
           }
         ],
         "fold_r2": [
-          -0.15852223355452932,
-          0.39431291510641375,
-          0.6408764543785742,
-          0.8935164474397396,
-          0.851167512716698
+          -0.1338478151298268,
+          0.6059814628014866,
+          0.5770843554842939,
+          0.8671708332555181,
+          0.8662704261482992
         ],
         "fold_mae": [
-          15.44890363644331,
-          7.655579204070263,
-          4.060564997746393,
-          3.598023454715044,
-          7.873599317501753
+          15.101204681396485,
+          6.242713231795873,
+          4.5528055611634874,
+          3.895769109481421,
+          7.548798914200222
         ],
-        "mean_r2": 0.5242702192173793,
-        "std_r2": 0.38468066395028383,
-        "mean_mae": 7.727334122095352,
-        "std_mae": 4.246070664498542
+        "mean_r2": 0.5565318525119543,
+        "std_r2": 0.3665859558643971,
+        "mean_mae": 7.468258299607497,
+        "std_mae": 4.025738731084528
       },
       "train": {
-        "r2": 0.999946410724081,
-        "mae": 0.12598724679101894
+        "r2": 0.9999997031906332,
+        "mae": 0.0037172300604324544
       },
       "feature_importance": {
         "label": "Gain",
@@ -323,63 +632,63 @@
         "top_items": [
           {
             "feature": "usdm_sustainability_lag1",
-            "score": 1458.388427734375
+            "score": 777.3182983398438
           },
           {
-            "feature": "powell_pool_elevation",
-            "score": 55.88948440551758
+            "feature": "grace_groundwater_anomaly",
+            "score": 15.20113754272461
+          },
+          {
+            "feature": "precipitation_mm_day_roll6",
+            "score": 14.702795028686523
+          },
+          {
+            "feature": "precipitation_mm_day_lag1",
+            "score": 14.318934440612793
           },
           {
             "feature": "ndvi",
-            "score": 44.936336517333984
+            "score": 13.429475784301758
           },
           {
-            "feature": "powell_inflow",
-            "score": 27.888242721557617
+            "feature": "precipitation_mm_day_roll3",
+            "score": 11.720633506774902
+          },
+          {
+            "feature": "temperature_2m_c_anomaly",
+            "score": 8.433238983154297
           },
           {
             "feature": "usdm_sustainability_roll6",
-            "score": 26.50226402282715
+            "score": 8.324897766113281
+          },
+          {
+            "feature": "precipitation_mm_day",
+            "score": 8.096602439880371
           },
           {
             "feature": "irrigation_total_withdrawal_mgd",
-            "score": 21.250499725341797
-          },
-          {
-            "feature": "ndvi_lag1",
-            "score": 19.010944366455078
-          },
-          {
-            "feature": "usdm_sustainability_lag3",
-            "score": 18.264507293701172
-          },
-          {
-            "feature": "usdm_sustainability_roll3",
-            "score": 17.70517349243164
-          },
-          {
-            "feature": "month_sin",
-            "score": 16.717748641967773
+            "score": 7.292263031005859
           },
           {
             "feature": "snow_water_equivalent_in",
-            "score": 16.688827514648438
+            "score": 7.164641380310059
+          },
+          {
+            "feature": "usdm_sustainability_lag3",
+            "score": 6.1368818283081055
+          },
+          {
+            "feature": "temperature_2m_c_roll3",
+            "score": 6.001281261444092
           },
           {
             "feature": "powell_total_release",
-            "score": 12.208172798156738
+            "score": 5.329517841339111
           },
           {
-            "feature": "streamflow_cfs_lag1",
-            "score": 11.564916610717773
-          },
-          {
-            "feature": "public_supply_groundwater_mgd",
-            "score": 11.490602493286133
-          },
-          {
-            "feature": "streamflow_cfs",
-            "score": 11.4502592086792
+            "feature": "streamflow_cfs_roll3",
+            "score": 4.836231231689453
           }
         ]
       }
@@ -742,6 +1051,1384 @@
         ]
       }
     },
+    "xgb_full_residual_lag1": {
+      "label": "XGBoost (all features, residual over lag1)",
+      "model_family": "xgboost",
+      "feature_set": "full",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "feature_names": [
+        "snow_water_equivalent_in",
+        "irrigation_total_withdrawal_mgd",
+        "public_supply_groundwater_mgd",
+        "powell_evaporation",
+        "powell_total_release",
+        "powell_inflow",
+        "powell_storage",
+        "powell_pool_elevation",
+        "ndvi",
+        "precipitation_mm_day",
+        "temperature_2m_c",
+        "grace_groundwater_anomaly",
+        "streamflow_cfs",
+        "grace_available",
+        "month_sin",
+        "month_cos",
+        "temperature_2m_c_anomaly",
+        "usdm_sustainability_lag1",
+        "usdm_sustainability_lag3",
+        "streamflow_cfs_lag1",
+        "snow_water_equivalent_in_lag1",
+        "powell_storage_lag1",
+        "powell_pool_elevation_lag1",
+        "precipitation_mm_day_lag1",
+        "temperature_2m_c_lag1",
+        "temperature_2m_c_anomaly_lag1",
+        "grace_groundwater_anomaly_lag1",
+        "ndvi_lag1",
+        "usdm_sustainability_roll3",
+        "usdm_sustainability_roll6",
+        "streamflow_cfs_roll3",
+        "precipitation_mm_day_roll3",
+        "precipitation_mm_day_roll6",
+        "temperature_2m_c_roll3",
+        "temperature_2m_c_roll6",
+        "temperature_2m_c_anomaly_roll3",
+        "grace_groundwater_anomaly_roll3",
+        "grace_groundwater_anomaly_roll6",
+        "AZPOP_pct_change"
+      ],
+      "n_features": 39,
+      "search_note": "RandomizedSearchCV, 40 iterations on residual target",
+      "search_best_score": 0.8768053044956075,
+      "best_params": {
+        "base_estimator__model__subsample": 0.8,
+        "base_estimator__model__reg_lambda": 2,
+        "base_estimator__model__reg_alpha": 0.5,
+        "base_estimator__model__n_estimators": 800,
+        "base_estimator__model__min_child_weight": 1,
+        "base_estimator__model__max_depth": 5,
+        "base_estimator__model__learning_rate": 0.05,
+        "base_estimator__model__colsample_bytree": 0.6
+      },
+      "cv": {
+        "folds": [
+          {
+            "fold": 1,
+            "train_start": "2001-04",
+            "train_end": "2004-09",
+            "test_start": "2004-10",
+            "test_end": "2007-12",
+            "n_train": 42,
+            "n_test": 39,
+            "r2": 0.9127703856237815,
+            "mae": 4.019380128750434
+          },
+          {
+            "fold": 2,
+            "train_start": "2001-04",
+            "train_end": "2007-12",
+            "test_start": "2008-01",
+            "test_end": "2011-03",
+            "n_train": 81,
+            "n_test": 39,
+            "r2": 0.7498621598096564,
+            "mae": 4.9740332668790455
+          },
+          {
+            "fold": 3,
+            "train_start": "2001-04",
+            "train_end": "2011-03",
+            "test_start": "2011-04",
+            "test_end": "2014-06",
+            "n_train": 120,
+            "n_test": 39,
+            "r2": 0.8872660747662791,
+            "mae": 2.2617717215342403
+          },
+          {
+            "fold": 4,
+            "train_start": "2001-04",
+            "train_end": "2014-06",
+            "test_start": "2014-07",
+            "test_end": "2017-09",
+            "n_train": 159,
+            "n_test": 39,
+            "r2": 0.9538534409937074,
+            "mae": 2.2675088404233636
+          },
+          {
+            "fold": 5,
+            "train_start": "2001-04",
+            "train_end": "2017-09",
+            "test_start": "2017-10",
+            "test_end": "2020-12",
+            "n_train": 198,
+            "n_test": 39,
+            "r2": 0.8802744612846126,
+            "mae": 6.165253273187538
+          }
+        ],
+        "fold_r2": [
+          0.9127703856237815,
+          0.7498621598096564,
+          0.8872660747662791,
+          0.9538534409937074,
+          0.8802744612846126
+        ],
+        "fold_mae": [
+          4.019380128750434,
+          4.9740332668790455,
+          2.2617717215342403,
+          2.2675088404233636,
+          6.165253273187538
+        ],
+        "mean_r2": 0.8768053044956075,
+        "std_r2": 0.06850682760809575,
+        "mean_mae": 3.9375894461549246,
+        "std_mae": 1.5258391731332492
+      },
+      "train": {
+        "r2": 0.9999968158611355,
+        "mae": 0.02354241197863952
+      },
+      "feature_importance": {
+        "label": "Gain",
+        "kind": "gain",
+        "top_items": [
+          {
+            "feature": "precipitation_mm_day_roll3",
+            "score": 41.232418060302734
+          },
+          {
+            "feature": "usdm_sustainability_lag3",
+            "score": 36.096282958984375
+          },
+          {
+            "feature": "precipitation_mm_day_lag1",
+            "score": 27.848350524902344
+          },
+          {
+            "feature": "usdm_sustainability_roll6",
+            "score": 24.977296829223633
+          },
+          {
+            "feature": "temperature_2m_c_lag1",
+            "score": 17.824016571044922
+          },
+          {
+            "feature": "ndvi",
+            "score": 17.74627685546875
+          },
+          {
+            "feature": "precipitation_mm_day",
+            "score": 13.625760078430176
+          },
+          {
+            "feature": "month_cos",
+            "score": 11.24732494354248
+          },
+          {
+            "feature": "temperature_2m_c_anomaly",
+            "score": 11.138805389404297
+          },
+          {
+            "feature": "irrigation_total_withdrawal_mgd",
+            "score": 9.953706741333008
+          },
+          {
+            "feature": "ndvi_lag1",
+            "score": 9.165542602539062
+          },
+          {
+            "feature": "usdm_sustainability_lag1",
+            "score": 8.933065414428711
+          },
+          {
+            "feature": "streamflow_cfs",
+            "score": 8.31064510345459
+          },
+          {
+            "feature": "grace_groundwater_anomaly",
+            "score": 8.206253051757812
+          },
+          {
+            "feature": "grace_groundwater_anomaly_roll6",
+            "score": 8.048590660095215
+          }
+        ]
+      }
+    },
+    "xgb_full_residual_lag1_focused": {
+      "label": "XGBoost (all features, residual over lag1, focused search)",
+      "model_family": "xgboost",
+      "feature_set": "full",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "feature_names": [
+        "snow_water_equivalent_in",
+        "irrigation_total_withdrawal_mgd",
+        "public_supply_groundwater_mgd",
+        "powell_evaporation",
+        "powell_total_release",
+        "powell_inflow",
+        "powell_storage",
+        "powell_pool_elevation",
+        "ndvi",
+        "precipitation_mm_day",
+        "temperature_2m_c",
+        "grace_groundwater_anomaly",
+        "streamflow_cfs",
+        "grace_available",
+        "month_sin",
+        "month_cos",
+        "temperature_2m_c_anomaly",
+        "usdm_sustainability_lag1",
+        "usdm_sustainability_lag3",
+        "streamflow_cfs_lag1",
+        "snow_water_equivalent_in_lag1",
+        "powell_storage_lag1",
+        "powell_pool_elevation_lag1",
+        "precipitation_mm_day_lag1",
+        "temperature_2m_c_lag1",
+        "temperature_2m_c_anomaly_lag1",
+        "grace_groundwater_anomaly_lag1",
+        "ndvi_lag1",
+        "usdm_sustainability_roll3",
+        "usdm_sustainability_roll6",
+        "streamflow_cfs_roll3",
+        "precipitation_mm_day_roll3",
+        "precipitation_mm_day_roll6",
+        "temperature_2m_c_roll3",
+        "temperature_2m_c_roll6",
+        "temperature_2m_c_anomaly_roll3",
+        "grace_groundwater_anomaly_roll3",
+        "grace_groundwater_anomaly_roll6",
+        "AZPOP_pct_change"
+      ],
+      "n_features": 39,
+      "search_note": "RandomizedSearchCV, 80 focused iterations on residual target",
+      "search_best_score": 0.8842698869688539,
+      "best_params": {
+        "base_estimator__model__subsample": 0.6,
+        "base_estimator__model__reg_lambda": 5,
+        "base_estimator__model__reg_alpha": 0.2,
+        "base_estimator__model__n_estimators": 1000,
+        "base_estimator__model__min_child_weight": 1,
+        "base_estimator__model__max_depth": 4,
+        "base_estimator__model__learning_rate": 0.1,
+        "base_estimator__model__colsample_bytree": 0.6
+      },
+      "cv": {
+        "folds": [
+          {
+            "fold": 1,
+            "train_start": "2001-04",
+            "train_end": "2004-09",
+            "test_start": "2004-10",
+            "test_end": "2007-12",
+            "n_train": 42,
+            "n_test": 39,
+            "r2": 0.9133035371168038,
+            "mae": 4.067182118602288
+          },
+          {
+            "fold": 2,
+            "train_start": "2001-04",
+            "train_end": "2007-12",
+            "test_start": "2008-01",
+            "test_end": "2011-03",
+            "n_train": 81,
+            "n_test": 39,
+            "r2": 0.7666529122584866,
+            "mae": 4.8041598410484125
+          },
+          {
+            "fold": 3,
+            "train_start": "2001-04",
+            "train_end": "2011-03",
+            "test_start": "2011-04",
+            "test_end": "2014-06",
+            "n_train": 120,
+            "n_test": 39,
+            "r2": 0.8941992270279959,
+            "mae": 2.0901723480835934
+          },
+          {
+            "fold": 4,
+            "train_start": "2001-04",
+            "train_end": "2014-06",
+            "test_start": "2014-07",
+            "test_end": "2017-09",
+            "n_train": 159,
+            "n_test": 39,
+            "r2": 0.9534026652115264,
+            "mae": 2.330187941720852
+          },
+          {
+            "fold": 5,
+            "train_start": "2001-04",
+            "train_end": "2017-09",
+            "test_start": "2017-10",
+            "test_end": "2020-12",
+            "n_train": 198,
+            "n_test": 39,
+            "r2": 0.8937910932294564,
+            "mae": 5.592996794157302
+          }
+        ],
+        "fold_r2": [
+          0.9133035371168038,
+          0.7666529122584866,
+          0.8941992270279959,
+          0.9534026652115264,
+          0.8937910932294564
+        ],
+        "fold_mae": [
+          4.067182118602288,
+          4.8041598410484125,
+          2.0901723480835934,
+          2.330187941720852,
+          5.592996794157302
+        ],
+        "mean_r2": 0.8842698869688539,
+        "std_r2": 0.0626822012554605,
+        "mean_mae": 3.7769398087224895,
+        "std_mae": 1.3693618950843873
+      },
+      "train": {
+        "r2": 0.9999994418163786,
+        "mae": 0.007302043068751569
+      },
+      "feature_importance": {
+        "label": "Gain",
+        "kind": "gain",
+        "top_items": [
+          {
+            "feature": "precipitation_mm_day_lag1",
+            "score": 20.03152847290039
+          },
+          {
+            "feature": "usdm_sustainability_lag3",
+            "score": 18.17101287841797
+          },
+          {
+            "feature": "precipitation_mm_day_roll3",
+            "score": 15.282879829406738
+          },
+          {
+            "feature": "usdm_sustainability_roll6",
+            "score": 11.422307014465332
+          },
+          {
+            "feature": "ndvi",
+            "score": 11.11064338684082
+          },
+          {
+            "feature": "temperature_2m_c_lag1",
+            "score": 8.223759651184082
+          },
+          {
+            "feature": "temperature_2m_c_anomaly",
+            "score": 6.7669477462768555
+          },
+          {
+            "feature": "irrigation_total_withdrawal_mgd",
+            "score": 6.630389213562012
+          },
+          {
+            "feature": "precipitation_mm_day",
+            "score": 6.313287734985352
+          },
+          {
+            "feature": "usdm_sustainability_lag1",
+            "score": 6.28219747543335
+          },
+          {
+            "feature": "precipitation_mm_day_roll6",
+            "score": 5.960144996643066
+          },
+          {
+            "feature": "usdm_sustainability_roll3",
+            "score": 5.668285369873047
+          },
+          {
+            "feature": "powell_inflow",
+            "score": 5.506117343902588
+          },
+          {
+            "feature": "streamflow_cfs",
+            "score": 4.610691070556641
+          },
+          {
+            "feature": "powell_pool_elevation",
+            "score": 4.388843059539795
+          }
+        ]
+      }
+    },
+    "xgb_compact_plus_endpoints": {
+      "label": "XGBoost (compact + precip/GRACE)",
+      "model_family": "xgboost",
+      "feature_set": "compact_plus_endpoints",
+      "prediction_mode": "level",
+      "export_compatible": true,
+      "feature_names": [
+        "month_sin",
+        "month_cos",
+        "usdm_sustainability_lag1",
+        "usdm_sustainability_lag3",
+        "usdm_sustainability_roll3",
+        "usdm_sustainability_roll6",
+        "streamflow_cfs",
+        "streamflow_cfs_lag1",
+        "streamflow_cfs_roll3",
+        "snow_water_equivalent_in",
+        "snow_water_equivalent_in_lag1",
+        "powell_pool_elevation",
+        "ndvi",
+        "ndvi_lag1",
+        "precipitation_mm_day",
+        "precipitation_mm_day_lag1",
+        "grace_groundwater_anomaly",
+        "grace_groundwater_anomaly_lag1",
+        "grace_available"
+      ],
+      "n_features": 19,
+      "search_note": "RandomizedSearchCV, 40 iterations",
+      "search_best_score": 0.6824046339379908,
+      "best_params": {
+        "model__subsample": 0.6,
+        "model__reg_lambda": 2,
+        "model__reg_alpha": 0.5,
+        "model__n_estimators": 500,
+        "model__min_child_weight": 1,
+        "model__max_depth": 3,
+        "model__learning_rate": 0.1,
+        "model__colsample_bytree": 1.0
+      },
+      "cv": {
+        "folds": [
+          {
+            "fold": 1,
+            "train_start": "2001-04",
+            "train_end": "2004-09",
+            "test_start": "2004-10",
+            "test_end": "2007-12",
+            "n_train": 42,
+            "n_test": 39,
+            "r2": 0.481945314653509,
+            "mae": 10.300416447566105
+          },
+          {
+            "fold": 2,
+            "train_start": "2001-04",
+            "train_end": "2007-12",
+            "test_start": "2008-01",
+            "test_end": "2011-03",
+            "n_train": 81,
+            "n_test": 39,
+            "r2": 0.5558092580377324,
+            "mae": 6.593298911070212
+          },
+          {
+            "fold": 3,
+            "train_start": "2001-04",
+            "train_end": "2011-03",
+            "test_start": "2011-04",
+            "test_end": "2014-06",
+            "n_train": 120,
+            "n_test": 39,
+            "r2": 0.6704593168729127,
+            "mae": 3.938086101825421
+          },
+          {
+            "fold": 4,
+            "train_start": "2001-04",
+            "train_end": "2014-06",
+            "test_start": "2014-07",
+            "test_end": "2017-09",
+            "n_train": 159,
+            "n_test": 39,
+            "r2": 0.8246302634988135,
+            "mae": 4.425636127178485
+          },
+          {
+            "fold": 5,
+            "train_start": "2001-04",
+            "train_end": "2017-09",
+            "test_start": "2017-10",
+            "test_end": "2020-12",
+            "n_train": 198,
+            "n_test": 39,
+            "r2": 0.8791790166269863,
+            "mae": 6.760684192364031
+          }
+        ],
+        "fold_r2": [
+          0.481945314653509,
+          0.5558092580377324,
+          0.6704593168729127,
+          0.8246302634988135,
+          0.8791790166269863
+        ],
+        "fold_mae": [
+          10.300416447566105,
+          6.593298911070212,
+          3.938086101825421,
+          4.425636127178485,
+          6.760684192364031
+        ],
+        "mean_r2": 0.6824046339379908,
+        "std_r2": 0.15185605412608244,
+        "mean_mae": 6.403624356000852,
+        "std_mae": 2.251211810764693
+      },
+      "train": {
+        "r2": 0.9999554629443883,
+        "mae": 0.11289313062836846
+      },
+      "feature_importance": {
+        "label": "Gain",
+        "kind": "gain",
+        "top_items": [
+          {
+            "feature": "usdm_sustainability_lag1",
+            "score": 1231.89599609375
+          },
+          {
+            "feature": "ndvi",
+            "score": 34.673065185546875
+          },
+          {
+            "feature": "grace_groundwater_anomaly",
+            "score": 33.74501037597656
+          },
+          {
+            "feature": "precipitation_mm_day_lag1",
+            "score": 33.53533172607422
+          },
+          {
+            "feature": "usdm_sustainability_lag3",
+            "score": 17.20400047302246
+          },
+          {
+            "feature": "precipitation_mm_day",
+            "score": 13.431085586547852
+          },
+          {
+            "feature": "usdm_sustainability_roll6",
+            "score": 13.274663925170898
+          },
+          {
+            "feature": "snow_water_equivalent_in",
+            "score": 12.859222412109375
+          },
+          {
+            "feature": "month_cos",
+            "score": 12.573097229003906
+          },
+          {
+            "feature": "month_sin",
+            "score": 12.368943214416504
+          },
+          {
+            "feature": "usdm_sustainability_roll3",
+            "score": 11.570058822631836
+          },
+          {
+            "feature": "grace_groundwater_anomaly_lag1",
+            "score": 10.211380958557129
+          },
+          {
+            "feature": "ndvi_lag1",
+            "score": 9.497913360595703
+          },
+          {
+            "feature": "powell_pool_elevation",
+            "score": 8.857028007507324
+          },
+          {
+            "feature": "streamflow_cfs_lag1",
+            "score": 8.66787052154541
+          }
+        ]
+      }
+    },
+    "xgb_compact_plus_endpoints_residual_lag1": {
+      "label": "XGBoost (compact + precip/GRACE, residual over lag1)",
+      "model_family": "xgboost",
+      "feature_set": "compact_plus_endpoints",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "feature_names": [
+        "month_sin",
+        "month_cos",
+        "usdm_sustainability_lag1",
+        "usdm_sustainability_lag3",
+        "usdm_sustainability_roll3",
+        "usdm_sustainability_roll6",
+        "streamflow_cfs",
+        "streamflow_cfs_lag1",
+        "streamflow_cfs_roll3",
+        "snow_water_equivalent_in",
+        "snow_water_equivalent_in_lag1",
+        "powell_pool_elevation",
+        "ndvi",
+        "ndvi_lag1",
+        "precipitation_mm_day",
+        "precipitation_mm_day_lag1",
+        "grace_groundwater_anomaly",
+        "grace_groundwater_anomaly_lag1",
+        "grace_available"
+      ],
+      "n_features": 19,
+      "search_note": "RandomizedSearchCV, 40 iterations on residual target",
+      "search_best_score": 0.8636970904057432,
+      "best_params": {
+        "base_estimator__model__subsample": 0.8,
+        "base_estimator__model__reg_lambda": 2,
+        "base_estimator__model__reg_alpha": 0.5,
+        "base_estimator__model__n_estimators": 800,
+        "base_estimator__model__min_child_weight": 1,
+        "base_estimator__model__max_depth": 5,
+        "base_estimator__model__learning_rate": 0.05,
+        "base_estimator__model__colsample_bytree": 0.6
+      },
+      "cv": {
+        "folds": [
+          {
+            "fold": 1,
+            "train_start": "2001-04",
+            "train_end": "2004-09",
+            "test_start": "2004-10",
+            "test_end": "2007-12",
+            "n_train": 42,
+            "n_test": 39,
+            "r2": 0.8952086802523578,
+            "mae": 4.6236162459238965
+          },
+          {
+            "fold": 2,
+            "train_start": "2001-04",
+            "train_end": "2007-12",
+            "test_start": "2008-01",
+            "test_end": "2011-03",
+            "n_train": 81,
+            "n_test": 39,
+            "r2": 0.7500452494229352,
+            "mae": 4.890825634216649
+          },
+          {
+            "fold": 3,
+            "train_start": "2001-04",
+            "train_end": "2011-03",
+            "test_start": "2011-04",
+            "test_end": "2014-06",
+            "n_train": 120,
+            "n_test": 39,
+            "r2": 0.8337174379184427,
+            "mae": 2.514908143442411
+          },
+          {
+            "fold": 4,
+            "train_start": "2001-04",
+            "train_end": "2014-06",
+            "test_start": "2014-07",
+            "test_end": "2017-09",
+            "n_train": 159,
+            "n_test": 39,
+            "r2": 0.9474119555574564,
+            "mae": 2.383568774996659
+          },
+          {
+            "fold": 5,
+            "train_start": "2001-04",
+            "train_end": "2017-09",
+            "test_start": "2017-10",
+            "test_end": "2020-12",
+            "n_train": 198,
+            "n_test": 39,
+            "r2": 0.8921021288775237,
+            "mae": 5.93828597843647
+          }
+        ],
+        "fold_r2": [
+          0.8952086802523578,
+          0.7500452494229352,
+          0.8337174379184427,
+          0.9474119555574564,
+          0.8921021288775237
+        ],
+        "fold_mae": [
+          4.6236162459238965,
+          4.890825634216649,
+          2.514908143442411,
+          2.383568774996659,
+          5.93828597843647
+        ],
+        "mean_r2": 0.8636970904057432,
+        "std_r2": 0.06726592848486507,
+        "mean_mae": 4.070240955403217,
+        "std_mae": 1.3952131618832169
+      },
+      "train": {
+        "r2": 0.9999952138534614,
+        "mae": 0.03234776124318887
+      },
+      "feature_importance": {
+        "label": "Gain",
+        "kind": "gain",
+        "top_items": [
+          {
+            "feature": "precipitation_mm_day_lag1",
+            "score": 19.811508178710938
+          },
+          {
+            "feature": "usdm_sustainability_lag3",
+            "score": 15.328916549682617
+          },
+          {
+            "feature": "ndvi",
+            "score": 15.131677627563477
+          },
+          {
+            "feature": "usdm_sustainability_roll6",
+            "score": 13.122896194458008
+          },
+          {
+            "feature": "grace_groundwater_anomaly",
+            "score": 10.168456077575684
+          },
+          {
+            "feature": "precipitation_mm_day",
+            "score": 10.038692474365234
+          },
+          {
+            "feature": "snow_water_equivalent_in",
+            "score": 8.981016159057617
+          },
+          {
+            "feature": "month_cos",
+            "score": 8.615177154541016
+          },
+          {
+            "feature": "ndvi_lag1",
+            "score": 6.583531856536865
+          },
+          {
+            "feature": "grace_groundwater_anomaly_lag1",
+            "score": 6.415415287017822
+          },
+          {
+            "feature": "usdm_sustainability_roll3",
+            "score": 5.965052127838135
+          },
+          {
+            "feature": "usdm_sustainability_lag1",
+            "score": 5.341956615447998
+          },
+          {
+            "feature": "month_sin",
+            "score": 4.811212539672852
+          },
+          {
+            "feature": "snow_water_equivalent_in_lag1",
+            "score": 4.166903495788574
+          },
+          {
+            "feature": "powell_pool_elevation",
+            "score": 3.409252643585205
+          }
+        ]
+      }
+    },
+    "xgb_compact_plus_endpoint_dynamics_residual_lag1": {
+      "label": "XGBoost (compact + precip/GRACE dynamics, residual over lag1)",
+      "model_family": "xgboost",
+      "feature_set": "compact_plus_endpoint_dynamics",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "feature_names": [
+        "month_sin",
+        "month_cos",
+        "usdm_sustainability_lag1",
+        "usdm_sustainability_lag3",
+        "usdm_sustainability_roll3",
+        "usdm_sustainability_roll6",
+        "streamflow_cfs",
+        "streamflow_cfs_lag1",
+        "streamflow_cfs_roll3",
+        "snow_water_equivalent_in",
+        "snow_water_equivalent_in_lag1",
+        "powell_pool_elevation",
+        "ndvi",
+        "ndvi_lag1",
+        "precipitation_mm_day",
+        "precipitation_mm_day_lag1",
+        "grace_groundwater_anomaly",
+        "grace_groundwater_anomaly_lag1",
+        "grace_available",
+        "powell_pool_elevation_lag1",
+        "precipitation_mm_day_roll3",
+        "precipitation_mm_day_roll6",
+        "grace_groundwater_anomaly_roll3",
+        "grace_groundwater_anomaly_roll6"
+      ],
+      "n_features": 24,
+      "search_note": "RandomizedSearchCV, 40 iterations on residual target",
+      "search_best_score": 0.8684561235165613,
+      "best_params": {
+        "base_estimator__model__subsample": 0.8,
+        "base_estimator__model__reg_lambda": 5,
+        "base_estimator__model__reg_alpha": 0,
+        "base_estimator__model__n_estimators": 300,
+        "base_estimator__model__min_child_weight": 3,
+        "base_estimator__model__max_depth": 4,
+        "base_estimator__model__learning_rate": 0.01,
+        "base_estimator__model__colsample_bytree": 0.6
+      },
+      "cv": {
+        "folds": [
+          {
+            "fold": 1,
+            "train_start": "2001-04",
+            "train_end": "2004-09",
+            "test_start": "2004-10",
+            "test_end": "2007-12",
+            "n_train": 42,
+            "n_test": 39,
+            "r2": 0.8796313369370214,
+            "mae": 4.82575948263399
+          },
+          {
+            "fold": 2,
+            "train_start": "2001-04",
+            "train_end": "2007-12",
+            "test_start": "2008-01",
+            "test_end": "2011-03",
+            "n_train": 81,
+            "n_test": 39,
+            "r2": 0.7639288842335988,
+            "mae": 4.515723407784333
+          },
+          {
+            "fold": 3,
+            "train_start": "2001-04",
+            "train_end": "2011-03",
+            "test_start": "2011-04",
+            "test_end": "2014-06",
+            "n_train": 120,
+            "n_test": 39,
+            "r2": 0.8650755339520878,
+            "mae": 2.3448970986138544
+          },
+          {
+            "fold": 4,
+            "train_start": "2001-04",
+            "train_end": "2014-06",
+            "test_start": "2014-07",
+            "test_end": "2017-09",
+            "n_train": 159,
+            "n_test": 39,
+            "r2": 0.9579972227018911,
+            "mae": 2.218666501182776
+          },
+          {
+            "fold": 5,
+            "train_start": "2001-04",
+            "train_end": "2017-09",
+            "test_start": "2017-10",
+            "test_end": "2020-12",
+            "n_train": 198,
+            "n_test": 39,
+            "r2": 0.8756476397582074,
+            "mae": 6.326090151437389
+          }
+        ],
+        "fold_r2": [
+          0.8796313369370214,
+          0.7639288842335988,
+          0.8650755339520878,
+          0.9579972227018911,
+          0.8756476397582074
+        ],
+        "fold_mae": [
+          4.82575948263399,
+          4.515723407784333,
+          2.3448970986138544,
+          2.218666501182776,
+          6.326090151437389
+        ],
+        "mean_r2": 0.8684561235165613,
+        "std_r2": 0.061857228974607145,
+        "mean_mae": 4.046227328330469,
+        "std_mae": 1.5659102508044986
+      },
+      "train": {
+        "r2": 0.9826776664997805,
+        "mae": 1.854980099585363
+      },
+      "feature_importance": {
+        "label": "Gain",
+        "kind": "gain",
+        "top_items": [
+          {
+            "feature": "precipitation_mm_day_lag1",
+            "score": 225.018310546875
+          },
+          {
+            "feature": "precipitation_mm_day_roll3",
+            "score": 192.821533203125
+          },
+          {
+            "feature": "usdm_sustainability_roll6",
+            "score": 167.63502502441406
+          },
+          {
+            "feature": "usdm_sustainability_lag3",
+            "score": 160.19776916503906
+          },
+          {
+            "feature": "ndvi",
+            "score": 137.0392303466797
+          },
+          {
+            "feature": "precipitation_mm_day",
+            "score": 121.96804809570312
+          },
+          {
+            "feature": "grace_groundwater_anomaly",
+            "score": 105.25394439697266
+          },
+          {
+            "feature": "ndvi_lag1",
+            "score": 104.94393920898438
+          },
+          {
+            "feature": "month_cos",
+            "score": 102.8626480102539
+          },
+          {
+            "feature": "usdm_sustainability_roll3",
+            "score": 94.94208526611328
+          },
+          {
+            "feature": "grace_groundwater_anomaly_lag1",
+            "score": 89.2015151977539
+          },
+          {
+            "feature": "grace_groundwater_anomaly_roll6",
+            "score": 65.5213394165039
+          },
+          {
+            "feature": "month_sin",
+            "score": 64.42662048339844
+          },
+          {
+            "feature": "usdm_sustainability_lag1",
+            "score": 63.60803985595703
+          },
+          {
+            "feature": "precipitation_mm_day_roll6",
+            "score": 62.56184387207031
+          }
+        ]
+      }
+    },
+    "xgb_compact_plus_endpoint_dynamics_residual_lag1_focused": {
+      "label": "XGBoost (compact + precip/GRACE dynamics, residual over lag1, focused search)",
+      "model_family": "xgboost",
+      "feature_set": "compact_plus_endpoint_dynamics",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "feature_names": [
+        "month_sin",
+        "month_cos",
+        "usdm_sustainability_lag1",
+        "usdm_sustainability_lag3",
+        "usdm_sustainability_roll3",
+        "usdm_sustainability_roll6",
+        "streamflow_cfs",
+        "streamflow_cfs_lag1",
+        "streamflow_cfs_roll3",
+        "snow_water_equivalent_in",
+        "snow_water_equivalent_in_lag1",
+        "powell_pool_elevation",
+        "ndvi",
+        "ndvi_lag1",
+        "precipitation_mm_day",
+        "precipitation_mm_day_lag1",
+        "grace_groundwater_anomaly",
+        "grace_groundwater_anomaly_lag1",
+        "grace_available",
+        "powell_pool_elevation_lag1",
+        "precipitation_mm_day_roll3",
+        "precipitation_mm_day_roll6",
+        "grace_groundwater_anomaly_roll3",
+        "grace_groundwater_anomaly_roll6"
+      ],
+      "n_features": 24,
+      "search_note": "RandomizedSearchCV, 80 focused iterations on residual target",
+      "search_best_score": 0.8753265162723725,
+      "best_params": {
+        "base_estimator__model__subsample": 0.7,
+        "base_estimator__model__reg_lambda": 2,
+        "base_estimator__model__reg_alpha": 0.5,
+        "base_estimator__model__n_estimators": 800,
+        "base_estimator__model__min_child_weight": 2,
+        "base_estimator__model__max_depth": 4,
+        "base_estimator__model__learning_rate": 0.1,
+        "base_estimator__model__colsample_bytree": 0.6
+      },
+      "cv": {
+        "folds": [
+          {
+            "fold": 1,
+            "train_start": "2001-04",
+            "train_end": "2004-09",
+            "test_start": "2004-10",
+            "test_end": "2007-12",
+            "n_train": 42,
+            "n_test": 39,
+            "r2": 0.9118860966627113,
+            "mae": 4.315313331400736
+          },
+          {
+            "fold": 2,
+            "train_start": "2001-04",
+            "train_end": "2007-12",
+            "test_start": "2008-01",
+            "test_end": "2011-03",
+            "n_train": 81,
+            "n_test": 39,
+            "r2": 0.7513188397853305,
+            "mae": 4.983323264572866
+          },
+          {
+            "fold": 3,
+            "train_start": "2001-04",
+            "train_end": "2011-03",
+            "test_start": "2011-04",
+            "test_end": "2014-06",
+            "n_train": 120,
+            "n_test": 39,
+            "r2": 0.8758227654266149,
+            "mae": 2.3548736573488283
+          },
+          {
+            "fold": 4,
+            "train_start": "2001-04",
+            "train_end": "2014-06",
+            "test_start": "2014-07",
+            "test_end": "2017-09",
+            "n_train": 159,
+            "n_test": 39,
+            "r2": 0.9491998802085977,
+            "mae": 2.384396810518243
+          },
+          {
+            "fold": 5,
+            "train_start": "2001-04",
+            "train_end": "2017-09",
+            "test_start": "2017-10",
+            "test_end": "2020-12",
+            "n_train": 198,
+            "n_test": 39,
+            "r2": 0.8884049992786083,
+            "mae": 5.962919950653345
+          }
+        ],
+        "fold_r2": [
+          0.9118860966627113,
+          0.7513188397853305,
+          0.8758227654266149,
+          0.9491998802085977,
+          0.8884049992786083
+        ],
+        "fold_mae": [
+          4.315313331400736,
+          4.983323264572866,
+          2.3548736573488283,
+          2.384396810518243,
+          5.962919950653345
+        ],
+        "mean_r2": 0.8753265162723725,
+        "std_r2": 0.0668476979801907,
+        "mean_mae": 4.000165402898803,
+        "std_mae": 1.4308050939691297
+      },
+      "train": {
+        "r2": 0.9999969185362022,
+        "mae": 0.0256041131343867
+      },
+      "feature_importance": {
+        "label": "Gain",
+        "kind": "gain",
+        "top_items": [
+          {
+            "feature": "usdm_sustainability_lag3",
+            "score": 17.440982818603516
+          },
+          {
+            "feature": "precipitation_mm_day_lag1",
+            "score": 16.230510711669922
+          },
+          {
+            "feature": "usdm_sustainability_roll6",
+            "score": 15.996803283691406
+          },
+          {
+            "feature": "precipitation_mm_day_roll3",
+            "score": 15.869336128234863
+          },
+          {
+            "feature": "ndvi",
+            "score": 13.567451477050781
+          },
+          {
+            "feature": "grace_groundwater_anomaly",
+            "score": 11.475369453430176
+          },
+          {
+            "feature": "month_sin",
+            "score": 11.247504234313965
+          },
+          {
+            "feature": "grace_groundwater_anomaly_lag1",
+            "score": 8.6044282913208
+          },
+          {
+            "feature": "precipitation_mm_day",
+            "score": 8.028069496154785
+          },
+          {
+            "feature": "ndvi_lag1",
+            "score": 6.155223369598389
+          },
+          {
+            "feature": "month_cos",
+            "score": 5.916638374328613
+          },
+          {
+            "feature": "usdm_sustainability_roll3",
+            "score": 5.348365783691406
+          },
+          {
+            "feature": "usdm_sustainability_lag1",
+            "score": 4.82948112487793
+          },
+          {
+            "feature": "streamflow_cfs",
+            "score": 4.759728908538818
+          },
+          {
+            "feature": "snow_water_equivalent_in_lag1",
+            "score": 4.446048736572266
+          }
+        ]
+      }
+    },
+    "xgb_compact_plus_hydroclimate_residual_lag1_focused": {
+      "label": "XGBoost (compact + precip/GRACE dynamics + temperature, residual over lag1, focused search)",
+      "model_family": "xgboost",
+      "feature_set": "compact_plus_hydroclimate",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "feature_names": [
+        "month_sin",
+        "month_cos",
+        "usdm_sustainability_lag1",
+        "usdm_sustainability_lag3",
+        "usdm_sustainability_roll3",
+        "usdm_sustainability_roll6",
+        "streamflow_cfs",
+        "streamflow_cfs_lag1",
+        "streamflow_cfs_roll3",
+        "snow_water_equivalent_in",
+        "snow_water_equivalent_in_lag1",
+        "powell_pool_elevation",
+        "ndvi",
+        "ndvi_lag1",
+        "precipitation_mm_day",
+        "precipitation_mm_day_lag1",
+        "grace_groundwater_anomaly",
+        "grace_groundwater_anomaly_lag1",
+        "grace_available",
+        "powell_pool_elevation_lag1",
+        "precipitation_mm_day_roll3",
+        "precipitation_mm_day_roll6",
+        "grace_groundwater_anomaly_roll3",
+        "grace_groundwater_anomaly_roll6",
+        "temperature_2m_c",
+        "temperature_2m_c_lag1",
+        "temperature_2m_c_roll3",
+        "temperature_2m_c_roll6",
+        "temperature_2m_c_anomaly",
+        "temperature_2m_c_anomaly_lag1",
+        "temperature_2m_c_anomaly_roll3"
+      ],
+      "n_features": 31,
+      "search_note": "RandomizedSearchCV, 80 focused iterations on residual target",
+      "search_best_score": 0.8750459504947807,
+      "best_params": {
+        "base_estimator__model__subsample": 0.7,
+        "base_estimator__model__reg_lambda": 7,
+        "base_estimator__model__reg_alpha": 0.05,
+        "base_estimator__model__n_estimators": 500,
+        "base_estimator__model__min_child_weight": 3,
+        "base_estimator__model__max_depth": 3,
+        "base_estimator__model__learning_rate": 0.1,
+        "base_estimator__model__colsample_bytree": 0.9
+      },
+      "cv": {
+        "folds": [
+          {
+            "fold": 1,
+            "train_start": "2001-04",
+            "train_end": "2004-09",
+            "test_start": "2004-10",
+            "test_end": "2007-12",
+            "n_train": 42,
+            "n_test": 39,
+            "r2": 0.8727195488622926,
+            "mae": 5.127633628417283
+          },
+          {
+            "fold": 2,
+            "train_start": "2001-04",
+            "train_end": "2007-12",
+            "test_start": "2008-01",
+            "test_end": "2011-03",
+            "n_train": 81,
+            "n_test": 39,
+            "r2": 0.7518908331726479,
+            "mae": 4.742052745543993
+          },
+          {
+            "fold": 3,
+            "train_start": "2001-04",
+            "train_end": "2011-03",
+            "test_start": "2011-04",
+            "test_end": "2014-06",
+            "n_train": 120,
+            "n_test": 39,
+            "r2": 0.9078035699561129,
+            "mae": 2.0382452111977796
+          },
+          {
+            "fold": 4,
+            "train_start": "2001-04",
+            "train_end": "2014-06",
+            "test_start": "2014-07",
+            "test_end": "2017-09",
+            "n_train": 159,
+            "n_test": 39,
+            "r2": 0.9492587386945717,
+            "mae": 2.2936499019311025
+          },
+          {
+            "fold": 5,
+            "train_start": "2001-04",
+            "train_end": "2017-09",
+            "test_start": "2017-10",
+            "test_end": "2020-12",
+            "n_train": 198,
+            "n_test": 39,
+            "r2": 0.8935570617882785,
+            "mae": 5.696648680009902
+          }
+        ],
+        "fold_r2": [
+          0.8727195488622926,
+          0.7518908331726479,
+          0.9078035699561129,
+          0.9492587386945717,
+          0.8935570617882785
+        ],
+        "fold_mae": [
+          5.127633628417283,
+          4.742052745543993,
+          2.0382452111977796,
+          2.2936499019311025,
+          5.696648680009902
+        ],
+        "mean_r2": 0.8750459504947807,
+        "std_r2": 0.06647684690727242,
+        "mean_mae": 3.979646033420012,
+        "std_mae": 1.51385981578723
+      },
+      "train": {
+        "r2": 0.9999647797144842,
+        "mae": 0.09143290719591105
+      },
+      "feature_importance": {
+        "label": "Gain",
+        "kind": "gain",
+        "top_items": [
+          {
+            "feature": "precipitation_mm_day_lag1",
+            "score": 61.935203552246094
+          },
+          {
+            "feature": "month_cos",
+            "score": 43.487430572509766
+          },
+          {
+            "feature": "usdm_sustainability_lag3",
+            "score": 39.05628204345703
+          },
+          {
+            "feature": "usdm_sustainability_roll6",
+            "score": 37.05626678466797
+          },
+          {
+            "feature": "precipitation_mm_day_roll3",
+            "score": 34.07672119140625
+          },
+          {
+            "feature": "temperature_2m_c_lag1",
+            "score": 21.310874938964844
+          },
+          {
+            "feature": "temperature_2m_c_anomaly",
+            "score": 20.792245864868164
+          },
+          {
+            "feature": "precipitation_mm_day",
+            "score": 20.376468658447266
+          },
+          {
+            "feature": "grace_groundwater_anomaly",
+            "score": 20.174936294555664
+          },
+          {
+            "feature": "ndvi",
+            "score": 18.278718948364258
+          },
+          {
+            "feature": "usdm_sustainability_lag1",
+            "score": 14.951579093933105
+          },
+          {
+            "feature": "precipitation_mm_day_roll6",
+            "score": 14.342279434204102
+          },
+          {
+            "feature": "snow_water_equivalent_in",
+            "score": 12.289559364318848
+          },
+          {
+            "feature": "usdm_sustainability_roll3",
+            "score": 11.354203224182129
+          },
+          {
+            "feature": "temperature_2m_c_roll3",
+            "score": 11.318685531616211
+          }
+        ]
+      }
+    },
     "ridge_compact": {
       "label": "Ridge (compact features)",
       "model_family": "ridge",
@@ -1086,6 +2773,607 @@
           }
         ]
       }
+    },
+    "grace_window_xgb_full_residual_lag1_focused": {
+      "label": "XGBoost (all features, residual over lag1, focused search, GRACE window)",
+      "model_family": "xgboost",
+      "feature_set": "full",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "feature_names": [
+        "snow_water_equivalent_in",
+        "irrigation_total_withdrawal_mgd",
+        "public_supply_groundwater_mgd",
+        "powell_evaporation",
+        "powell_total_release",
+        "powell_inflow",
+        "powell_storage",
+        "powell_pool_elevation",
+        "ndvi",
+        "precipitation_mm_day",
+        "temperature_2m_c",
+        "grace_groundwater_anomaly",
+        "streamflow_cfs",
+        "grace_available",
+        "month_sin",
+        "month_cos",
+        "temperature_2m_c_anomaly",
+        "usdm_sustainability_lag1",
+        "usdm_sustainability_lag3",
+        "streamflow_cfs_lag1",
+        "snow_water_equivalent_in_lag1",
+        "powell_storage_lag1",
+        "powell_pool_elevation_lag1",
+        "precipitation_mm_day_lag1",
+        "temperature_2m_c_lag1",
+        "temperature_2m_c_anomaly_lag1",
+        "grace_groundwater_anomaly_lag1",
+        "ndvi_lag1",
+        "usdm_sustainability_roll3",
+        "usdm_sustainability_roll6",
+        "streamflow_cfs_roll3",
+        "precipitation_mm_day_roll3",
+        "precipitation_mm_day_roll6",
+        "temperature_2m_c_roll3",
+        "temperature_2m_c_roll6",
+        "temperature_2m_c_anomaly_roll3",
+        "grace_groundwater_anomaly_roll3",
+        "grace_groundwater_anomaly_roll6",
+        "AZPOP_pct_change"
+      ],
+      "n_features": 39,
+      "search_note": "RandomizedSearchCV, 80 focused iterations on residual target",
+      "search_best_score": 0.8945678442254416,
+      "best_params": {
+        "base_estimator__model__subsample": 1.0,
+        "base_estimator__model__reg_lambda": 1,
+        "base_estimator__model__reg_alpha": 0.05,
+        "base_estimator__model__n_estimators": 800,
+        "base_estimator__model__min_child_weight": 1,
+        "base_estimator__model__max_depth": 3,
+        "base_estimator__model__learning_rate": 0.05,
+        "base_estimator__model__colsample_bytree": 0.7
+      },
+      "cv": {
+        "folds": [
+          {
+            "fold": 1,
+            "train_start": "2002-10",
+            "train_end": "2005-12",
+            "test_start": "2006-01",
+            "test_end": "2008-12",
+            "n_train": 39,
+            "n_test": 36,
+            "r2": 0.9148101413512858,
+            "mae": 4.159257324536641
+          },
+          {
+            "fold": 2,
+            "train_start": "2002-10",
+            "train_end": "2008-12",
+            "test_start": "2009-01",
+            "test_end": "2011-12",
+            "n_train": 75,
+            "n_test": 36,
+            "r2": 0.8733164716503422,
+            "mae": 3.8490192469540574
+          },
+          {
+            "fold": 3,
+            "train_start": "2002-10",
+            "train_end": "2011-12",
+            "test_start": "2012-01",
+            "test_end": "2014-12",
+            "n_train": 111,
+            "n_test": 36,
+            "r2": 0.8620482898053213,
+            "mae": 2.29320150163542
+          },
+          {
+            "fold": 4,
+            "train_start": "2002-10",
+            "train_end": "2014-12",
+            "test_start": "2015-01",
+            "test_end": "2017-12",
+            "n_train": 147,
+            "n_test": 36,
+            "r2": 0.9278530066380406,
+            "mae": 2.268958900032772
+          },
+          {
+            "fold": 5,
+            "train_start": "2002-10",
+            "train_end": "2017-12",
+            "test_start": "2018-01",
+            "test_end": "2020-12",
+            "n_train": 183,
+            "n_test": 36,
+            "r2": 0.8948113116822172,
+            "mae": 5.621175218973723
+          }
+        ],
+        "fold_r2": [
+          0.9148101413512858,
+          0.8733164716503422,
+          0.8620482898053213,
+          0.9278530066380406,
+          0.8948113116822172
+        ],
+        "fold_mae": [
+          4.159257324536641,
+          3.8490192469540574,
+          2.29320150163542,
+          2.268958900032772,
+          5.621175218973723
+        ],
+        "mean_r2": 0.8945678442254416,
+        "std_r2": 0.024604284838927598,
+        "mean_mae": 3.6383224384265227,
+        "std_mae": 1.2595219954323975
+      },
+      "train": {
+        "r2": 0.9999820240765811,
+        "mae": 0.06604363654642316
+      },
+      "feature_importance": {
+        "label": "Gain",
+        "kind": "gain",
+        "top_items": [
+          {
+            "feature": "precipitation_mm_day_lag1",
+            "score": 101.0537109375
+          },
+          {
+            "feature": "usdm_sustainability_lag3",
+            "score": 72.40084075927734
+          },
+          {
+            "feature": "precipitation_mm_day_roll3",
+            "score": 58.712520599365234
+          },
+          {
+            "feature": "temperature_2m_c_lag1",
+            "score": 54.945274353027344
+          },
+          {
+            "feature": "temperature_2m_c_anomaly",
+            "score": 45.63296127319336
+          },
+          {
+            "feature": "ndvi",
+            "score": 42.434486389160156
+          },
+          {
+            "feature": "temperature_2m_c_anomaly_lag1",
+            "score": 41.00539016723633
+          },
+          {
+            "feature": "usdm_sustainability_roll6",
+            "score": 40.921356201171875
+          },
+          {
+            "feature": "precipitation_mm_day",
+            "score": 30.469160079956055
+          },
+          {
+            "feature": "month_cos",
+            "score": 27.017648696899414
+          },
+          {
+            "feature": "usdm_sustainability_roll3",
+            "score": 19.211044311523438
+          },
+          {
+            "feature": "grace_groundwater_anomaly",
+            "score": 17.107038497924805
+          },
+          {
+            "feature": "streamflow_cfs",
+            "score": 16.913005828857422
+          },
+          {
+            "feature": "grace_groundwater_anomaly_roll6",
+            "score": 15.872584342956543
+          },
+          {
+            "feature": "grace_groundwater_anomaly_lag1",
+            "score": 15.143122673034668
+          }
+        ]
+      }
+    },
+    "grace_window_xgb_compact_plus_endpoint_dynamics_residual_lag1_focused": {
+      "label": "XGBoost (compact + precip/GRACE dynamics, residual over lag1, focused search, GRACE window)",
+      "model_family": "xgboost",
+      "feature_set": "compact_plus_endpoint_dynamics",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "feature_names": [
+        "month_sin",
+        "month_cos",
+        "usdm_sustainability_lag1",
+        "usdm_sustainability_lag3",
+        "usdm_sustainability_roll3",
+        "usdm_sustainability_roll6",
+        "streamflow_cfs",
+        "streamflow_cfs_lag1",
+        "streamflow_cfs_roll3",
+        "snow_water_equivalent_in",
+        "snow_water_equivalent_in_lag1",
+        "powell_pool_elevation",
+        "ndvi",
+        "ndvi_lag1",
+        "precipitation_mm_day",
+        "precipitation_mm_day_lag1",
+        "grace_groundwater_anomaly",
+        "grace_groundwater_anomaly_lag1",
+        "grace_available",
+        "powell_pool_elevation_lag1",
+        "precipitation_mm_day_roll3",
+        "precipitation_mm_day_roll6",
+        "grace_groundwater_anomaly_roll3",
+        "grace_groundwater_anomaly_roll6"
+      ],
+      "n_features": 24,
+      "search_note": "RandomizedSearchCV, 80 focused iterations on residual target",
+      "search_best_score": 0.8842767272143336,
+      "best_params": {
+        "base_estimator__model__subsample": 0.6,
+        "base_estimator__model__reg_lambda": 5,
+        "base_estimator__model__reg_alpha": 0,
+        "base_estimator__model__n_estimators": 500,
+        "base_estimator__model__min_child_weight": 2,
+        "base_estimator__model__max_depth": 4,
+        "base_estimator__model__learning_rate": 0.01,
+        "base_estimator__model__colsample_bytree": 0.6
+      },
+      "cv": {
+        "folds": [
+          {
+            "fold": 1,
+            "train_start": "2002-10",
+            "train_end": "2005-12",
+            "test_start": "2006-01",
+            "test_end": "2008-12",
+            "n_train": 39,
+            "n_test": 36,
+            "r2": 0.9046112815833859,
+            "mae": 4.448256796995799
+          },
+          {
+            "fold": 2,
+            "train_start": "2002-10",
+            "train_end": "2008-12",
+            "test_start": "2009-01",
+            "test_end": "2011-12",
+            "n_train": 75,
+            "n_test": 36,
+            "r2": 0.8456266252367121,
+            "mae": 4.565097177500527
+          },
+          {
+            "fold": 3,
+            "train_start": "2002-10",
+            "train_end": "2011-12",
+            "test_start": "2012-01",
+            "test_end": "2014-12",
+            "n_train": 111,
+            "n_test": 36,
+            "r2": 0.874257948592871,
+            "mae": 2.2045110088090087
+          },
+          {
+            "fold": 4,
+            "train_start": "2002-10",
+            "train_end": "2014-12",
+            "test_start": "2015-01",
+            "test_end": "2017-12",
+            "n_train": 147,
+            "n_test": 36,
+            "r2": 0.9066114174856416,
+            "mae": 2.6245542444868217
+          },
+          {
+            "fold": 5,
+            "train_start": "2002-10",
+            "train_end": "2017-12",
+            "test_start": "2018-01",
+            "test_end": "2020-12",
+            "n_train": 183,
+            "n_test": 36,
+            "r2": 0.8902763631730575,
+            "mae": 5.962392425917916
+          }
+        ],
+        "fold_r2": [
+          0.9046112815833859,
+          0.8456266252367121,
+          0.874257948592871,
+          0.9066114174856416,
+          0.8902763631730575
+        ],
+        "fold_mae": [
+          4.448256796995799,
+          4.565097177500527,
+          2.2045110088090087,
+          2.6245542444868217,
+          5.962392425917916
+        ],
+        "mean_r2": 0.8842767272143336,
+        "std_r2": 0.022550097252503527,
+        "mean_mae": 3.9609623307420145,
+        "std_mae": 1.3768997824906344
+      },
+      "train": {
+        "r2": 0.9875858691077704,
+        "mae": 1.448540364949364
+      },
+      "feature_importance": {
+        "label": "Gain",
+        "kind": "gain",
+        "top_items": [
+          {
+            "feature": "precipitation_mm_day_lag1",
+            "score": 116.45379638671875
+          },
+          {
+            "feature": "precipitation_mm_day_roll3",
+            "score": 114.02725982666016
+          },
+          {
+            "feature": "usdm_sustainability_lag3",
+            "score": 101.49002075195312
+          },
+          {
+            "feature": "ndvi",
+            "score": 94.59716033935547
+          },
+          {
+            "feature": "usdm_sustainability_roll6",
+            "score": 83.53679656982422
+          },
+          {
+            "feature": "usdm_sustainability_roll3",
+            "score": 68.5193099975586
+          },
+          {
+            "feature": "grace_groundwater_anomaly",
+            "score": 67.99799346923828
+          },
+          {
+            "feature": "precipitation_mm_day",
+            "score": 65.11873626708984
+          },
+          {
+            "feature": "precipitation_mm_day_roll6",
+            "score": 50.3501091003418
+          },
+          {
+            "feature": "ndvi_lag1",
+            "score": 50.10054016113281
+          },
+          {
+            "feature": "grace_groundwater_anomaly_lag1",
+            "score": 50.00513458251953
+          },
+          {
+            "feature": "month_cos",
+            "score": 46.720333099365234
+          },
+          {
+            "feature": "grace_groundwater_anomaly_roll6",
+            "score": 40.2170295715332
+          },
+          {
+            "feature": "snow_water_equivalent_in",
+            "score": 37.82516860961914
+          },
+          {
+            "feature": "streamflow_cfs_lag1",
+            "score": 35.53498840332031
+          }
+        ]
+      }
+    },
+    "grace_window_xgb_compact_plus_hydroclimate_residual_lag1_focused": {
+      "label": "XGBoost (compact + precip/GRACE dynamics + temperature, residual over lag1, focused search, GRACE window)",
+      "model_family": "xgboost",
+      "feature_set": "compact_plus_hydroclimate",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "feature_names": [
+        "month_sin",
+        "month_cos",
+        "usdm_sustainability_lag1",
+        "usdm_sustainability_lag3",
+        "usdm_sustainability_roll3",
+        "usdm_sustainability_roll6",
+        "streamflow_cfs",
+        "streamflow_cfs_lag1",
+        "streamflow_cfs_roll3",
+        "snow_water_equivalent_in",
+        "snow_water_equivalent_in_lag1",
+        "powell_pool_elevation",
+        "ndvi",
+        "ndvi_lag1",
+        "precipitation_mm_day",
+        "precipitation_mm_day_lag1",
+        "grace_groundwater_anomaly",
+        "grace_groundwater_anomaly_lag1",
+        "grace_available",
+        "powell_pool_elevation_lag1",
+        "precipitation_mm_day_roll3",
+        "precipitation_mm_day_roll6",
+        "grace_groundwater_anomaly_roll3",
+        "grace_groundwater_anomaly_roll6",
+        "temperature_2m_c",
+        "temperature_2m_c_lag1",
+        "temperature_2m_c_roll3",
+        "temperature_2m_c_roll6",
+        "temperature_2m_c_anomaly",
+        "temperature_2m_c_anomaly_lag1",
+        "temperature_2m_c_anomaly_roll3"
+      ],
+      "n_features": 31,
+      "search_note": "RandomizedSearchCV, 80 focused iterations on residual target",
+      "search_best_score": 0.8922358204450024,
+      "best_params": {
+        "base_estimator__model__subsample": 0.6,
+        "base_estimator__model__reg_lambda": 5,
+        "base_estimator__model__reg_alpha": 0,
+        "base_estimator__model__n_estimators": 500,
+        "base_estimator__model__min_child_weight": 2,
+        "base_estimator__model__max_depth": 4,
+        "base_estimator__model__learning_rate": 0.01,
+        "base_estimator__model__colsample_bytree": 0.6
+      },
+      "cv": {
+        "folds": [
+          {
+            "fold": 1,
+            "train_start": "2002-10",
+            "train_end": "2005-12",
+            "test_start": "2006-01",
+            "test_end": "2008-12",
+            "n_train": 39,
+            "n_test": 36,
+            "r2": 0.9028927041653333,
+            "mae": 4.463001948230795
+          },
+          {
+            "fold": 2,
+            "train_start": "2002-10",
+            "train_end": "2008-12",
+            "test_start": "2009-01",
+            "test_end": "2011-12",
+            "n_train": 75,
+            "n_test": 36,
+            "r2": 0.8583933132237221,
+            "mae": 4.3404472890413475
+          },
+          {
+            "fold": 3,
+            "train_start": "2002-10",
+            "train_end": "2011-12",
+            "test_start": "2012-01",
+            "test_end": "2014-12",
+            "n_train": 111,
+            "n_test": 36,
+            "r2": 0.8886084774597626,
+            "mae": 2.1265621329595645
+          },
+          {
+            "fold": 4,
+            "train_start": "2002-10",
+            "train_end": "2014-12",
+            "test_start": "2015-01",
+            "test_end": "2017-12",
+            "n_train": 147,
+            "n_test": 36,
+            "r2": 0.9188134513648396,
+            "mae": 2.4632492050694093
+          },
+          {
+            "fold": 5,
+            "train_start": "2002-10",
+            "train_end": "2017-12",
+            "test_start": "2018-01",
+            "test_end": "2020-12",
+            "n_train": 183,
+            "n_test": 36,
+            "r2": 0.8924711560113545,
+            "mae": 5.847224776558578
+          }
+        ],
+        "fold_r2": [
+          0.9028927041653333,
+          0.8583933132237221,
+          0.8886084774597626,
+          0.9188134513648396,
+          0.8924711560113545
+        ],
+        "fold_mae": [
+          4.463001948230795,
+          4.3404472890413475,
+          2.1265621329595645,
+          2.4632492050694093,
+          5.847224776558578
+        ],
+        "mean_r2": 0.8922358204450024,
+        "std_r2": 0.019892048315462665,
+        "mean_mae": 3.8480970703719395,
+        "std_mae": 1.3782971002687254
+      },
+      "train": {
+        "r2": 0.9893743723299893,
+        "mae": 1.3365094148588776
+      },
+      "feature_importance": {
+        "label": "Gain",
+        "kind": "gain",
+        "top_items": [
+          {
+            "feature": "precipitation_mm_day_lag1",
+            "score": 128.55235290527344
+          },
+          {
+            "feature": "usdm_sustainability_lag3",
+            "score": 113.20152282714844
+          },
+          {
+            "feature": "precipitation_mm_day_roll3",
+            "score": 109.38935089111328
+          },
+          {
+            "feature": "ndvi",
+            "score": 103.14039611816406
+          },
+          {
+            "feature": "temperature_2m_c_anomaly",
+            "score": 95.64407348632812
+          },
+          {
+            "feature": "usdm_sustainability_roll6",
+            "score": 93.62493133544922
+          },
+          {
+            "feature": "temperature_2m_c_lag1",
+            "score": 76.00577545166016
+          },
+          {
+            "feature": "temperature_2m_c_anomaly_lag1",
+            "score": 70.99559783935547
+          },
+          {
+            "feature": "usdm_sustainability_roll3",
+            "score": 66.64984130859375
+          },
+          {
+            "feature": "grace_groundwater_anomaly",
+            "score": 58.931514739990234
+          },
+          {
+            "feature": "precipitation_mm_day",
+            "score": 58.801509857177734
+          },
+          {
+            "feature": "temperature_2m_c_roll6",
+            "score": 52.729209899902344
+          },
+          {
+            "feature": "precipitation_mm_day_roll6",
+            "score": 49.662109375
+          },
+          {
+            "feature": "temperature_2m_c",
+            "score": 46.31729507446289
+          },
+          {
+            "feature": "grace_groundwater_anomaly_lag1",
+            "score": 41.03403091430664
+          }
+        ]
+      }
     }
   },
   "baselines": {
@@ -1243,5 +3531,805 @@
       "mean_mae": 8.794427350427348,
       "std_mae": 3.326923825195202
     }
+  },
+  "grace_window_report": {
+    "window_start": "2002-10",
+    "n_rows": 219,
+    "baselines": {
+      "lag1_persistence": {
+        "folds": [
+          {
+            "fold": 1,
+            "train_start": "2002-10",
+            "train_end": "2005-12",
+            "test_start": "2006-01",
+            "test_end": "2008-12",
+            "n_train": 39,
+            "n_test": 36,
+            "r2": 0.8656412708027312,
+            "mae": 5.449166666666667
+          },
+          {
+            "fold": 2,
+            "train_start": "2002-10",
+            "train_end": "2008-12",
+            "test_start": "2009-01",
+            "test_end": "2011-12",
+            "n_train": 75,
+            "n_test": 36,
+            "r2": 0.7957041851873261,
+            "mae": 5.236944444444445
+          },
+          {
+            "fold": 3,
+            "train_start": "2002-10",
+            "train_end": "2011-12",
+            "test_start": "2012-01",
+            "test_end": "2014-12",
+            "n_train": 111,
+            "n_test": 36,
+            "r2": 0.6431820076316717,
+            "mae": 3.9069444444444437
+          },
+          {
+            "fold": 4,
+            "train_start": "2002-10",
+            "train_end": "2014-12",
+            "test_start": "2015-01",
+            "test_end": "2017-12",
+            "n_train": 147,
+            "n_test": 36,
+            "r2": 0.7830034057035858,
+            "mae": 3.6111111111111103
+          },
+          {
+            "fold": 5,
+            "train_start": "2002-10",
+            "train_end": "2017-12",
+            "test_start": "2018-01",
+            "test_end": "2020-12",
+            "n_train": 183,
+            "n_test": 36,
+            "r2": 0.8625207508544039,
+            "mae": 7.620555555555555
+          }
+        ],
+        "fold_r2": [
+          0.8656412708027312,
+          0.7957041851873261,
+          0.6431820076316717,
+          0.7830034057035858,
+          0.8625207508544039
+        ],
+        "fold_mae": [
+          5.449166666666667,
+          5.236944444444445,
+          3.9069444444444437,
+          3.6111111111111103,
+          7.620555555555555
+        ],
+        "mean_r2": 0.7900103240359437,
+        "std_r2": 0.0807686493185029,
+        "mean_mae": 5.164944444444444,
+        "std_mae": 1.422178204613969
+      },
+      "roll3_mean": {
+        "folds": [
+          {
+            "fold": 1,
+            "train_start": "2002-10",
+            "train_end": "2005-12",
+            "test_start": "2006-01",
+            "test_end": "2008-12",
+            "n_train": 39,
+            "n_test": 36,
+            "r2": 0.6435858604289739,
+            "mae": 9.328055555555554
+          },
+          {
+            "fold": 2,
+            "train_start": "2002-10",
+            "train_end": "2008-12",
+            "test_start": "2009-01",
+            "test_end": "2011-12",
+            "n_train": 75,
+            "n_test": 36,
+            "r2": 0.5290004051731342,
+            "mae": 7.695000000000001
+          },
+          {
+            "fold": 3,
+            "train_start": "2002-10",
+            "train_end": "2011-12",
+            "test_start": "2012-01",
+            "test_end": "2014-12",
+            "n_train": 111,
+            "n_test": 36,
+            "r2": 0.07819604065475727,
+            "mae": 6.684999999999998
+          },
+          {
+            "fold": 4,
+            "train_start": "2002-10",
+            "train_end": "2014-12",
+            "test_start": "2015-01",
+            "test_end": "2017-12",
+            "n_train": 147,
+            "n_test": 36,
+            "r2": 0.52226876150574,
+            "mae": 5.874999999999997
+          },
+          {
+            "fold": 5,
+            "train_start": "2002-10",
+            "train_end": "2017-12",
+            "test_start": "2018-01",
+            "test_end": "2020-12",
+            "n_train": 183,
+            "n_test": 36,
+            "r2": 0.5966114577352415,
+            "mae": 14.796111111111113
+          }
+        ],
+        "fold_r2": [
+          0.6435858604289739,
+          0.5290004051731342,
+          0.07819604065475727,
+          0.52226876150574,
+          0.5966114577352415
+        ],
+        "fold_mae": [
+          9.328055555555554,
+          7.695000000000001,
+          6.684999999999998,
+          5.874999999999997,
+          14.796111111111113
+        ],
+        "mean_r2": 0.4739325050995694,
+        "std_r2": 0.20288351484902162,
+        "mean_mae": 8.875833333333333,
+        "std_mae": 3.17658032022869
+      }
+    },
+    "experiments": {
+      "grace_window_xgb_full_residual_lag1_focused": {
+        "label": "XGBoost (all features, residual over lag1, focused search, GRACE window)",
+        "model_family": "xgboost",
+        "feature_set": "full",
+        "prediction_mode": "residual_lag1",
+        "export_compatible": true,
+        "feature_names": [
+          "snow_water_equivalent_in",
+          "irrigation_total_withdrawal_mgd",
+          "public_supply_groundwater_mgd",
+          "powell_evaporation",
+          "powell_total_release",
+          "powell_inflow",
+          "powell_storage",
+          "powell_pool_elevation",
+          "ndvi",
+          "precipitation_mm_day",
+          "temperature_2m_c",
+          "grace_groundwater_anomaly",
+          "streamflow_cfs",
+          "grace_available",
+          "month_sin",
+          "month_cos",
+          "temperature_2m_c_anomaly",
+          "usdm_sustainability_lag1",
+          "usdm_sustainability_lag3",
+          "streamflow_cfs_lag1",
+          "snow_water_equivalent_in_lag1",
+          "powell_storage_lag1",
+          "powell_pool_elevation_lag1",
+          "precipitation_mm_day_lag1",
+          "temperature_2m_c_lag1",
+          "temperature_2m_c_anomaly_lag1",
+          "grace_groundwater_anomaly_lag1",
+          "ndvi_lag1",
+          "usdm_sustainability_roll3",
+          "usdm_sustainability_roll6",
+          "streamflow_cfs_roll3",
+          "precipitation_mm_day_roll3",
+          "precipitation_mm_day_roll6",
+          "temperature_2m_c_roll3",
+          "temperature_2m_c_roll6",
+          "temperature_2m_c_anomaly_roll3",
+          "grace_groundwater_anomaly_roll3",
+          "grace_groundwater_anomaly_roll6",
+          "AZPOP_pct_change"
+        ],
+        "n_features": 39,
+        "search_note": "RandomizedSearchCV, 80 focused iterations on residual target",
+        "search_best_score": 0.8945678442254416,
+        "best_params": {
+          "base_estimator__model__subsample": 1.0,
+          "base_estimator__model__reg_lambda": 1,
+          "base_estimator__model__reg_alpha": 0.05,
+          "base_estimator__model__n_estimators": 800,
+          "base_estimator__model__min_child_weight": 1,
+          "base_estimator__model__max_depth": 3,
+          "base_estimator__model__learning_rate": 0.05,
+          "base_estimator__model__colsample_bytree": 0.7
+        },
+        "cv": {
+          "folds": [
+            {
+              "fold": 1,
+              "train_start": "2002-10",
+              "train_end": "2005-12",
+              "test_start": "2006-01",
+              "test_end": "2008-12",
+              "n_train": 39,
+              "n_test": 36,
+              "r2": 0.9148101413512858,
+              "mae": 4.159257324536641
+            },
+            {
+              "fold": 2,
+              "train_start": "2002-10",
+              "train_end": "2008-12",
+              "test_start": "2009-01",
+              "test_end": "2011-12",
+              "n_train": 75,
+              "n_test": 36,
+              "r2": 0.8733164716503422,
+              "mae": 3.8490192469540574
+            },
+            {
+              "fold": 3,
+              "train_start": "2002-10",
+              "train_end": "2011-12",
+              "test_start": "2012-01",
+              "test_end": "2014-12",
+              "n_train": 111,
+              "n_test": 36,
+              "r2": 0.8620482898053213,
+              "mae": 2.29320150163542
+            },
+            {
+              "fold": 4,
+              "train_start": "2002-10",
+              "train_end": "2014-12",
+              "test_start": "2015-01",
+              "test_end": "2017-12",
+              "n_train": 147,
+              "n_test": 36,
+              "r2": 0.9278530066380406,
+              "mae": 2.268958900032772
+            },
+            {
+              "fold": 5,
+              "train_start": "2002-10",
+              "train_end": "2017-12",
+              "test_start": "2018-01",
+              "test_end": "2020-12",
+              "n_train": 183,
+              "n_test": 36,
+              "r2": 0.8948113116822172,
+              "mae": 5.621175218973723
+            }
+          ],
+          "fold_r2": [
+            0.9148101413512858,
+            0.8733164716503422,
+            0.8620482898053213,
+            0.9278530066380406,
+            0.8948113116822172
+          ],
+          "fold_mae": [
+            4.159257324536641,
+            3.8490192469540574,
+            2.29320150163542,
+            2.268958900032772,
+            5.621175218973723
+          ],
+          "mean_r2": 0.8945678442254416,
+          "std_r2": 0.024604284838927598,
+          "mean_mae": 3.6383224384265227,
+          "std_mae": 1.2595219954323975
+        },
+        "train": {
+          "r2": 0.9999820240765811,
+          "mae": 0.06604363654642316
+        },
+        "feature_importance": {
+          "label": "Gain",
+          "kind": "gain",
+          "top_items": [
+            {
+              "feature": "precipitation_mm_day_lag1",
+              "score": 101.0537109375
+            },
+            {
+              "feature": "usdm_sustainability_lag3",
+              "score": 72.40084075927734
+            },
+            {
+              "feature": "precipitation_mm_day_roll3",
+              "score": 58.712520599365234
+            },
+            {
+              "feature": "temperature_2m_c_lag1",
+              "score": 54.945274353027344
+            },
+            {
+              "feature": "temperature_2m_c_anomaly",
+              "score": 45.63296127319336
+            },
+            {
+              "feature": "ndvi",
+              "score": 42.434486389160156
+            },
+            {
+              "feature": "temperature_2m_c_anomaly_lag1",
+              "score": 41.00539016723633
+            },
+            {
+              "feature": "usdm_sustainability_roll6",
+              "score": 40.921356201171875
+            },
+            {
+              "feature": "precipitation_mm_day",
+              "score": 30.469160079956055
+            },
+            {
+              "feature": "month_cos",
+              "score": 27.017648696899414
+            },
+            {
+              "feature": "usdm_sustainability_roll3",
+              "score": 19.211044311523438
+            },
+            {
+              "feature": "grace_groundwater_anomaly",
+              "score": 17.107038497924805
+            },
+            {
+              "feature": "streamflow_cfs",
+              "score": 16.913005828857422
+            },
+            {
+              "feature": "grace_groundwater_anomaly_roll6",
+              "score": 15.872584342956543
+            },
+            {
+              "feature": "grace_groundwater_anomaly_lag1",
+              "score": 15.143122673034668
+            }
+          ]
+        }
+      },
+      "grace_window_xgb_compact_plus_endpoint_dynamics_residual_lag1_focused": {
+        "label": "XGBoost (compact + precip/GRACE dynamics, residual over lag1, focused search, GRACE window)",
+        "model_family": "xgboost",
+        "feature_set": "compact_plus_endpoint_dynamics",
+        "prediction_mode": "residual_lag1",
+        "export_compatible": true,
+        "feature_names": [
+          "month_sin",
+          "month_cos",
+          "usdm_sustainability_lag1",
+          "usdm_sustainability_lag3",
+          "usdm_sustainability_roll3",
+          "usdm_sustainability_roll6",
+          "streamflow_cfs",
+          "streamflow_cfs_lag1",
+          "streamflow_cfs_roll3",
+          "snow_water_equivalent_in",
+          "snow_water_equivalent_in_lag1",
+          "powell_pool_elevation",
+          "ndvi",
+          "ndvi_lag1",
+          "precipitation_mm_day",
+          "precipitation_mm_day_lag1",
+          "grace_groundwater_anomaly",
+          "grace_groundwater_anomaly_lag1",
+          "grace_available",
+          "powell_pool_elevation_lag1",
+          "precipitation_mm_day_roll3",
+          "precipitation_mm_day_roll6",
+          "grace_groundwater_anomaly_roll3",
+          "grace_groundwater_anomaly_roll6"
+        ],
+        "n_features": 24,
+        "search_note": "RandomizedSearchCV, 80 focused iterations on residual target",
+        "search_best_score": 0.8842767272143336,
+        "best_params": {
+          "base_estimator__model__subsample": 0.6,
+          "base_estimator__model__reg_lambda": 5,
+          "base_estimator__model__reg_alpha": 0,
+          "base_estimator__model__n_estimators": 500,
+          "base_estimator__model__min_child_weight": 2,
+          "base_estimator__model__max_depth": 4,
+          "base_estimator__model__learning_rate": 0.01,
+          "base_estimator__model__colsample_bytree": 0.6
+        },
+        "cv": {
+          "folds": [
+            {
+              "fold": 1,
+              "train_start": "2002-10",
+              "train_end": "2005-12",
+              "test_start": "2006-01",
+              "test_end": "2008-12",
+              "n_train": 39,
+              "n_test": 36,
+              "r2": 0.9046112815833859,
+              "mae": 4.448256796995799
+            },
+            {
+              "fold": 2,
+              "train_start": "2002-10",
+              "train_end": "2008-12",
+              "test_start": "2009-01",
+              "test_end": "2011-12",
+              "n_train": 75,
+              "n_test": 36,
+              "r2": 0.8456266252367121,
+              "mae": 4.565097177500527
+            },
+            {
+              "fold": 3,
+              "train_start": "2002-10",
+              "train_end": "2011-12",
+              "test_start": "2012-01",
+              "test_end": "2014-12",
+              "n_train": 111,
+              "n_test": 36,
+              "r2": 0.874257948592871,
+              "mae": 2.2045110088090087
+            },
+            {
+              "fold": 4,
+              "train_start": "2002-10",
+              "train_end": "2014-12",
+              "test_start": "2015-01",
+              "test_end": "2017-12",
+              "n_train": 147,
+              "n_test": 36,
+              "r2": 0.9066114174856416,
+              "mae": 2.6245542444868217
+            },
+            {
+              "fold": 5,
+              "train_start": "2002-10",
+              "train_end": "2017-12",
+              "test_start": "2018-01",
+              "test_end": "2020-12",
+              "n_train": 183,
+              "n_test": 36,
+              "r2": 0.8902763631730575,
+              "mae": 5.962392425917916
+            }
+          ],
+          "fold_r2": [
+            0.9046112815833859,
+            0.8456266252367121,
+            0.874257948592871,
+            0.9066114174856416,
+            0.8902763631730575
+          ],
+          "fold_mae": [
+            4.448256796995799,
+            4.565097177500527,
+            2.2045110088090087,
+            2.6245542444868217,
+            5.962392425917916
+          ],
+          "mean_r2": 0.8842767272143336,
+          "std_r2": 0.022550097252503527,
+          "mean_mae": 3.9609623307420145,
+          "std_mae": 1.3768997824906344
+        },
+        "train": {
+          "r2": 0.9875858691077704,
+          "mae": 1.448540364949364
+        },
+        "feature_importance": {
+          "label": "Gain",
+          "kind": "gain",
+          "top_items": [
+            {
+              "feature": "precipitation_mm_day_lag1",
+              "score": 116.45379638671875
+            },
+            {
+              "feature": "precipitation_mm_day_roll3",
+              "score": 114.02725982666016
+            },
+            {
+              "feature": "usdm_sustainability_lag3",
+              "score": 101.49002075195312
+            },
+            {
+              "feature": "ndvi",
+              "score": 94.59716033935547
+            },
+            {
+              "feature": "usdm_sustainability_roll6",
+              "score": 83.53679656982422
+            },
+            {
+              "feature": "usdm_sustainability_roll3",
+              "score": 68.5193099975586
+            },
+            {
+              "feature": "grace_groundwater_anomaly",
+              "score": 67.99799346923828
+            },
+            {
+              "feature": "precipitation_mm_day",
+              "score": 65.11873626708984
+            },
+            {
+              "feature": "precipitation_mm_day_roll6",
+              "score": 50.3501091003418
+            },
+            {
+              "feature": "ndvi_lag1",
+              "score": 50.10054016113281
+            },
+            {
+              "feature": "grace_groundwater_anomaly_lag1",
+              "score": 50.00513458251953
+            },
+            {
+              "feature": "month_cos",
+              "score": 46.720333099365234
+            },
+            {
+              "feature": "grace_groundwater_anomaly_roll6",
+              "score": 40.2170295715332
+            },
+            {
+              "feature": "snow_water_equivalent_in",
+              "score": 37.82516860961914
+            },
+            {
+              "feature": "streamflow_cfs_lag1",
+              "score": 35.53498840332031
+            }
+          ]
+        }
+      },
+      "grace_window_xgb_compact_plus_hydroclimate_residual_lag1_focused": {
+        "label": "XGBoost (compact + precip/GRACE dynamics + temperature, residual over lag1, focused search, GRACE window)",
+        "model_family": "xgboost",
+        "feature_set": "compact_plus_hydroclimate",
+        "prediction_mode": "residual_lag1",
+        "export_compatible": true,
+        "feature_names": [
+          "month_sin",
+          "month_cos",
+          "usdm_sustainability_lag1",
+          "usdm_sustainability_lag3",
+          "usdm_sustainability_roll3",
+          "usdm_sustainability_roll6",
+          "streamflow_cfs",
+          "streamflow_cfs_lag1",
+          "streamflow_cfs_roll3",
+          "snow_water_equivalent_in",
+          "snow_water_equivalent_in_lag1",
+          "powell_pool_elevation",
+          "ndvi",
+          "ndvi_lag1",
+          "precipitation_mm_day",
+          "precipitation_mm_day_lag1",
+          "grace_groundwater_anomaly",
+          "grace_groundwater_anomaly_lag1",
+          "grace_available",
+          "powell_pool_elevation_lag1",
+          "precipitation_mm_day_roll3",
+          "precipitation_mm_day_roll6",
+          "grace_groundwater_anomaly_roll3",
+          "grace_groundwater_anomaly_roll6",
+          "temperature_2m_c",
+          "temperature_2m_c_lag1",
+          "temperature_2m_c_roll3",
+          "temperature_2m_c_roll6",
+          "temperature_2m_c_anomaly",
+          "temperature_2m_c_anomaly_lag1",
+          "temperature_2m_c_anomaly_roll3"
+        ],
+        "n_features": 31,
+        "search_note": "RandomizedSearchCV, 80 focused iterations on residual target",
+        "search_best_score": 0.8922358204450024,
+        "best_params": {
+          "base_estimator__model__subsample": 0.6,
+          "base_estimator__model__reg_lambda": 5,
+          "base_estimator__model__reg_alpha": 0,
+          "base_estimator__model__n_estimators": 500,
+          "base_estimator__model__min_child_weight": 2,
+          "base_estimator__model__max_depth": 4,
+          "base_estimator__model__learning_rate": 0.01,
+          "base_estimator__model__colsample_bytree": 0.6
+        },
+        "cv": {
+          "folds": [
+            {
+              "fold": 1,
+              "train_start": "2002-10",
+              "train_end": "2005-12",
+              "test_start": "2006-01",
+              "test_end": "2008-12",
+              "n_train": 39,
+              "n_test": 36,
+              "r2": 0.9028927041653333,
+              "mae": 4.463001948230795
+            },
+            {
+              "fold": 2,
+              "train_start": "2002-10",
+              "train_end": "2008-12",
+              "test_start": "2009-01",
+              "test_end": "2011-12",
+              "n_train": 75,
+              "n_test": 36,
+              "r2": 0.8583933132237221,
+              "mae": 4.3404472890413475
+            },
+            {
+              "fold": 3,
+              "train_start": "2002-10",
+              "train_end": "2011-12",
+              "test_start": "2012-01",
+              "test_end": "2014-12",
+              "n_train": 111,
+              "n_test": 36,
+              "r2": 0.8886084774597626,
+              "mae": 2.1265621329595645
+            },
+            {
+              "fold": 4,
+              "train_start": "2002-10",
+              "train_end": "2014-12",
+              "test_start": "2015-01",
+              "test_end": "2017-12",
+              "n_train": 147,
+              "n_test": 36,
+              "r2": 0.9188134513648396,
+              "mae": 2.4632492050694093
+            },
+            {
+              "fold": 5,
+              "train_start": "2002-10",
+              "train_end": "2017-12",
+              "test_start": "2018-01",
+              "test_end": "2020-12",
+              "n_train": 183,
+              "n_test": 36,
+              "r2": 0.8924711560113545,
+              "mae": 5.847224776558578
+            }
+          ],
+          "fold_r2": [
+            0.9028927041653333,
+            0.8583933132237221,
+            0.8886084774597626,
+            0.9188134513648396,
+            0.8924711560113545
+          ],
+          "fold_mae": [
+            4.463001948230795,
+            4.3404472890413475,
+            2.1265621329595645,
+            2.4632492050694093,
+            5.847224776558578
+          ],
+          "mean_r2": 0.8922358204450024,
+          "std_r2": 0.019892048315462665,
+          "mean_mae": 3.8480970703719395,
+          "std_mae": 1.3782971002687254
+        },
+        "train": {
+          "r2": 0.9893743723299893,
+          "mae": 1.3365094148588776
+        },
+        "feature_importance": {
+          "label": "Gain",
+          "kind": "gain",
+          "top_items": [
+            {
+              "feature": "precipitation_mm_day_lag1",
+              "score": 128.55235290527344
+            },
+            {
+              "feature": "usdm_sustainability_lag3",
+              "score": 113.20152282714844
+            },
+            {
+              "feature": "precipitation_mm_day_roll3",
+              "score": 109.38935089111328
+            },
+            {
+              "feature": "ndvi",
+              "score": 103.14039611816406
+            },
+            {
+              "feature": "temperature_2m_c_anomaly",
+              "score": 95.64407348632812
+            },
+            {
+              "feature": "usdm_sustainability_roll6",
+              "score": 93.62493133544922
+            },
+            {
+              "feature": "temperature_2m_c_lag1",
+              "score": 76.00577545166016
+            },
+            {
+              "feature": "temperature_2m_c_anomaly_lag1",
+              "score": 70.99559783935547
+            },
+            {
+              "feature": "usdm_sustainability_roll3",
+              "score": 66.64984130859375
+            },
+            {
+              "feature": "grace_groundwater_anomaly",
+              "score": 58.931514739990234
+            },
+            {
+              "feature": "precipitation_mm_day",
+              "score": 58.801509857177734
+            },
+            {
+              "feature": "temperature_2m_c_roll6",
+              "score": 52.729209899902344
+            },
+            {
+              "feature": "precipitation_mm_day_roll6",
+              "score": 49.662109375
+            },
+            {
+              "feature": "temperature_2m_c",
+              "score": 46.31729507446289
+            },
+            {
+              "feature": "grace_groundwater_anomaly_lag1",
+              "score": 41.03403091430664
+            }
+          ]
+        }
+      }
+    },
+    "leaderboard": [
+      {
+        "name": "grace_window_xgb_full_residual_lag1_focused",
+        "label": "XGBoost (all features, residual over lag1, focused search, GRACE window)",
+        "kind": "candidate",
+        "mean_r2": 0.8945678442254416,
+        "mean_mae": 3.6383224384265227
+      },
+      {
+        "name": "grace_window_xgb_compact_plus_hydroclimate_residual_lag1_focused",
+        "label": "XGBoost (compact + precip/GRACE dynamics + temperature, residual over lag1, focused search, GRACE window)",
+        "kind": "candidate",
+        "mean_r2": 0.8922358204450024,
+        "mean_mae": 3.8480970703719395
+      },
+      {
+        "name": "grace_window_xgb_compact_plus_endpoint_dynamics_residual_lag1_focused",
+        "label": "XGBoost (compact + precip/GRACE dynamics, residual over lag1, focused search, GRACE window)",
+        "kind": "candidate",
+        "mean_r2": 0.8842767272143336,
+        "mean_mae": 3.9609623307420145
+      },
+      {
+        "name": "lag1_persistence",
+        "label": "lag1_persistence",
+        "kind": "baseline",
+        "mean_r2": 0.7900103240359437,
+        "mean_mae": 5.164944444444444
+      },
+      {
+        "name": "roll3_mean",
+        "label": "roll3_mean",
+        "kind": "baseline",
+        "mean_r2": 0.4739325050995694,
+        "mean_mae": 8.875833333333333
+      }
+    ]
   }
 }

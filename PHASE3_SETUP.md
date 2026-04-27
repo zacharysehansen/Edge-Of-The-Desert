@@ -19,34 +19,37 @@ Do not skip this step. The current Phase 2 export is strong, but it does **not**
 
 Current exported model facts:
 
-- `model/water_sustainability.onnx` uses a compact `14`-feature input contract
-- exported inputs currently include `streamflow_cfs`, `snow_water_equivalent_in`, `powell_pool_elevation`, `ndvi`, seasonal terms, and lag/rolling target features
-- the repo now includes final endpoint CSVs for `merra_precipitation.csv` and `grace_groundwater_anomaly.csv` in `data/Final/`
-- the current exported model does **not** include `precipitation`
-- the current exported model does **not** include `grace_groundwater_anomaly`
-- the new precipitation and GRACE endpoint CSVs are not yet part of the browser asset bundle or the exported model artifacts
-- `model/historical_sustainability.csv` contains the target history, but not the full feature vector needed for time-series point tooltips
+- `model/water_sustainability.onnx` now uses a full `39`-feature input contract
+- exported inputs now include `streamflow_cfs`, `snow_water_equivalent_in`, `powell_pool_elevation`, `precipitation_mm_day`, `grace_groundwater_anomaly`, `temperature_2m_c`, seasonal terms, and lag/rolling features
+- the repo now includes final endpoint CSVs for `merra_precipitation.csv`, `merra_temperature_2m.csv`, and `grace_groundwater_anomaly.csv` in `data/Final/`
+- the current exported model already includes `precipitation_mm_day`
+- the current exported model already includes `grace_groundwater_anomaly`
+- the current exported model already includes temperature-derived features, even though temperature is not one of the four proposal sliders
+- these new endpoint CSVs are still not part of the browser asset bundle yet
+- `model/historical_sustainability.csv` now reflects the finalized export window and currently covers `2002-10` through `2020-12`, not the full `2000-01` through `2023-12` exhibit timeline
+- `model/historical_sustainability.csv` still does not contain the full feature vector needed for time-series point tooltips
 
 Because of that, Phase 3 needs a short artifact-alignment pass before the UI is built.
 
 Required alignment tasks:
 
-1. Copy `data/Final/merra_precipitation.csv` and `data/Final/grace_groundwater_anomaly.csv` into the final browser asset bundle.
-2. Decide whether `precipitation_mm_day` and `grace_groundwater_anomaly` are:
-   - visual-only support data
-   - model-facing inputs that require a Phase 2 retrain and re-export
-3. Decide whether GRACE is:
-   - visual-only, used only to place the water table line
-   - model-facing, which would require retraining and re-exporting the ONNX model
+1. Copy `data/Final/merra_precipitation.csv`, `data/Final/merra_temperature_2m.csv`, and `data/Final/grace_groundwater_anomaly.csv` into the final browser asset bundle.
+2. Freeze how the non-slider model inputs behave during browser projection.
+   - The proposal exposes four sliders: Powell pool elevation, snow water equivalent, streamflow, and precipitation.
+   - The exported model also consumes temperature, NDVI, irrigation, public supply, population change, GRACE availability, and several lag/rolling features.
+   - Decide which non-slider exogenous inputs stay fixed, which are seeded from the latest historical row, and which are recomputed during the autoregressive loop.
+3. Keep GRACE as both:
+   - a model-facing input already required by the ONNX contract
+   - a visual support signal for the aquifer cross-section water-table placement
 4. Export a `historical_feature_vectors.csv` file so each historical point can open a tooltip with the raw inputs and lag features that produced that score.
-5. Decide how to handle `2021-01` through `2023-12` for tooltip completeness.
-   - The current historical score series reaches `2023-12`.
-   - Some feature sources used for modeling stop earlier.
-   - If you want exact full-vector tooltips for every historical point through `2023-12`, extend or backfill the required feature sources first.
+5. Decide how to handle the historical coverage gap between the finalized export and the exhibit target timeline.
+   - The current exported historical score series covers `2002-10` through `2020-12`.
+   - The proposal still describes a visible historical record through `2023-12`.
+   - If you want exact full-vector tooltips and model-aligned history through `2023-12`, extend or backfill the required feature sources and rebuild the model artifacts first.
 
 If the proposal must be implemented exactly as written, do the artifact-alignment work first and then freeze the final feature contract before writing the frontend.
 
-If you need a temporary fallback while that alignment work happens, the current ONNX model can still support a Phase 3 prototype using `NDVI` instead of `precipitation`, but that is **not** the final target described in the proposal.
+The biggest remaining mismatch is no longer precipitation or GRACE. It is that the current ONNX model depends on more covariates than the four planned sliders expose.
 
 ---
 
@@ -113,6 +116,7 @@ Minimum required browser assets:
 - `display_metadata.json`
 - `grace_groundwater_anomaly.csv`
 - `merra_precipitation.csv`
+- `merra_temperature_2m.csv`
 
 `display_metadata.json` should include:
 

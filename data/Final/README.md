@@ -45,6 +45,12 @@ Current endpoint/source files in this folder:
   Columns: `year_month, precipitation_mm_day`
   Coverage: monthly from `2000-01` through `2023-12`
 
+- `merra_temperature_2m.csv`
+  Arizona-wide monthly MERRA-2 2m temperature feature derived from the locally
+  downloaded `data/raw/merra_temperature_2m/*.nc4` files.
+  Columns: `year_month, temperature_2m_c`
+  Coverage: monthly from `2000-01` through `2023-12`
+
 - `grace_groundwater_anomaly.csv`
   Arizona-wide monthly GRACE groundwater anomaly feature derived from the GRACE
   / GRACE-FO raw files in `data/raw/grace_groundwater_anomaly/`.
