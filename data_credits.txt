@@ -1,0 +1,58 @@
+Data Sources and Credits
+========================
+
+The following sources provided data used in this project:
+
+1. USGS ScienceBase - Public Supply Water Use Reanalysis
+   [https://www.sciencebase.gov/catalog/item/65f86970d34e97daac9ff4c8](https://www.sciencebase.gov/catalog/item/65f86970d34e97daac9ff4c8)
+   U.S. Geological Survey. Public supply water use reanalysis for the 2000-2020
+   period by HUC12, month, and year for the conterminous United States.
+
+2. USGS ScienceBase - Additional Dataset
+   [https://www.sciencebase.gov/catalog/item/6488734cd34ef77fcafe347a](https://www.sciencebase.gov/catalog/item/6488734cd34ef77fcafe347a)
+   U.S. Geological Survey. Data accessed via ScienceBase Catalog.
+
+3. Western Regional Climate Center - SNOTEL Snow Data
+   [https://wrcc.dri.edu/cgi-bin/snoX_graphX.pl](https://wrcc.dri.edu/cgi-bin/snoX_graphX.pl)
+   Western Regional Climate Center, Desert Research Institute.
+   SNOTEL snow water equivalent and related climate data.
+
+4. NASA Earthdata LP DAAC - MODIS/Terra Vegetation Indices Monthly L3 Global 1km SIN Grid V061 (MOD13A3)
+   [https://www.earthdata.nasa.gov/es/data/catalog/lpcloud-mod13a3-061](https://www.earthdata.nasa.gov/es/data/catalog/lpcloud-mod13a3-061)
+   NASA Land Processes Distributed Active Archive Center (LP DAAC).
+   MODIS/Terra monthly vegetation indices used for NDVI in phase 1.
+
+5. NASA GES DISC - MERRA-2 statM_2d_slv_Nx, Monthly Single-Level Diagnostics (M2SMNXSLV)
+   [https://data.nasa.gov/dataset/merra-2-statm-2d-slv-nx-2dmonthlyaggregated-statisticssingle-levelassimilationsingle-level-969e2](https://data.nasa.gov/dataset/merra-2-statm-2d-slv-nx-2dmonthlyaggregated-statisticssingle-levelassimilationsingle-level-969e2)
+   NASA Goddard Earth Sciences Data and Information Services Center (GES DISC).
+   MERRA-2 monthly single-level diagnostics used for 2m temperature and specific humidity.
+
+6. NASA GES DISC - MERRA-2 tavgM_2d_flx_Nx, Monthly Surface Flux Diagnostics (M2TMNXFLX)
+   [https://data.nasa.gov/dataset/merra-2-tavgm-2d-flx-nx-2dmonthly-meantime-averagedsingle-levelassimilationsurface-flux-di-45304](https://data.nasa.gov/dataset/merra-2-tavgm-2d-flx-nx-2dmonthly-meantime-averagedsingle-levelassimilationsurface-flux-di-45304)
+   NASA Goddard Earth Sciences Data and Information Services Center (GES DISC).
+   MERRA-2 monthly surface flux diagnostics used for precipitation.
+
+7. NASA PO.DAAC / JPL - JPL TELLUS GRACE Level-3 Monthly Land Water-Equivalent-Thickness Surface Mass Anomaly Release 6.0 version 04
+   [https://podaac-www.jpl.nasa.gov/dataset/TELLUS_GRAC_L3_JPL_RL06_LND_v04](https://podaac-www.jpl.nasa.gov/dataset/TELLUS_GRAC_L3_JPL_RL06_LND_v04)
+   NASA Physical Oceanography Distributed Active Archive Center (PO.DAAC), Jet Propulsion Laboratory.
+   GRACE monthly terrestrial water storage anomaly product used for the earlier part of the groundwater anomaly series.
+
+8. NASA PO.DAAC / JPL - JPL TELLUS GRACE-FO Level-3 Monthly Land Water-Equivalent-Thickness Surface Mass Anomaly Release 6.0 version 04
+   [https://podaac-www.jpl.nasa.gov/dataset/TELLUS_GRFO_L3_JPL_RL06_LND_v04](https://podaac-www.jpl.nasa.gov/dataset/TELLUS_GRFO_L3_JPL_RL06_LND_v04)
+   NASA Physical Oceanography Distributed Active Archive Center (PO.DAAC), Jet Propulsion Laboratory.
+   GRACE-FO monthly terrestrial water storage anomaly product used for the later part of the groundwater anomaly series.
+
+9. Derived Internal Product - GRACE/GRACE-FO Recharge Proxy
+   Derived inside this repository from month-to-month positive changes in the combined
+   GRACE and GRACE-FO land water storage anomaly series.
+   This is a project-derived feature rather than a separately downloaded external dataset.
+
+10. FRED - Resident Population in Arizona (AZPOP)
+   [https://fred.stlouisfed.org/series/AZPOP](https://fred.stlouisfed.org/series/AZPOP)
+   Federal Reserve Bank of St. Louis.
+   Historical Arizona resident population series.
+
+11. U.S. Bureau of Reclamation - Lake Powell Reservoir Data
+   [https://www.usbr.gov/uc/water/hydrodata/reservoir_data/919/dashboard.html#csv/](https://www.usbr.gov/uc/water/hydrodata/reservoir_data/919/dashboard.html#csv/)
+   U.S. Bureau of Reclamation.
+   Historical Lake Powell reservoir data, including lake level information.

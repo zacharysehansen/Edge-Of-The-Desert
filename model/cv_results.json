@@ -1,0 +1,1247 @@
+{
+  "best_learned_model_name": "xgb_compact_residual_lag1",
+  "best_learned_model_label": "XGBoost (compact, residual over lag1)",
+  "best_learned_model_prediction_mode": "residual_lag1",
+  "selected_model_name": "xgb_compact_residual_lag1",
+  "selected_model_label": "XGBoost (compact, residual over lag1)",
+  "selected_model_family": "xgboost",
+  "selected_feature_set": "compact",
+  "report_feature_importance": {
+    "model_name": "xgb_compact_residual_lag1",
+    "model_label": "XGBoost (compact, residual over lag1)",
+    "label": "Gain",
+    "kind": "gain",
+    "top_items": [
+      {
+        "feature": "usdm_sustainability_lag3",
+        "score": 598.8180541992188
+      },
+      {
+        "feature": "ndvi",
+        "score": 466.1211242675781
+      },
+      {
+        "feature": "usdm_sustainability_roll6",
+        "score": 434.17120361328125
+      },
+      {
+        "feature": "ndvi_lag1",
+        "score": 354.7754211425781
+      },
+      {
+        "feature": "streamflow_cfs",
+        "score": 254.6071014404297
+      },
+      {
+        "feature": "snow_water_equivalent_in",
+        "score": 229.73736572265625
+      },
+      {
+        "feature": "month_cos",
+        "score": 225.90037536621094
+      },
+      {
+        "feature": "usdm_sustainability_roll3",
+        "score": 199.29237365722656
+      },
+      {
+        "feature": "usdm_sustainability_lag1",
+        "score": 171.43472290039062
+      },
+      {
+        "feature": "month_sin",
+        "score": 164.70252990722656
+      },
+      {
+        "feature": "streamflow_cfs_lag1",
+        "score": 152.66378784179688
+      },
+      {
+        "feature": "streamflow_cfs_roll3",
+        "score": 105.9860610961914
+      },
+      {
+        "feature": "powell_pool_elevation",
+        "score": 74.94160461425781
+      },
+      {
+        "feature": "snow_water_equivalent_in_lag1",
+        "score": 40.302547454833984
+      }
+    ]
+  },
+  "fold_r2": [
+    0.8471390274935955,
+    0.7109900874754906,
+    0.7600238125795172,
+    0.9181154339541271,
+    0.8764979422811202
+  ],
+  "fold_mae": [
+    5.236248346536587,
+    5.13659637168432,
+    3.2406917065611243,
+    2.9398898353637786,
+    6.934945155922799
+  ],
+  "mean_r2": 0.82255326075677,
+  "std_r2": 0.07616152711040311,
+  "mean_mae": 4.697674283213722,
+  "std_mae": 1.4629217322246806,
+  "best_cv_r2": 0.82255326075677,
+  "best_params": {
+    "base_estimator__model__subsample": 0.8,
+    "base_estimator__model__reg_lambda": 5,
+    "base_estimator__model__reg_alpha": 0,
+    "base_estimator__model__n_estimators": 100,
+    "base_estimator__model__min_child_weight": 1,
+    "base_estimator__model__max_depth": 3,
+    "base_estimator__model__learning_rate": 0.01,
+    "base_estimator__model__colsample_bytree": 0.8
+  },
+  "leaderboard": [
+    {
+      "name": "xgb_compact_residual_lag1",
+      "label": "XGBoost (compact, residual over lag1)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "compact",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "n_features": 14,
+      "mean_r2": 0.82255326075677,
+      "mean_mae": 4.697674283213722,
+      "rank": 1
+    },
+    {
+      "name": "lag1_persistence",
+      "label": "lag1_persistence",
+      "kind": "baseline",
+      "model_family": "baseline",
+      "feature_set": "n/a",
+      "prediction_mode": "level",
+      "export_compatible": false,
+      "n_features": 1,
+      "mean_r2": 0.7899148661106519,
+      "mean_mae": 5.129128205128206,
+      "rank": 2
+    },
+    {
+      "name": "xgb_compact",
+      "label": "XGBoost (compact features)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "compact",
+      "prediction_mode": "level",
+      "export_compatible": true,
+      "n_features": 14,
+      "mean_r2": 0.6590159874251903,
+      "mean_mae": 6.438940653483073,
+      "rank": 3
+    },
+    {
+      "name": "elasticnet_compact",
+      "label": "ElasticNet (compact features)",
+      "kind": "candidate",
+      "model_family": "elasticnet",
+      "feature_set": "compact",
+      "prediction_mode": "level",
+      "export_compatible": true,
+      "n_features": 14,
+      "mean_r2": 0.6008816657333139,
+      "mean_mae": 6.558893177744383,
+      "rank": 4
+    },
+    {
+      "name": "ridge_compact",
+      "label": "Ridge (compact features)",
+      "kind": "candidate",
+      "model_family": "ridge",
+      "feature_set": "compact",
+      "prediction_mode": "level",
+      "export_compatible": true,
+      "n_features": 14,
+      "mean_r2": 0.5510541797470603,
+      "mean_mae": 5.679504572318028,
+      "rank": 5
+    },
+    {
+      "name": "xgb_full",
+      "label": "XGBoost (all features)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "full",
+      "prediction_mode": "level",
+      "export_compatible": true,
+      "n_features": 22,
+      "mean_r2": 0.5242702192173793,
+      "mean_mae": 7.727334122095352,
+      "rank": 6
+    },
+    {
+      "name": "roll3_mean",
+      "label": "roll3_mean",
+      "kind": "baseline",
+      "model_family": "baseline",
+      "feature_set": "n/a",
+      "prediction_mode": "level",
+      "export_compatible": false,
+      "n_features": 1,
+      "mean_r2": 0.46569803313820374,
+      "mean_mae": 8.794427350427348,
+      "rank": 7
+    }
+  ],
+  "experiments": {
+    "xgb_full": {
+      "label": "XGBoost (all features)",
+      "model_family": "xgboost",
+      "feature_set": "full",
+      "prediction_mode": "level",
+      "export_compatible": true,
+      "feature_names": [
+        "snow_water_equivalent_in",
+        "irrigation_total_withdrawal_mgd",
+        "public_supply_groundwater_mgd",
+        "powell_evaporation",
+        "powell_total_release",
+        "powell_inflow",
+        "powell_storage",
+        "powell_pool_elevation",
+        "ndvi",
+        "streamflow_cfs",
+        "month_sin",
+        "month_cos",
+        "usdm_sustainability_lag1",
+        "usdm_sustainability_lag3",
+        "streamflow_cfs_lag1",
+        "snow_water_equivalent_in_lag1",
+        "powell_storage_lag1",
+        "ndvi_lag1",
+        "usdm_sustainability_roll3",
+        "usdm_sustainability_roll6",
+        "streamflow_cfs_roll3",
+        "AZPOP_pct_change"
+      ],
+      "n_features": 22,
+      "search_note": "RandomizedSearchCV, 40 iterations",
+      "search_best_score": 0.5242702192173793,
+      "best_params": {
+        "model__subsample": 0.6,
+        "model__reg_lambda": 2,
+        "model__reg_alpha": 0.5,
+        "model__n_estimators": 500,
+        "model__min_child_weight": 1,
+        "model__max_depth": 3,
+        "model__learning_rate": 0.1,
+        "model__colsample_bytree": 1.0
+      },
+      "cv": {
+        "folds": [
+          {
+            "fold": 1,
+            "train_start": "2001-04",
+            "train_end": "2004-09",
+            "test_start": "2004-10",
+            "test_end": "2007-12",
+            "n_train": 42,
+            "n_test": 39,
+            "r2": -0.15852223355452932,
+            "mae": 15.44890363644331
+          },
+          {
+            "fold": 2,
+            "train_start": "2001-04",
+            "train_end": "2007-12",
+            "test_start": "2008-01",
+            "test_end": "2011-03",
+            "n_train": 81,
+            "n_test": 39,
+            "r2": 0.39431291510641375,
+            "mae": 7.655579204070263
+          },
+          {
+            "fold": 3,
+            "train_start": "2001-04",
+            "train_end": "2011-03",
+            "test_start": "2011-04",
+            "test_end": "2014-06",
+            "n_train": 120,
+            "n_test": 39,
+            "r2": 0.6408764543785742,
+            "mae": 4.060564997746393
+          },
+          {
+            "fold": 4,
+            "train_start": "2001-04",
+            "train_end": "2014-06",
+            "test_start": "2014-07",
+            "test_end": "2017-09",
+            "n_train": 159,
+            "n_test": 39,
+            "r2": 0.8935164474397396,
+            "mae": 3.598023454715044
+          },
+          {
+            "fold": 5,
+            "train_start": "2001-04",
+            "train_end": "2017-09",
+            "test_start": "2017-10",
+            "test_end": "2020-12",
+            "n_train": 198,
+            "n_test": 39,
+            "r2": 0.851167512716698,
+            "mae": 7.873599317501753
+          }
+        ],
+        "fold_r2": [
+          -0.15852223355452932,
+          0.39431291510641375,
+          0.6408764543785742,
+          0.8935164474397396,
+          0.851167512716698
+        ],
+        "fold_mae": [
+          15.44890363644331,
+          7.655579204070263,
+          4.060564997746393,
+          3.598023454715044,
+          7.873599317501753
+        ],
+        "mean_r2": 0.5242702192173793,
+        "std_r2": 0.38468066395028383,
+        "mean_mae": 7.727334122095352,
+        "std_mae": 4.246070664498542
+      },
+      "train": {
+        "r2": 0.999946410724081,
+        "mae": 0.12598724679101894
+      },
+      "feature_importance": {
+        "label": "Gain",
+        "kind": "gain",
+        "top_items": [
+          {
+            "feature": "usdm_sustainability_lag1",
+            "score": 1458.388427734375
+          },
+          {
+            "feature": "powell_pool_elevation",
+            "score": 55.88948440551758
+          },
+          {
+            "feature": "ndvi",
+            "score": 44.936336517333984
+          },
+          {
+            "feature": "powell_inflow",
+            "score": 27.888242721557617
+          },
+          {
+            "feature": "usdm_sustainability_roll6",
+            "score": 26.50226402282715
+          },
+          {
+            "feature": "irrigation_total_withdrawal_mgd",
+            "score": 21.250499725341797
+          },
+          {
+            "feature": "ndvi_lag1",
+            "score": 19.010944366455078
+          },
+          {
+            "feature": "usdm_sustainability_lag3",
+            "score": 18.264507293701172
+          },
+          {
+            "feature": "usdm_sustainability_roll3",
+            "score": 17.70517349243164
+          },
+          {
+            "feature": "month_sin",
+            "score": 16.717748641967773
+          },
+          {
+            "feature": "snow_water_equivalent_in",
+            "score": 16.688827514648438
+          },
+          {
+            "feature": "powell_total_release",
+            "score": 12.208172798156738
+          },
+          {
+            "feature": "streamflow_cfs_lag1",
+            "score": 11.564916610717773
+          },
+          {
+            "feature": "public_supply_groundwater_mgd",
+            "score": 11.490602493286133
+          },
+          {
+            "feature": "streamflow_cfs",
+            "score": 11.4502592086792
+          }
+        ]
+      }
+    },
+    "xgb_compact": {
+      "label": "XGBoost (compact features)",
+      "model_family": "xgboost",
+      "feature_set": "compact",
+      "prediction_mode": "level",
+      "export_compatible": true,
+      "feature_names": [
+        "month_sin",
+        "month_cos",
+        "usdm_sustainability_lag1",
+        "usdm_sustainability_lag3",
+        "usdm_sustainability_roll3",
+        "usdm_sustainability_roll6",
+        "streamflow_cfs",
+        "streamflow_cfs_lag1",
+        "streamflow_cfs_roll3",
+        "snow_water_equivalent_in",
+        "snow_water_equivalent_in_lag1",
+        "powell_pool_elevation",
+        "ndvi",
+        "ndvi_lag1"
+      ],
+      "n_features": 14,
+      "search_note": "RandomizedSearchCV, 40 iterations",
+      "search_best_score": 0.6590159874251903,
+      "best_params": {
+        "model__subsample": 0.6,
+        "model__reg_lambda": 5,
+        "model__reg_alpha": 0,
+        "model__n_estimators": 800,
+        "model__min_child_weight": 3,
+        "model__max_depth": 5,
+        "model__learning_rate": 0.1,
+        "model__colsample_bytree": 1.0
+      },
+      "cv": {
+        "folds": [
+          {
+            "fold": 1,
+            "train_start": "2001-04",
+            "train_end": "2004-09",
+            "test_start": "2004-10",
+            "test_end": "2007-12",
+            "n_train": 42,
+            "n_test": 39,
+            "r2": 0.5278936453505614,
+            "mae": 9.58440812917856
+          },
+          {
+            "fold": 2,
+            "train_start": "2001-04",
+            "train_end": "2007-12",
+            "test_start": "2008-01",
+            "test_end": "2011-03",
+            "n_train": 81,
+            "n_test": 39,
+            "r2": 0.3185902559930708,
+            "mae": 7.9411950448843145
+          },
+          {
+            "fold": 3,
+            "train_start": "2001-04",
+            "train_end": "2011-03",
+            "test_start": "2011-04",
+            "test_end": "2014-06",
+            "n_train": 120,
+            "n_test": 39,
+            "r2": 0.7042651124689614,
+            "mae": 3.6765753623766773
+          },
+          {
+            "fold": 4,
+            "train_start": "2001-04",
+            "train_end": "2014-06",
+            "test_start": "2014-07",
+            "test_end": "2017-09",
+            "n_train": 159,
+            "n_test": 39,
+            "r2": 0.893775869213939,
+            "mae": 3.67670174231896
+          },
+          {
+            "fold": 5,
+            "train_start": "2001-04",
+            "train_end": "2017-09",
+            "test_start": "2017-10",
+            "test_end": "2020-12",
+            "n_train": 198,
+            "n_test": 39,
+            "r2": 0.8505550540994192,
+            "mae": 7.315822988656852
+          }
+        ],
+        "fold_r2": [
+          0.5278936453505614,
+          0.3185902559930708,
+          0.7042651124689614,
+          0.893775869213939,
+          0.8505550540994192
+        ],
+        "fold_mae": [
+          9.58440812917856,
+          7.9411950448843145,
+          3.6765753623766773,
+          3.67670174231896,
+          7.315822988656852
+        ],
+        "mean_r2": 0.6590159874251903,
+        "std_r2": 0.21303973652319344,
+        "mean_mae": 6.438940653483073,
+        "std_mae": 2.374038008572765
+      },
+      "train": {
+        "r2": 0.9999996625282374,
+        "mae": 0.005615878366719473
+      },
+      "feature_importance": {
+        "label": "Gain",
+        "kind": "gain",
+        "top_items": [
+          {
+            "feature": "usdm_sustainability_lag1",
+            "score": 298.326904296875
+          },
+          {
+            "feature": "ndvi",
+            "score": 9.292553901672363
+          },
+          {
+            "feature": "usdm_sustainability_roll6",
+            "score": 6.96577787399292
+          },
+          {
+            "feature": "snow_water_equivalent_in",
+            "score": 5.9044575691223145
+          },
+          {
+            "feature": "usdm_sustainability_roll3",
+            "score": 5.236224174499512
+          },
+          {
+            "feature": "usdm_sustainability_lag3",
+            "score": 5.022098064422607
+          },
+          {
+            "feature": "ndvi_lag1",
+            "score": 4.442483425140381
+          },
+          {
+            "feature": "month_sin",
+            "score": 3.983600378036499
+          },
+          {
+            "feature": "streamflow_cfs_roll3",
+            "score": 3.5837960243225098
+          },
+          {
+            "feature": "streamflow_cfs_lag1",
+            "score": 3.565051317214966
+          },
+          {
+            "feature": "streamflow_cfs",
+            "score": 2.6234402656555176
+          },
+          {
+            "feature": "snow_water_equivalent_in_lag1",
+            "score": 2.5345230102539062
+          },
+          {
+            "feature": "powell_pool_elevation",
+            "score": 2.389406204223633
+          },
+          {
+            "feature": "month_cos",
+            "score": 2.1471681594848633
+          }
+        ]
+      }
+    },
+    "xgb_compact_residual_lag1": {
+      "label": "XGBoost (compact, residual over lag1)",
+      "model_family": "xgboost",
+      "feature_set": "compact",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "feature_names": [
+        "month_sin",
+        "month_cos",
+        "usdm_sustainability_lag1",
+        "usdm_sustainability_lag3",
+        "usdm_sustainability_roll3",
+        "usdm_sustainability_roll6",
+        "streamflow_cfs",
+        "streamflow_cfs_lag1",
+        "streamflow_cfs_roll3",
+        "snow_water_equivalent_in",
+        "snow_water_equivalent_in_lag1",
+        "powell_pool_elevation",
+        "ndvi",
+        "ndvi_lag1"
+      ],
+      "n_features": 14,
+      "search_note": "RandomizedSearchCV, 40 iterations on residual target",
+      "search_best_score": 0.82255326075677,
+      "best_params": {
+        "base_estimator__model__subsample": 0.8,
+        "base_estimator__model__reg_lambda": 5,
+        "base_estimator__model__reg_alpha": 0,
+        "base_estimator__model__n_estimators": 100,
+        "base_estimator__model__min_child_weight": 1,
+        "base_estimator__model__max_depth": 3,
+        "base_estimator__model__learning_rate": 0.01,
+        "base_estimator__model__colsample_bytree": 0.8
+      },
+      "cv": {
+        "folds": [
+          {
+            "fold": 1,
+            "train_start": "2001-04",
+            "train_end": "2004-09",
+            "test_start": "2004-10",
+            "test_end": "2007-12",
+            "n_train": 42,
+            "n_test": 39,
+            "r2": 0.8471390274935955,
+            "mae": 5.236248346536587
+          },
+          {
+            "fold": 2,
+            "train_start": "2001-04",
+            "train_end": "2007-12",
+            "test_start": "2008-01",
+            "test_end": "2011-03",
+            "n_train": 81,
+            "n_test": 39,
+            "r2": 0.7109900874754906,
+            "mae": 5.13659637168432
+          },
+          {
+            "fold": 3,
+            "train_start": "2001-04",
+            "train_end": "2011-03",
+            "test_start": "2011-04",
+            "test_end": "2014-06",
+            "n_train": 120,
+            "n_test": 39,
+            "r2": 0.7600238125795172,
+            "mae": 3.2406917065611243
+          },
+          {
+            "fold": 4,
+            "train_start": "2001-04",
+            "train_end": "2014-06",
+            "test_start": "2014-07",
+            "test_end": "2017-09",
+            "n_train": 159,
+            "n_test": 39,
+            "r2": 0.9181154339541271,
+            "mae": 2.9398898353637786
+          },
+          {
+            "fold": 5,
+            "train_start": "2001-04",
+            "train_end": "2017-09",
+            "test_start": "2017-10",
+            "test_end": "2020-12",
+            "n_train": 198,
+            "n_test": 39,
+            "r2": 0.8764979422811202,
+            "mae": 6.934945155922799
+          }
+        ],
+        "fold_r2": [
+          0.8471390274935955,
+          0.7109900874754906,
+          0.7600238125795172,
+          0.9181154339541271,
+          0.8764979422811202
+        ],
+        "fold_mae": [
+          5.236248346536587,
+          5.13659637168432,
+          3.2406917065611243,
+          2.9398898353637786,
+          6.934945155922799
+        ],
+        "mean_r2": 0.82255326075677,
+        "std_r2": 0.07616152711040311,
+        "mean_mae": 4.697674283213722,
+        "std_mae": 1.4629217322246806
+      },
+      "train": {
+        "r2": 0.9447942384723665,
+        "mae": 3.588547577404649
+      },
+      "feature_importance": {
+        "label": "Gain",
+        "kind": "gain",
+        "top_items": [
+          {
+            "feature": "usdm_sustainability_lag3",
+            "score": 598.8180541992188
+          },
+          {
+            "feature": "ndvi",
+            "score": 466.1211242675781
+          },
+          {
+            "feature": "usdm_sustainability_roll6",
+            "score": 434.17120361328125
+          },
+          {
+            "feature": "ndvi_lag1",
+            "score": 354.7754211425781
+          },
+          {
+            "feature": "streamflow_cfs",
+            "score": 254.6071014404297
+          },
+          {
+            "feature": "snow_water_equivalent_in",
+            "score": 229.73736572265625
+          },
+          {
+            "feature": "month_cos",
+            "score": 225.90037536621094
+          },
+          {
+            "feature": "usdm_sustainability_roll3",
+            "score": 199.29237365722656
+          },
+          {
+            "feature": "usdm_sustainability_lag1",
+            "score": 171.43472290039062
+          },
+          {
+            "feature": "month_sin",
+            "score": 164.70252990722656
+          },
+          {
+            "feature": "streamflow_cfs_lag1",
+            "score": 152.66378784179688
+          },
+          {
+            "feature": "streamflow_cfs_roll3",
+            "score": 105.9860610961914
+          },
+          {
+            "feature": "powell_pool_elevation",
+            "score": 74.94160461425781
+          },
+          {
+            "feature": "snow_water_equivalent_in_lag1",
+            "score": 40.302547454833984
+          }
+        ]
+      }
+    },
+    "ridge_compact": {
+      "label": "Ridge (compact features)",
+      "model_family": "ridge",
+      "feature_set": "compact",
+      "prediction_mode": "level",
+      "export_compatible": true,
+      "feature_names": [
+        "month_sin",
+        "month_cos",
+        "usdm_sustainability_lag1",
+        "usdm_sustainability_lag3",
+        "usdm_sustainability_roll3",
+        "usdm_sustainability_roll6",
+        "streamflow_cfs",
+        "streamflow_cfs_lag1",
+        "streamflow_cfs_roll3",
+        "snow_water_equivalent_in",
+        "snow_water_equivalent_in_lag1",
+        "powell_pool_elevation",
+        "ndvi",
+        "ndvi_lag1"
+      ],
+      "n_features": 14,
+      "search_note": "GridSearchCV over alpha",
+      "search_best_score": 0.5510541797470603,
+      "best_params": {
+        "model__alpha": 0.001
+      },
+      "cv": {
+        "folds": [
+          {
+            "fold": 1,
+            "train_start": "2001-04",
+            "train_end": "2004-09",
+            "test_start": "2004-10",
+            "test_end": "2007-12",
+            "n_train": 42,
+            "n_test": 39,
+            "r2": 0.7911167104363024,
+            "mae": 6.536121524914286
+          },
+          {
+            "fold": 2,
+            "train_start": "2001-04",
+            "train_end": "2007-12",
+            "test_start": "2008-01",
+            "test_end": "2011-03",
+            "n_train": 81,
+            "n_test": 39,
+            "r2": 0.7041591199271955,
+            "mae": 5.6197958703742374
+          },
+          {
+            "fold": 3,
+            "train_start": "2001-04",
+            "train_end": "2011-03",
+            "test_start": "2011-04",
+            "test_end": "2014-06",
+            "n_train": 120,
+            "n_test": 39,
+            "r2": 0.727844884398211,
+            "mae": 3.2886048124524847
+          },
+          {
+            "fold": 4,
+            "train_start": "2001-04",
+            "train_end": "2014-06",
+            "test_start": "2014-07",
+            "test_end": "2017-09",
+            "n_train": 159,
+            "n_test": 39,
+            "r2": -0.39044528163172076,
+            "mae": 7.748322855566518
+          },
+          {
+            "fold": 5,
+            "train_start": "2001-04",
+            "train_end": "2017-09",
+            "test_start": "2017-10",
+            "test_end": "2020-12",
+            "n_train": 198,
+            "n_test": 39,
+            "r2": 0.922595465605313,
+            "mae": 5.204677798282612
+          }
+        ],
+        "fold_r2": [
+          0.7911167104363024,
+          0.7041591199271955,
+          0.727844884398211,
+          -0.39044528163172076,
+          0.922595465605313
+        ],
+        "fold_mae": [
+          6.536121524914286,
+          5.6197958703742374,
+          3.2886048124524847,
+          7.748322855566518,
+          5.204677798282612
+        ],
+        "mean_r2": 0.5510541797470603,
+        "std_r2": 0.47682077502417514,
+        "mean_mae": 5.679504572318028,
+        "std_mae": 1.4804883619084843
+      },
+      "train": {
+        "r2": 0.9520328514732105,
+        "mae": 3.5240335908987483
+      },
+      "feature_importance": {
+        "label": "|Coefficient|",
+        "kind": "abs_coef",
+        "top_items": [
+          {
+            "feature": "usdm_sustainability_lag1",
+            "score": 42.873633873095415
+          },
+          {
+            "feature": "usdm_sustainability_roll3",
+            "score": 34.17618921594444
+          },
+          {
+            "feature": "usdm_sustainability_lag3",
+            "score": 13.242423810862553
+          },
+          {
+            "feature": "ndvi",
+            "score": 3.5595242044130546
+          },
+          {
+            "feature": "ndvi_lag1",
+            "score": 1.3275608371029008
+          },
+          {
+            "feature": "snow_water_equivalent_in",
+            "score": 0.9758649743690876
+          },
+          {
+            "feature": "usdm_sustainability_roll6",
+            "score": 0.942113356198837
+          },
+          {
+            "feature": "streamflow_cfs",
+            "score": 0.8533070309275466
+          },
+          {
+            "feature": "snow_water_equivalent_in_lag1",
+            "score": 0.740220487904293
+          },
+          {
+            "feature": "streamflow_cfs_lag1",
+            "score": 0.7104981565834699
+          },
+          {
+            "feature": "month_sin",
+            "score": 0.5514213631634469
+          },
+          {
+            "feature": "streamflow_cfs_roll3",
+            "score": 0.2840309555538801
+          },
+          {
+            "feature": "powell_pool_elevation",
+            "score": 0.2634632213988454
+          },
+          {
+            "feature": "month_cos",
+            "score": 0.017956707208748816
+          }
+        ]
+      }
+    },
+    "elasticnet_compact": {
+      "label": "ElasticNet (compact features)",
+      "model_family": "elasticnet",
+      "feature_set": "compact",
+      "prediction_mode": "level",
+      "export_compatible": true,
+      "feature_names": [
+        "month_sin",
+        "month_cos",
+        "usdm_sustainability_lag1",
+        "usdm_sustainability_lag3",
+        "usdm_sustainability_roll3",
+        "usdm_sustainability_roll6",
+        "streamflow_cfs",
+        "streamflow_cfs_lag1",
+        "streamflow_cfs_roll3",
+        "snow_water_equivalent_in",
+        "snow_water_equivalent_in_lag1",
+        "powell_pool_elevation",
+        "ndvi",
+        "ndvi_lag1"
+      ],
+      "n_features": 14,
+      "search_note": "GridSearchCV over alpha and l1_ratio",
+      "search_best_score": 0.6008816657333139,
+      "best_params": {
+        "model__alpha": 1.0,
+        "model__l1_ratio": 0.9
+      },
+      "cv": {
+        "folds": [
+          {
+            "fold": 1,
+            "train_start": "2001-04",
+            "train_end": "2004-09",
+            "test_start": "2004-10",
+            "test_end": "2007-12",
+            "n_train": 42,
+            "n_test": 39,
+            "r2": 0.8348853273307679,
+            "mae": 5.352109140157302
+          },
+          {
+            "fold": 2,
+            "train_start": "2001-04",
+            "train_end": "2007-12",
+            "test_start": "2008-01",
+            "test_end": "2011-03",
+            "n_train": 81,
+            "n_test": 39,
+            "r2": 0.2445094858608935,
+            "mae": 9.085659110054602
+          },
+          {
+            "fold": 3,
+            "train_start": "2001-04",
+            "train_end": "2011-03",
+            "test_start": "2011-04",
+            "test_end": "2014-06",
+            "n_train": 120,
+            "n_test": 39,
+            "r2": 0.7849519399886639,
+            "mae": 2.9591238682124286
+          },
+          {
+            "fold": 4,
+            "train_start": "2001-04",
+            "train_end": "2014-06",
+            "test_start": "2014-07",
+            "test_end": "2017-09",
+            "n_train": 159,
+            "n_test": 39,
+            "r2": 0.3152419065987271,
+            "mae": 6.572335601929035
+          },
+          {
+            "fold": 5,
+            "train_start": "2001-04",
+            "train_end": "2017-09",
+            "test_start": "2017-10",
+            "test_end": "2020-12",
+            "n_train": 198,
+            "n_test": 39,
+            "r2": 0.8248196688875175,
+            "mae": 8.825238168368552
+          }
+        ],
+        "fold_r2": [
+          0.8348853273307679,
+          0.2445094858608935,
+          0.7849519399886639,
+          0.3152419065987271,
+          0.8248196688875175
+        ],
+        "fold_mae": [
+          5.352109140157302,
+          9.085659110054602,
+          2.9591238682124286,
+          6.572335601929035,
+          8.825238168368552
+        ],
+        "mean_r2": 0.6008816657333139,
+        "std_r2": 0.2635826289221781,
+        "mean_mae": 6.558893177744383,
+        "std_mae": 2.2775299421611077
+      },
+      "train": {
+        "r2": 0.9093394121011309,
+        "mae": 4.8025829525698995
+      },
+      "feature_importance": {
+        "label": "|Coefficient|",
+        "kind": "abs_coef",
+        "top_items": [
+          {
+            "feature": "usdm_sustainability_lag1",
+            "score": 13.830225767725725
+          },
+          {
+            "feature": "usdm_sustainability_roll3",
+            "score": 3.6153569272974786
+          },
+          {
+            "feature": "ndvi",
+            "score": 3.171319193587749
+          },
+          {
+            "feature": "ndvi_lag1",
+            "score": 0.9668047481314693
+          },
+          {
+            "feature": "streamflow_cfs",
+            "score": 0.4363599936873796
+          },
+          {
+            "feature": "snow_water_equivalent_in",
+            "score": 0.10736248497539294
+          },
+          {
+            "feature": "month_sin",
+            "score": 0.051807460465549446
+          },
+          {
+            "feature": "month_cos",
+            "score": 0.0
+          },
+          {
+            "feature": "usdm_sustainability_lag3",
+            "score": 0.0
+          },
+          {
+            "feature": "usdm_sustainability_roll6",
+            "score": 0.0
+          },
+          {
+            "feature": "streamflow_cfs_lag1",
+            "score": 0.0
+          },
+          {
+            "feature": "streamflow_cfs_roll3",
+            "score": 0.0
+          },
+          {
+            "feature": "snow_water_equivalent_in_lag1",
+            "score": 0.0
+          },
+          {
+            "feature": "powell_pool_elevation",
+            "score": 0.0
+          }
+        ]
+      }
+    }
+  },
+  "baselines": {
+    "lag1_persistence": {
+      "folds": [
+        {
+          "fold": 1,
+          "train_start": "2001-04",
+          "train_end": "2004-09",
+          "test_start": "2004-10",
+          "test_end": "2007-12",
+          "n_train": 42,
+          "n_test": 39,
+          "r2": 0.8346729424903607,
+          "mae": 5.356153846153845
+        },
+        {
+          "fold": 2,
+          "train_start": "2001-04",
+          "train_end": "2007-12",
+          "test_start": "2008-01",
+          "test_end": "2011-03",
+          "n_train": 81,
+          "n_test": 39,
+          "r2": 0.6992436445520023,
+          "mae": 5.491538461538462
+        },
+        {
+          "fold": 3,
+          "train_start": "2001-04",
+          "train_end": "2011-03",
+          "test_start": "2011-04",
+          "test_end": "2014-06",
+          "n_train": 120,
+          "n_test": 39,
+          "r2": 0.6572960299698908,
+          "mae": 4.092051282051282
+        },
+        {
+          "fold": 4,
+          "train_start": "2001-04",
+          "train_end": "2014-06",
+          "test_start": "2014-07",
+          "test_end": "2017-09",
+          "n_train": 159,
+          "n_test": 39,
+          "r2": 0.9048677409937582,
+          "mae": 2.8599999999999994
+        },
+        {
+          "fold": 5,
+          "train_start": "2001-04",
+          "train_end": "2017-09",
+          "test_start": "2017-10",
+          "test_end": "2020-12",
+          "n_train": 198,
+          "n_test": 39,
+          "r2": 0.8534939725472476,
+          "mae": 7.845897435897436
+        }
+      ],
+      "fold_r2": [
+        0.8346729424903607,
+        0.6992436445520023,
+        0.6572960299698908,
+        0.9048677409937582,
+        0.8534939725472476
+      ],
+      "fold_mae": [
+        5.356153846153845,
+        5.491538461538462,
+        4.092051282051282,
+        2.8599999999999994,
+        7.845897435897436
+      ],
+      "mean_r2": 0.7899148661106519,
+      "std_r2": 0.09494080022692739,
+      "mean_mae": 5.129128205128206,
+      "std_mae": 1.6606136362547395
+    },
+    "roll3_mean": {
+      "folds": [
+        {
+          "fold": 1,
+          "train_start": "2001-04",
+          "train_end": "2004-09",
+          "test_start": "2004-10",
+          "test_end": "2007-12",
+          "n_train": 42,
+          "n_test": 39,
+          "r2": 0.5533199579986865,
+          "mae": 9.12982905982906
+        },
+        {
+          "fold": 2,
+          "train_start": "2001-04",
+          "train_end": "2007-12",
+          "test_start": "2008-01",
+          "test_end": "2011-03",
+          "n_train": 81,
+          "n_test": 39,
+          "r2": 0.2597075258815741,
+          "mae": 8.289829059829058
+        },
+        {
+          "fold": 3,
+          "train_start": "2001-04",
+          "train_end": "2011-03",
+          "test_start": "2011-04",
+          "test_end": "2014-06",
+          "n_train": 120,
+          "n_test": 39,
+          "r2": 0.14284166313229296,
+          "mae": 6.756324786324785
+        },
+        {
+          "fold": 4,
+          "train_start": "2001-04",
+          "train_end": "2014-06",
+          "test_start": "2014-07",
+          "test_end": "2017-09",
+          "n_train": 159,
+          "n_test": 39,
+          "r2": 0.7966196991591723,
+          "mae": 4.979487179487177
+        },
+        {
+          "fold": 5,
+          "train_start": "2001-04",
+          "train_end": "2017-09",
+          "test_start": "2017-10",
+          "test_end": "2020-12",
+          "n_train": 198,
+          "n_test": 39,
+          "r2": 0.5760013195192929,
+          "mae": 14.816666666666665
+        }
+      ],
+      "fold_r2": [
+        0.5533199579986865,
+        0.2597075258815741,
+        0.14284166313229296,
+        0.7966196991591723,
+        0.5760013195192929
+      ],
+      "fold_mae": [
+        9.12982905982906,
+        8.289829059829058,
+        6.756324786324785,
+        4.979487179487177,
+        14.816666666666665
+      ],
+      "mean_r2": 0.46569803313820374,
+      "std_r2": 0.23495611951088027,
+      "mean_mae": 8.794427350427348,
+      "std_mae": 3.326923825195202
+    }
+  }
+}

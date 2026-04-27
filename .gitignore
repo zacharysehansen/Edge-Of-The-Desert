@@ -39,3 +39,9 @@ figures/
 *.nc4
 *.hdf
 *.nc
+
+# Phase 1 pipeline outputs
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep

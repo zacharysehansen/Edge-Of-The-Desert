@@ -1,0 +1,192 @@
+{
+  "project": {
+    "name": "Southwest Water Sustainability Visualizer",
+    "start_year_month": "2000-01",
+    "end_year_month": "2023-12"
+  },
+  "paths": {
+    "raw_dir": "data/raw",
+    "processed_dir": "data/processed",
+    "final_dir": "data/Final"
+  },
+  "study_area": {
+    "name": "Arizona-wide focus box",
+    "bbox": [-114.85, 31.25, -109.0, 37.1],
+    "state_fips": "04",
+    "state_abbr": "AZ"
+  },
+  "sources": [
+    {
+      "name": "modis_ndvi",
+      "kind": "earthdata_modis_hdf",
+      "enabled": true,
+      "short_name": "MOD13A3",
+      "subdataset_contains": "1 km monthly NDVI",
+      "feature_name": "ndvi",
+      "bbox": [-114.85, 31.25, -109.0, 37.1],
+      "start_date": "2000-01-01",
+      "end_date": "2023-12-31",
+      "scale_factor": 10000.0,
+      "invalid_below": -2000
+    },
+    {
+      "name": "merra_temperature_2m",
+      "kind": "earthdata_grid_netcdf",
+      "enabled": true,
+      "short_name": "M2SMNXSLV",
+      "variable": "T2MMEAN",
+      "feature_name": "temperature_2m_c",
+      "bbox": [-114.85, 31.25, -109.0, 37.1],
+      "start_date": "2000-01-01",
+      "end_date": "2023-12-31",
+      "transform": "kelvin_to_celsius"
+    },
+    {
+      "name": "merra_specific_humidity_2m",
+      "kind": "earthdata_grid_netcdf",
+      "enabled": true,
+      "short_name": "M2TMNXFLX",
+      "variable": "QSH",
+      "feature_name": "specific_humidity_2m",
+      "bbox": [-114.85, 31.25, -109.0, 37.1],
+      "start_date": "2000-01-01",
+      "end_date": "2023-12-31",
+      "transform": "identity"
+    },
+    {
+      "name": "merra_precipitation",
+      "kind": "earthdata_grid_netcdf",
+      "enabled": true,
+      "short_name": "M2TMNXFLX",
+      "variable": "PRECTOT",
+      "feature_name": "precipitation_mm_day",
+      "bbox": [-114.85, 31.25, -109.0, 37.1],
+      "start_date": "2000-01-01",
+      "end_date": "2023-12-31",
+      "transform": "kg_m2_s_to_mm_day"
+    },
+    {
+      "name": "grace_groundwater_anomaly",
+      "kind": "earthdata_grid_netcdf",
+      "enabled": true,
+      "short_names": [
+        "TELLUS_GRAC_L3_JPL_RL06_LND_v04",
+        "TELLUS_GRFO_L3_JPL_RL06_LND_v04"
+      ],
+      "variable": "lwe_thickness",
+      "feature_name": "grace_groundwater_anomaly",
+      "bbox": [-114.85, 31.25, -109.0, 37.1],
+      "start_date": "2002-04-01",
+      "end_date": "2023-12-31",
+      "transform": "identity"
+    },
+    {
+      "name": "grace_recharge_estimate",
+      "kind": "derived_monthly_delta",
+      "enabled": true,
+      "input_source": "grace_groundwater_anomaly",
+      "input_column": "grace_groundwater_anomaly",
+      "feature_name": "grace_recharge_estimate",
+      "positive_only": true,
+      "fill_value": 0.0
+    },
+    {
+      "name": "usgs_streamflow",
+      "kind": "usgs_daily_value",
+      "enabled": true,
+      "site_numbers": ["09380000", "09498500", "09506000"],
+      "parameter_code": "00060",
+      "feature_name": "streamflow_cfs",
+      "start_date": "2000-01-01",
+      "end_date": "2023-12-31",
+      "group_aggregation": "mean"
+    },
+    {
+      "name": "usdm_sustainability",
+      "kind": "usdm_dsci",
+      "enabled": true,
+      "area_type": "StateStatistics",
+      "aoi": "04",
+      "feature_name": "usdm_sustainability",
+      "start_date": "2000-01-01",
+      "end_date": "2023-12-31",
+      "statistics_type": 1
+    },
+    {
+      "name": "lake_mead_level",
+      "kind": "rise_results",
+      "enabled": false,
+      "location_id": 3514,
+      "parameter_id": 3,
+      "catalog_item_id": 6123,
+      "feature_name": "lake_mead_level_ft",
+      "start_date": "2000-01-01",
+      "end_date": "2023-12-31"
+    },
+    {
+      "name": "population",
+      "kind": "census_population_download",
+      "enabled": false,
+      "state_fips": "04",
+      "feature_name": "population",
+      "start_year_month": "2000-01",
+      "end_year_month": "2023-12",
+      "anchor_month": 7
+    },
+    {
+      "name": "powell_combined",
+      "kind": "manual_monthly_csv",
+      "enabled": true,
+      "path": "powell_combined.csv",
+      "feature_columns": [
+        "powell_evaporation",
+        "powell_total_release",
+        "powell_inflow",
+        "powell_storage",
+        "powell_pool_elevation"
+      ]
+    },
+    {
+      "name": "azpop",
+      "kind": "manual_monthly_csv",
+      "enabled": true,
+      "path": "AZPOP.csv",
+      "feature_columns": ["AZPOP"]
+    },
+
+    {
+      "name": "snotel_swe",
+      "kind": "manual_daily_csv",
+      "enabled": true,
+      "path": "snotel_swe_daily.csv",
+      "date_column": "date",
+      "feature_column": "swe_in",
+      "aggregation": "monthly_mean",
+      "notes": "Converted to monthly inside pipeline if needed"
+    },
+
+    {
+      "name": "irrigation_huc12",
+      "kind": "manual_huc12_wide_csv",
+      "enabled": true,
+      "path": "ir_huc12_tot_wd_az_2000_2020.csv",
+      "year_column": "Year",
+      "month_column": "Month",
+      "feature_name": "irrigation_withdrawal",
+      "aggregation": "statewide_sum",
+      "notes": "Requires reshape from wide HUC12 columns to aggregated monthly feature"
+    },
+
+    {
+      "name": "public_supply_huc12",
+      "kind": "manual_huc12_wide_csv",
+      "enabled": true,
+      "path": "ps_huc12_tot_az_2000_2020.csv",
+      "year_column": "Year",
+      "month_column": "Month",
+      "feature_name": "public_supply_withdrawal",
+      "aggregation": "statewide_sum",
+      "notes": "Requires reshape from wide HUC12 columns to aggregated monthly feature"
+    }
+  ]
+}

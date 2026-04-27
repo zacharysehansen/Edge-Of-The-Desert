@@ -1,0 +1,16 @@
+[
+  "month_sin",
+  "month_cos",
+  "usdm_sustainability_lag1",
+  "usdm_sustainability_lag3",
+  "usdm_sustainability_roll3",
+  "usdm_sustainability_roll6",
+  "streamflow_cfs",
+  "streamflow_cfs_lag1",
+  "streamflow_cfs_roll3",
+  "snow_water_equivalent_in",
+  "snow_water_equivalent_in_lag1",
+  "powell_pool_elevation",
+  "ndvi",
+  "ndvi_lag1"
+]

@@ -12,4 +12,8 @@ statsmodels
 openpyxl
 xlrd
 gdal
-rasterio 
+rasterio
+requests
+xarray
+netCDF4
+earthaccess
