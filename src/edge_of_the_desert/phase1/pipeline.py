@@ -17,6 +17,29 @@ import pandas as pd
 USGS_DV_URL = "https://waterservices.usgs.gov/nwis/dv/"
 USDM_API_ROOT = "https://usdmdataservices.unl.edu/api"
 RISE_RESULTS_URL = "https://data.usbr.gov/rise/api/result"
+CMR_GRANULE_URL = "https://cmr.earthdata.nasa.gov/search/granules.json"
+
+GRACE_MISSION_WINDOWS = {
+    "TELLUS_GRAC_L3_JPL_RL06_LND_v04": {
+        "label": "GRACE",
+        "start_date": "2002-04-01",
+        "end_date": "2017-06-30",
+        "concept_id": "C2077042612-POCLOUD",
+    },
+    "TELLUS_GRFO_L3_JPL_RL06_LND_v04": {
+        "label": "GRACE-FO",
+        "start_date": "2018-05-22",
+        "end_date": None,
+        "canonical_short_name": "TELLUS_GRFO_L3_JPL_RL06.3_LND_v04",
+        "concept_id": "C3193302127-POCLOUD",
+    },
+    "TELLUS_GRFO_L3_JPL_RL06.3_LND_v04": {
+        "label": "GRACE-FO",
+        "start_date": "2018-05-22",
+        "end_date": None,
+        "concept_id": "C3193302127-POCLOUD",
+    },
+}
 
 
 class Phase1Error(RuntimeError):
@@ -241,7 +264,7 @@ def collect_sources(
             status["missing"].append({"name": name, "error": str(exc)})
             if fail_fast:
                 break
-        except Exception as exc:  # pragma: no cover - defensive logging path
+        except Exception as exc:
             progress(f"[collect] {name}: failed ({exc})")
             status["failed"].append({"name": name, "error": str(exc)})
             if fail_fast:
@@ -275,7 +298,10 @@ def collect_source(ctx: PipelineContext, source: dict[str, Any]) -> pd.DataFrame
         return collect_earthdata_grid_netcdf(ctx, source)
     if kind == "manual_huc12_wide_csv":
         return collect_manual_huc12_wide_csv(ctx, source)
+    if kind == "grace_land_netcdf":
+        return collect_grace_land_netcdf(ctx, source)
     raise Phase1Error(f"Unknown source kind: {kind}")
+
 
 def collect_manual_huc12_wide_csv(ctx: PipelineContext, source: dict[str, Any]) -> pd.DataFrame:
     path = resolve_final_source_path(ctx, source)
@@ -302,7 +328,6 @@ def collect_manual_huc12_wide_csv(ctx: PipelineContext, source: dict[str, Any]) 
 
     values = frame[huc_columns].apply(pd.to_numeric, errors="coerce")
 
-    # handle 999 sentinel values (VERY IMPORTANT)
     if source.get("treat_999_as_nan", True):
         values = values.replace(999, np.nan)
 
@@ -311,8 +336,7 @@ def collect_manual_huc12_wide_csv(ctx: PipelineContext, source: dict[str, Any]) 
     else:
         aggregated = values.sum(axis=1)
 
-    result = pd.DataFrame({   
-
+    result = pd.DataFrame({
         "year_month": frame["year_month"],
         source["feature_name"]: aggregated,
     })
@@ -320,6 +344,7 @@ def collect_manual_huc12_wide_csv(ctx: PipelineContext, source: dict[str, Any]) 
     write_raw_csv(ctx, source["name"], frame)
 
     return result.sort_values("year_month")
+
 
 def collect_usgs_daily_value(ctx: PipelineContext, source: dict[str, Any]) -> pd.DataFrame:
     requests = import_requests()
@@ -744,6 +769,185 @@ def collect_earthdata_grid_netcdf(ctx: PipelineContext, source: dict[str, Any]) 
     return monthly
 
 
+def collect_grace_land_netcdf(ctx: PipelineContext, source: dict[str, Any]) -> pd.DataFrame:
+    import os
+    requests = import_requests()
+    nc = import_netcdf4()
+
+    short_names = source.get("short_names") or [source.get("short_name")]
+    if not any(short_names):
+        short_names = list(GRACE_MISSION_WINDOWS.keys())[:2]
+
+    bbox = source["bbox"]
+    lon_min, lat_min, lon_max, lat_max = bbox
+    target_start = source.get("target_start", "2000-01")
+    target_end = source.get("target_end", "2020-12")
+
+    token = os.environ.get("EARTHDATA_TOKEN", "")
+    auth_header = {"Authorization": f"Bearer {token}"} if token else {}
+
+    download_dir = ctx.raw_dir / source["name"]
+    download_dir.mkdir(parents=True, exist_ok=True)
+
+    for short_name in short_names:
+        mission = GRACE_MISSION_WINDOWS.get(short_name, {})
+        concept_id = mission.get("concept_id", "")
+        mission_label = mission.get("label", short_name)
+        if not concept_id:
+            progress(f"[collect] {source['name']}: no concept_id for {short_name}, skipping")
+            continue
+
+        progress(f"[collect] {source['name']}: searching CMR for {mission_label} concept_id={concept_id}")
+        granules = _grace_cmr_search(requests, concept_id, temporal_range=None)
+        progress(f"[collect] {source['name']}: found {len(granules)} granules for {mission_label}")
+
+        for granule in granules:
+            for url in _grace_extract_urls(granule):
+                filename = url.split("/")[-1].split("?")[0]
+                dest = download_dir / filename
+                if dest.exists():
+                    continue
+                progress(f"[collect] {source['name']}: downloading {filename}")
+                try:
+                    with requests.get(url, headers=auth_header, stream=True, allow_redirects=True) as r:
+                        if r.status_code == 401:
+                            progress(f"[collect] {source['name']}: auth failed for {filename}")
+                            continue
+                        r.raise_for_status()
+                        with open(dest, "wb") as f:
+                            for chunk in r.iter_content(chunk_size=1024 * 1024):
+                                f.write(chunk)
+                except Exception as exc:
+                    progress(f"[collect] {source['name']}: failed to download {filename} ({exc})")
+
+    nc_files = sorted(download_dir.glob("*.nc"))
+    if not nc_files:
+        raise Phase1Error(f"No .nc files found in {download_dir.relative_to(ctx.repo_root)}")
+    progress(f"[collect] {source['name']}: processing {len(nc_files)} .nc files")
+
+    rows: list[dict[str, Any]] = []
+    for path in nc_files:
+        result = _grace_process_nc_file(nc, path, lon_min, lat_min, lon_max, lat_max)
+        if result is not None:
+            year_month, value = result
+            rows.append({"year_month": year_month, source["feature_name"]: value})
+
+    if not rows:
+        raise Phase1Error(f"No valid data extracted from GRACE files for {source['name']}")
+
+    df = (
+        pd.DataFrame(rows)
+        .drop_duplicates(subset="year_month")
+        .sort_values("year_month")
+        .reset_index(drop=True)
+    )
+    progress(f"[collect] {source['name']}: extracted {len(df)} observed months")
+
+    df = _grace_fill_gaps(df, source["feature_name"], target_start, target_end)
+    progress(f"[collect] {source['name']}: final series has {len(df)} rows ({target_start} to {target_end})")
+
+    return df
+
+
+def _grace_cmr_search(
+    requests: Any,
+    concept_id: str,
+    temporal_range: tuple[str, str] | None,
+) -> list[dict[str, Any]]:
+    granules: list[dict[str, Any]] = []
+    page = 1
+    page_size = 500
+
+    while True:
+        params: dict[str, Any] = {
+            "collection_concept_id": concept_id,
+            "page_size": page_size,
+            "page_num": page,
+        }
+        if temporal_range is not None:
+            params["temporal"] = f"{temporal_range[0]}T00:00:00Z,{temporal_range[1]}T23:59:59Z"
+
+        response = requests.get(CMR_GRANULE_URL, params=params)
+        response.raise_for_status()
+        entries = response.json()["feed"]["entry"]
+        granules.extend(entries)
+
+        if len(entries) < page_size:
+            break
+        page += 1
+
+    return granules
+
+
+def _grace_extract_urls(granule: dict[str, Any]) -> list[str]:
+    urls = []
+    for link in granule.get("links", []):
+        href = link.get("href", "")
+        rel = link.get("rel", "")
+        if "data#" in rel and href.startswith("https://"):
+            urls.append(href)
+    return urls
+
+
+def _grace_process_nc_file(
+    nc: Any,
+    path: Path,
+    lon_min: float,
+    lat_min: float,
+    lon_max: float,
+    lat_max: float,
+) -> tuple[str, float] | None:
+    with nc.Dataset(path) as ds:
+        time_var = ds.variables["time"]
+        date = nc.num2date(
+            time_var[0],
+            units=time_var.units,
+            calendar=getattr(time_var, "calendar", "standard"),
+        )
+        year_month = f"{date.year:04d}-{date.month:02d}"
+
+        lons = np.array(ds.variables["lon"][:])
+        lons = np.where(lons > 180, lons - 360, lons)
+        lats = np.array(ds.variables["lat"][:])
+        lwe = np.array(ds.variables["lwe_thickness"][0, :, :])
+
+        lon_mask = (lons >= lon_min) & (lons <= lon_max)
+        lat_mask = (lats >= lat_min) & (lats <= lat_max)
+        subset = lwe[np.ix_(lat_mask, lon_mask)]
+
+        fill_value = getattr(ds.variables["lwe_thickness"], "_FillValue", None)
+        if fill_value is not None:
+            subset = np.where(np.isclose(subset, fill_value), np.nan, subset)
+
+        if np.all(np.isnan(subset)):
+            return None
+
+        return year_month, float(np.nanmean(subset))
+
+
+def _grace_fill_gaps(
+    df: pd.DataFrame,
+    feature_name: str,
+    target_start: str,
+    target_end: str,
+) -> pd.DataFrame:
+    df = df.copy()
+    df["date"] = pd.to_datetime(df["year_month"])
+    df = df.set_index("date").sort_index()
+
+    full_index = pd.date_range(start=target_start, end=target_end, freq="MS")
+    df = df.reindex(full_index)
+
+    gaps_before = int(df[feature_name].isna().sum())
+    df[feature_name] = df[feature_name].interpolate(method="linear", limit_direction="both")
+    gaps_after = int(df[feature_name].isna().sum())
+
+    progress(f"Filled {gaps_before - gaps_after} missing months via linear interpolation")
+
+    df["year_month"] = df.index.strftime("%Y-%m")
+    return df.reset_index(drop=True)[["year_month", feature_name]]
+
+
 def build_dataset(ctx: PipelineContext, allow_partial: bool = False) -> tuple[pd.DataFrame, dict[str, Any]]:
     timeline = monthly_timeline(
         ctx.config["project"]["start_year_month"],
@@ -926,6 +1130,7 @@ def is_manual_source(source: dict[str, Any]) -> bool:
         "manual_huc12_wide_csv",
     }
 
+
 def write_raw_csv(ctx: PipelineContext, source_name: str, frame: pd.DataFrame) -> None:
     if frame.empty:
         return
@@ -1047,7 +1252,7 @@ def extract_modis_region(
     col_min = max(0, min(col_min, cols - 1))
     col_max = max(0, min(col_max, cols))
 
-    region = full[min(row_min, row_max) : max(row_min, row_max), min(col_min, col_max) : max(col_min, col_max)]
+    region = full[min(row_min, row_max): max(row_min, row_max), min(col_min, col_max): max(col_min, col_max)]
     scaled = region.astype(float) / scale_factor
     scaled[region < invalid_below] = np.nan
     return scaled
@@ -1106,28 +1311,34 @@ def build_transform(name: str):
 
 def import_requests():
     import requests
-
     return requests
 
 
 def import_earthaccess():
     import earthaccess
-
     return earthaccess
 
 
 def import_xarray():
     import xarray as xr
-
     return xr
 
 
 def import_gdal():
     from osgeo import gdal
-
     gdal.UseExceptions()
     return gdal
 
 
-if __name__ == "__main__":  # pragma: no cover
+def import_netcdf4():
+    try:
+        import netCDF4 as nc
+    except ModuleNotFoundError as exc:
+        raise Phase1Error(
+            "netCDF4 is required for GRACE processing. Install it with: pip install netCDF4"
+        ) from exc
+    return nc
+
+
+if __name__ == "__main__":
     raise SystemExit(main())

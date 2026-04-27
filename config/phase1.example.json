@@ -71,7 +71,7 @@
       "enabled": true,
       "short_names": [
         "TELLUS_GRAC_L3_JPL_RL06_LND_v04",
-        "TELLUS_GRFO_L3_JPL_RL06_LND_v04"
+        "TELLUS_GRFO_L3_JPL_RL06.3_LND_v04"
       ],
       "variable": "lwe_thickness",
       "feature_name": "grace_groundwater_anomaly",

@@ -67,12 +67,22 @@ This folder is now the final endpoint for the usable monthly source CSVs we were
    Coverage: `2000-02` through `2023-12`
    Notes: Arizona-wide monthly NDVI endpoint collected from MODIS Earthdata.
 
-7. `usgs_streamflow.csv`
+7. `merra_precipitation.csv`
+   Current columns: `year_month, precipitation_mm_day`
+   Coverage: `2000-01` through `2023-12`
+   Notes: Arizona-wide monthly MERRA-2 precipitation endpoint derived from the locally downloaded `data/raw/merra_precipitation/*.nc4` files.
+
+8. `grace_groundwater_anomaly.csv`
+   Current columns: `year_month, grace_groundwater_anomaly`
+   Coverage: `2000-01` through `2020-12`
+   Notes: Arizona-wide monthly GRACE groundwater anomaly endpoint derived from the GRACE / GRACE-FO raw files in `data/raw/grace_groundwater_anomaly/`.
+
+9. `usgs_streamflow.csv`
    Current columns: `year_month, streamflow_cfs`
    Coverage: `2000-01` through `2023-12`
    Notes: monthly mean streamflow endpoint derived from the configured USGS NWIS daily gauge set.
 
-8. `usdm_sustainability.csv`
+10. `usdm_sustainability.csv`
    Current columns: `year_month, usdm_dsci, usdm_sustainability`
    Coverage: `2000-01` through `2023-12`
    Notes: monthly Arizona drought endpoint built from U.S. Drought Monitor DSCI output, including the derived sustainability score used by the pipeline.
@@ -94,7 +104,7 @@ Treat those older names as upstream inputs used to produce the `data/Final/` end
 ## Config values you should review before trusting the dataset
 
 - `project.start_year_month` / `project.end_year_month`
-  The default build window is still `2000-01` through `2023-12`, but the endpoint files do not all fully span that range: `snotel_swe.csv` stops in `2018-07`, and `irrigation_huc12_monthly_az_2000_2020.csv`, `nwaa_public_supply_az_monthly.csv`, `powell_combined.csv`, and `azpop_monthly.csv` stop in `2020-12`. Expect missing values outside those windows unless you trim the build period or backfill additional data.
+  The default build window is still `2000-01` through `2023-12`, but the endpoint files do not all fully span that range: `snotel_swe.csv` stops in `2018-07`, and `irrigation_huc12_monthly_az_2000_2020.csv`, `nwaa_public_supply_az_monthly.csv`, `powell_combined.csv`, `azpop_monthly.csv`, and `grace_groundwater_anomaly.csv` stop in `2020-12`. `merra_precipitation.csv`, `usgs_streamflow.csv`, and `usdm_sustainability.csv` extend through `2023-12`. Expect missing values outside the shorter source windows unless you trim the build period or backfill additional data.
 
 - `study_area.bbox`
   The default config now uses an Arizona-wide bounding box.

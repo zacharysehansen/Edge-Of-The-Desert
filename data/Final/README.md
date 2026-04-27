@@ -39,6 +39,18 @@ Current endpoint/source files in this folder:
   Columns: `year_month, ndvi`
   Coverage: monthly from `2000-02` through `2023-12`
 
+- `merra_precipitation.csv`
+  Arizona-wide monthly MERRA-2 precipitation feature derived from the locally
+  downloaded `data/raw/merra_precipitation/*.nc4` files.
+  Columns: `year_month, precipitation_mm_day`
+  Coverage: monthly from `2000-01` through `2023-12`
+
+- `grace_groundwater_anomaly.csv`
+  Arizona-wide monthly GRACE groundwater anomaly feature derived from the GRACE
+  / GRACE-FO raw files in `data/raw/grace_groundwater_anomaly/`.
+  Columns: `year_month, grace_groundwater_anomaly`
+  Coverage: monthly from `2000-01` through `2020-12`
+
 - `usgs_streamflow.csv`
   Monthly mean streamflow feature derived from the configured USGS NWIS daily
   gauge set.
