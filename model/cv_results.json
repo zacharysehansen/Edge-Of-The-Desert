@@ -14,94 +14,94 @@
     "top_items": [
       {
         "feature": "precipitation_mm_day_lag1",
-        "score": 101.0537109375
-      },
-      {
-        "feature": "usdm_sustainability_lag3",
-        "score": 72.40084075927734
-      },
-      {
-        "feature": "precipitation_mm_day_roll3",
-        "score": 58.712520599365234
-      },
-      {
-        "feature": "temperature_2m_c_lag1",
-        "score": 54.945274353027344
-      },
-      {
-        "feature": "temperature_2m_c_anomaly",
-        "score": 45.63296127319336
-      },
-      {
-        "feature": "ndvi",
-        "score": 42.434486389160156
-      },
-      {
-        "feature": "temperature_2m_c_anomaly_lag1",
-        "score": 41.00539016723633
+        "score": 21.297195434570312
       },
       {
         "feature": "usdm_sustainability_roll6",
-        "score": 40.921356201171875
+        "score": 19.28375816345215
+      },
+      {
+        "feature": "usdm_sustainability_lag3",
+        "score": 18.874906539916992
+      },
+      {
+        "feature": "temperature_2m_c_lag1",
+        "score": 11.276630401611328
+      },
+      {
+        "feature": "precipitation_mm_day_roll3",
+        "score": 11.14534854888916
+      },
+      {
+        "feature": "ndvi",
+        "score": 9.255599021911621
+      },
+      {
+        "feature": "temperature_2m_c_anomaly_lag1",
+        "score": 7.908961296081543
+      },
+      {
+        "feature": "powell_inflow",
+        "score": 7.707594871520996
+      },
+      {
+        "feature": "temperature_2m_c_anomaly",
+        "score": 6.9449262619018555
+      },
+      {
+        "feature": "month_sin",
+        "score": 6.04758358001709
       },
       {
         "feature": "precipitation_mm_day",
-        "score": 30.469160079956055
-      },
-      {
-        "feature": "month_cos",
-        "score": 27.017648696899414
-      },
-      {
-        "feature": "usdm_sustainability_roll3",
-        "score": 19.211044311523438
+        "score": 5.5190606117248535
       },
       {
         "feature": "grace_groundwater_anomaly",
-        "score": 17.107038497924805
+        "score": 4.051634311676025
       },
       {
-        "feature": "streamflow_cfs",
-        "score": 16.913005828857422
+        "feature": "month_cos",
+        "score": 4.050298690795898
       },
       {
-        "feature": "grace_groundwater_anomaly_roll6",
-        "score": 15.872584342956543
+        "feature": "irrigation_total_withdrawal_mgd",
+        "score": 4.023597240447998
       },
       {
-        "feature": "grace_groundwater_anomaly_lag1",
-        "score": 15.143122673034668
+        "feature": "usdm_sustainability_roll3",
+        "score": 3.461622714996338
       }
     ]
   },
   "fold_r2": [
-    0.9148101413512858,
-    0.8733164716503422,
-    0.8620482898053213,
-    0.9278530066380406,
-    0.8948113116822172
+    0.912775805234895,
+    0.8650523663839178,
+    0.8760238833714379,
+    0.9304522112986683,
+    0.8977086874642992
   ],
   "fold_mae": [
-    4.159257324536641,
-    3.8490192469540574,
-    2.29320150163542,
-    2.268958900032772,
-    5.621175218973723
+    4.301985249858763,
+    4.26292988681131,
+    2.0904852836744654,
+    2.311999936266286,
+    5.632488849659761
   ],
-  "mean_r2": 0.8945678442254416,
-  "std_r2": 0.024604284838927598,
-  "mean_mae": 3.6383224384265227,
-  "std_mae": 1.2595219954323975,
-  "best_cv_r2": 0.8945678442254416,
+  "mean_r2": 0.8964025907506435,
+  "std_r2": 0.023779373342998456,
+  "mean_mae": 3.719977841254117,
+  "std_mae": 1.336328977524592,
+  "best_cv_r2": 0.8964025907506435,
   "best_params": {
-    "base_estimator__model__subsample": 1.0,
-    "base_estimator__model__reg_lambda": 1,
-    "base_estimator__model__reg_alpha": 0.05,
-    "base_estimator__model__n_estimators": 800,
+    "base_estimator__model__subsample": 0.6,
+    "base_estimator__model__reg_lambda": 5,
+    "base_estimator__model__reg_alpha": 0.2,
+    "base_estimator__model__n_estimators": 1000,
     "base_estimator__model__min_child_weight": 1,
-    "base_estimator__model__max_depth": 3,
-    "base_estimator__model__learning_rate": 0.05,
-    "base_estimator__model__colsample_bytree": 0.7
+    "base_estimator__model__max_depth": 4,
+    "base_estimator__model__learning_rate": 0.1,
+    "base_estimator__model__colsample_bytree": 0.6
   },
   "leaderboard": [
     {
@@ -112,9 +112,9 @@
       "feature_set": "full",
       "prediction_mode": "residual_lag1",
       "export_compatible": true,
-      "n_features": 39,
-      "mean_r2": 0.8842698869688539,
-      "mean_mae": 3.7769398087224895,
+      "n_features": 37,
+      "mean_r2": 0.8879232352428847,
+      "mean_mae": 3.814114506224791,
       "rank": 1
     },
     {
@@ -125,9 +125,9 @@
       "feature_set": "full",
       "prediction_mode": "residual_lag1",
       "export_compatible": true,
-      "n_features": 39,
-      "mean_r2": 0.8768053044956075,
-      "mean_mae": 3.9375894461549246,
+      "n_features": 37,
+      "mean_r2": 0.8815533649269744,
+      "mean_mae": 3.8619111908047623,
       "rank": 2
     },
     {
@@ -255,9 +255,9 @@
       "feature_set": "full",
       "prediction_mode": "level",
       "export_compatible": true,
-      "n_features": 39,
-      "mean_r2": 0.5565318525119543,
-      "mean_mae": 7.468258299607497,
+      "n_features": 37,
+      "mean_r2": 0.556459674823815,
+      "mean_mae": 7.458652231069712,
       "rank": 12
     },
     {
@@ -296,9 +296,9 @@
       "feature_set": "full",
       "prediction_mode": "residual_lag1",
       "export_compatible": true,
-      "n_features": 39,
-      "mean_r2": 0.8945678442254416,
-      "mean_mae": 3.6383224384265227,
+      "n_features": 37,
+      "mean_r2": 0.8964025907506435,
+      "mean_mae": 3.719977841254117,
       "rank": 1
     },
     {
@@ -315,6 +315,19 @@
       "rank": 2
     },
     {
+      "name": "xgb_full_residual_lag1_focused",
+      "label": "XGBoost (all features, residual over lag1, focused search)",
+      "kind": "candidate",
+      "model_family": "xgboost",
+      "feature_set": "full",
+      "prediction_mode": "residual_lag1",
+      "export_compatible": true,
+      "n_features": 37,
+      "mean_r2": 0.8879232352428847,
+      "mean_mae": 3.814114506224791,
+      "rank": 3
+    },
+    {
       "name": "grace_window_xgb_compact_plus_endpoint_dynamics_residual_lag1_focused",
       "label": "XGBoost (compact + precip/GRACE dynamics, residual over lag1, focused search, GRACE window)",
       "kind": "candidate",
@@ -325,19 +338,6 @@
       "n_features": 24,
       "mean_r2": 0.8842767272143336,
       "mean_mae": 3.9609623307420145,
-      "rank": 3
-    },
-    {
-      "name": "xgb_full_residual_lag1_focused",
-      "label": "XGBoost (all features, residual over lag1, focused search)",
-      "kind": "candidate",
-      "model_family": "xgboost",
-      "feature_set": "full",
-      "prediction_mode": "residual_lag1",
-      "export_compatible": true,
-      "n_features": 39,
-      "mean_r2": 0.8842698869688539,
-      "mean_mae": 3.7769398087224895,
       "rank": 4
     },
     {
@@ -348,9 +348,9 @@
       "feature_set": "full",
       "prediction_mode": "residual_lag1",
       "export_compatible": true,
-      "n_features": 39,
-      "mean_r2": 0.8768053044956075,
-      "mean_mae": 3.9375894461549246,
+      "n_features": 37,
+      "mean_r2": 0.8815533649269744,
+      "mean_mae": 3.8619111908047623,
       "rank": 5
     },
     {
@@ -465,9 +465,9 @@
       "feature_set": "full",
       "prediction_mode": "level",
       "export_compatible": true,
-      "n_features": 39,
-      "mean_r2": 0.5565318525119543,
-      "mean_mae": 7.468258299607497,
+      "n_features": 37,
+      "mean_r2": 0.556459674823815,
+      "mean_mae": 7.458652231069712,
       "rank": 14
     },
     {
@@ -498,7 +498,6 @@
         "powell_evaporation",
         "powell_total_release",
         "powell_inflow",
-        "powell_storage",
         "powell_pool_elevation",
         "ndvi",
         "precipitation_mm_day",
@@ -513,7 +512,6 @@
         "usdm_sustainability_lag3",
         "streamflow_cfs_lag1",
         "snow_water_equivalent_in_lag1",
-        "powell_storage_lag1",
         "powell_pool_elevation_lag1",
         "precipitation_mm_day_lag1",
         "temperature_2m_c_lag1",
@@ -532,9 +530,9 @@
         "grace_groundwater_anomaly_roll6",
         "AZPOP_pct_change"
       ],
-      "n_features": 39,
+      "n_features": 37,
       "search_note": "RandomizedSearchCV, 40 iterations",
-      "search_best_score": 0.5565318525119543,
+      "search_best_score": 0.556459674823815,
       "best_params": {
         "model__subsample": 0.6,
         "model__reg_lambda": 5,
@@ -566,8 +564,8 @@
             "test_end": "2011-03",
             "n_train": 81,
             "n_test": 39,
-            "r2": 0.6059814628014866,
-            "mae": 6.242713231795873
+            "r2": 0.6043044996752973,
+            "mae": 6.25554205870017
           },
           {
             "fold": 3,
@@ -588,8 +586,8 @@
             "test_end": "2017-09",
             "n_train": 159,
             "n_test": 39,
-            "r2": 0.8671708332555181,
-            "mae": 3.895769109481421
+            "r2": 0.8683317743815765,
+            "mae": 3.8800125239445618
           },
           {
             "fold": 5,
@@ -599,32 +597,32 @@
             "test_end": "2020-12",
             "n_train": 198,
             "n_test": 39,
-            "r2": 0.8662704261482992,
-            "mae": 7.548798914200222
+            "r2": 0.866425559707734,
+            "mae": 7.503696330143857
           }
         ],
         "fold_r2": [
           -0.1338478151298268,
-          0.6059814628014866,
+          0.6043044996752973,
           0.5770843554842939,
-          0.8671708332555181,
-          0.8662704261482992
+          0.8683317743815765,
+          0.866425559707734
         ],
         "fold_mae": [
           15.101204681396485,
-          6.242713231795873,
+          6.25554205870017,
           4.5528055611634874,
-          3.895769109481421,
-          7.548798914200222
+          3.8800125239445618,
+          7.503696330143857
         ],
-        "mean_r2": 0.5565318525119543,
-        "std_r2": 0.3665859558643971,
-        "mean_mae": 7.468258299607497,
-        "std_mae": 4.025738731084528
+        "mean_r2": 0.556459674823815,
+        "std_r2": 0.36676477248447686,
+        "mean_mae": 7.458652231069712,
+        "std_mae": 4.027622575071653
       },
       "train": {
-        "r2": 0.9999997031906332,
-        "mae": 0.0037172300604324544
+        "r2": 0.9999997042243942,
+        "mae": 0.003630684397894457
       },
       "feature_importance": {
         "label": "Gain",
@@ -632,63 +630,63 @@
         "top_items": [
           {
             "feature": "usdm_sustainability_lag1",
-            "score": 777.3182983398438
-          },
-          {
-            "feature": "grace_groundwater_anomaly",
-            "score": 15.20113754272461
+            "score": 798.243408203125
           },
           {
             "feature": "precipitation_mm_day_roll6",
-            "score": 14.702795028686523
+            "score": 16.294776916503906
+          },
+          {
+            "feature": "grace_groundwater_anomaly",
+            "score": 15.333535194396973
           },
           {
             "feature": "precipitation_mm_day_lag1",
-            "score": 14.318934440612793
+            "score": 15.188191413879395
           },
           {
             "feature": "ndvi",
-            "score": 13.429475784301758
+            "score": 15.03640079498291
           },
           {
             "feature": "precipitation_mm_day_roll3",
-            "score": 11.720633506774902
-          },
-          {
-            "feature": "temperature_2m_c_anomaly",
-            "score": 8.433238983154297
-          },
-          {
-            "feature": "usdm_sustainability_roll6",
-            "score": 8.324897766113281
-          },
-          {
-            "feature": "precipitation_mm_day",
-            "score": 8.096602439880371
-          },
-          {
-            "feature": "irrigation_total_withdrawal_mgd",
-            "score": 7.292263031005859
+            "score": 11.577319145202637
           },
           {
             "feature": "snow_water_equivalent_in",
-            "score": 7.164641380310059
+            "score": 9.503010749816895
+          },
+          {
+            "feature": "temperature_2m_c_anomaly",
+            "score": 9.14633560180664
+          },
+          {
+            "feature": "precipitation_mm_day",
+            "score": 8.395092010498047
+          },
+          {
+            "feature": "usdm_sustainability_roll6",
+            "score": 7.62974739074707
+          },
+          {
+            "feature": "irrigation_total_withdrawal_mgd",
+            "score": 7.20464563369751
           },
           {
             "feature": "usdm_sustainability_lag3",
-            "score": 6.1368818283081055
-          },
-          {
-            "feature": "temperature_2m_c_roll3",
-            "score": 6.001281261444092
+            "score": 5.827780246734619
           },
           {
             "feature": "powell_total_release",
-            "score": 5.329517841339111
+            "score": 5.66049337387085
+          },
+          {
+            "feature": "temperature_2m_c_roll3",
+            "score": 5.632542610168457
           },
           {
             "feature": "streamflow_cfs_roll3",
-            "score": 4.836231231689453
+            "score": 4.544130325317383
           }
         ]
       }
@@ -1064,7 +1062,6 @@
         "powell_evaporation",
         "powell_total_release",
         "powell_inflow",
-        "powell_storage",
         "powell_pool_elevation",
         "ndvi",
         "precipitation_mm_day",
@@ -1079,7 +1076,6 @@
         "usdm_sustainability_lag3",
         "streamflow_cfs_lag1",
         "snow_water_equivalent_in_lag1",
-        "powell_storage_lag1",
         "powell_pool_elevation_lag1",
         "precipitation_mm_day_lag1",
         "temperature_2m_c_lag1",
@@ -1098,18 +1094,18 @@
         "grace_groundwater_anomaly_roll6",
         "AZPOP_pct_change"
       ],
-      "n_features": 39,
+      "n_features": 37,
       "search_note": "RandomizedSearchCV, 40 iterations on residual target",
-      "search_best_score": 0.8768053044956075,
+      "search_best_score": 0.8815533649269744,
       "best_params": {
-        "base_estimator__model__subsample": 0.8,
-        "base_estimator__model__reg_lambda": 2,
-        "base_estimator__model__reg_alpha": 0.5,
-        "base_estimator__model__n_estimators": 800,
-        "base_estimator__model__min_child_weight": 1,
-        "base_estimator__model__max_depth": 5,
-        "base_estimator__model__learning_rate": 0.05,
-        "base_estimator__model__colsample_bytree": 0.6
+        "base_estimator__model__subsample": 0.6,
+        "base_estimator__model__reg_lambda": 5,
+        "base_estimator__model__reg_alpha": 0,
+        "base_estimator__model__n_estimators": 100,
+        "base_estimator__model__min_child_weight": 5,
+        "base_estimator__model__max_depth": 4,
+        "base_estimator__model__learning_rate": 0.1,
+        "base_estimator__model__colsample_bytree": 0.8
       },
       "cv": {
         "folds": [
@@ -1121,8 +1117,8 @@
             "test_end": "2007-12",
             "n_train": 42,
             "n_test": 39,
-            "r2": 0.9127703856237815,
-            "mae": 4.019380128750434
+            "r2": 0.8898482479102898,
+            "mae": 4.6430938598437175
           },
           {
             "fold": 2,
@@ -1132,8 +1128,8 @@
             "test_end": "2011-03",
             "n_train": 81,
             "n_test": 39,
-            "r2": 0.7498621598096564,
-            "mae": 4.9740332668790455
+            "r2": 0.798414144234257,
+            "mae": 4.365363774521229
           },
           {
             "fold": 3,
@@ -1143,8 +1139,8 @@
             "test_end": "2014-06",
             "n_train": 120,
             "n_test": 39,
-            "r2": 0.8872660747662791,
-            "mae": 2.2617717215342403
+            "r2": 0.8711889846481848,
+            "mae": 2.4078393456951166
           },
           {
             "fold": 4,
@@ -1154,8 +1150,8 @@
             "test_end": "2017-09",
             "n_train": 159,
             "n_test": 39,
-            "r2": 0.9538534409937074,
-            "mae": 2.2675088404233636
+            "r2": 0.9519051027400199,
+            "mae": 2.2725107123530828
           },
           {
             "fold": 5,
@@ -1165,96 +1161,96 @@
             "test_end": "2020-12",
             "n_train": 198,
             "n_test": 39,
-            "r2": 0.8802744612846126,
-            "mae": 6.165253273187538
+            "r2": 0.8964103451021201,
+            "mae": 5.620748261610665
           }
         ],
         "fold_r2": [
-          0.9127703856237815,
-          0.7498621598096564,
-          0.8872660747662791,
-          0.9538534409937074,
-          0.8802744612846126
+          0.8898482479102898,
+          0.798414144234257,
+          0.8711889846481848,
+          0.9519051027400199,
+          0.8964103451021201
         ],
         "fold_mae": [
-          4.019380128750434,
-          4.9740332668790455,
-          2.2617717215342403,
-          2.2675088404233636,
-          6.165253273187538
+          4.6430938598437175,
+          4.365363774521229,
+          2.4078393456951166,
+          2.2725107123530828,
+          5.620748261610665
         ],
-        "mean_r2": 0.8768053044956075,
-        "std_r2": 0.06850682760809575,
-        "mean_mae": 3.9375894461549246,
-        "std_mae": 1.5258391731332492
+        "mean_r2": 0.8815533649269744,
+        "std_r2": 0.049514548070042595,
+        "mean_mae": 3.8619111908047623,
+        "std_mae": 1.3113151810104007
       },
       "train": {
-        "r2": 0.9999968158611355,
-        "mae": 0.02354241197863952
+        "r2": 0.9963288918137571,
+        "mae": 0.8490521762051663
       },
       "feature_importance": {
         "label": "Gain",
         "kind": "gain",
         "top_items": [
           {
-            "feature": "precipitation_mm_day_roll3",
-            "score": 41.232418060302734
-          },
-          {
             "feature": "usdm_sustainability_lag3",
-            "score": 36.096282958984375
+            "score": 127.80986785888672
           },
           {
-            "feature": "precipitation_mm_day_lag1",
-            "score": 27.848350524902344
-          },
-          {
-            "feature": "usdm_sustainability_roll6",
-            "score": 24.977296829223633
-          },
-          {
-            "feature": "temperature_2m_c_lag1",
-            "score": 17.824016571044922
+            "feature": "precipitation_mm_day_roll3",
+            "score": 116.83869934082031
           },
           {
             "feature": "ndvi",
-            "score": 17.74627685546875
+            "score": 111.15886688232422
           },
           {
-            "feature": "precipitation_mm_day",
-            "score": 13.625760078430176
-          },
-          {
-            "feature": "month_cos",
-            "score": 11.24732494354248
+            "feature": "precipitation_mm_day_lag1",
+            "score": 104.92742156982422
           },
           {
             "feature": "temperature_2m_c_anomaly",
-            "score": 11.138805389404297
+            "score": 67.78917694091797
           },
           {
             "feature": "irrigation_total_withdrawal_mgd",
-            "score": 9.953706741333008
+            "score": 64.82892608642578
           },
           {
-            "feature": "ndvi_lag1",
-            "score": 9.165542602539062
+            "feature": "usdm_sustainability_roll6",
+            "score": 64.40597534179688
+          },
+          {
+            "feature": "month_cos",
+            "score": 63.20102310180664
           },
           {
             "feature": "usdm_sustainability_lag1",
-            "score": 8.933065414428711
+            "score": 61.78116989135742
           },
           {
-            "feature": "streamflow_cfs",
-            "score": 8.31064510345459
+            "feature": "usdm_sustainability_roll3",
+            "score": 61.10085678100586
+          },
+          {
+            "feature": "snow_water_equivalent_in",
+            "score": 59.64345169067383
+          },
+          {
+            "feature": "precipitation_mm_day",
+            "score": 52.195858001708984
           },
           {
             "feature": "grace_groundwater_anomaly",
-            "score": 8.206253051757812
+            "score": 51.33247375488281
           },
           {
-            "feature": "grace_groundwater_anomaly_roll6",
-            "score": 8.048590660095215
+            "feature": "temperature_2m_c_lag1",
+            "score": 51.05006790161133
+          },
+          {
+            "feature": "powell_inflow",
+            "score": 44.95224380493164
           }
         ]
       }
@@ -1272,7 +1268,6 @@
         "powell_evaporation",
         "powell_total_release",
         "powell_inflow",
-        "powell_storage",
         "powell_pool_elevation",
         "ndvi",
         "precipitation_mm_day",
@@ -1287,7 +1282,6 @@
         "usdm_sustainability_lag3",
         "streamflow_cfs_lag1",
         "snow_water_equivalent_in_lag1",
-        "powell_storage_lag1",
         "powell_pool_elevation_lag1",
         "precipitation_mm_day_lag1",
         "temperature_2m_c_lag1",
@@ -1306,9 +1300,9 @@
         "grace_groundwater_anomaly_roll6",
         "AZPOP_pct_change"
       ],
-      "n_features": 39,
+      "n_features": 37,
       "search_note": "RandomizedSearchCV, 80 focused iterations on residual target",
-      "search_best_score": 0.8842698869688539,
+      "search_best_score": 0.8879232352428847,
       "best_params": {
         "base_estimator__model__subsample": 0.6,
         "base_estimator__model__reg_lambda": 5,
@@ -1329,8 +1323,8 @@
             "test_end": "2007-12",
             "n_train": 42,
             "n_test": 39,
-            "r2": 0.9133035371168038,
-            "mae": 4.067182118602288
+            "r2": 0.9114902849232998,
+            "mae": 4.242839804994754
           },
           {
             "fold": 2,
@@ -1340,8 +1334,8 @@
             "test_end": "2011-03",
             "n_train": 81,
             "n_test": 39,
-            "r2": 0.7666529122584866,
-            "mae": 4.8041598410484125
+            "r2": 0.7807390399320544,
+            "mae": 4.64097186168035
           },
           {
             "fold": 3,
@@ -1351,8 +1345,8 @@
             "test_end": "2014-06",
             "n_train": 120,
             "n_test": 39,
-            "r2": 0.8941992270279959,
-            "mae": 2.0901723480835934
+            "r2": 0.8929107089594072,
+            "mae": 2.1758383728449155
           },
           {
             "fold": 4,
@@ -1362,8 +1356,8 @@
             "test_end": "2017-09",
             "n_train": 159,
             "n_test": 39,
-            "r2": 0.9534026652115264,
-            "mae": 2.330187941720852
+            "r2": 0.9565750382716789,
+            "mae": 2.142276606666736
           },
           {
             "fold": 5,
@@ -1373,96 +1367,96 @@
             "test_end": "2020-12",
             "n_train": 198,
             "n_test": 39,
-            "r2": 0.8937910932294564,
-            "mae": 5.592996794157302
+            "r2": 0.8979011041279836,
+            "mae": 5.8686458849372
           }
         ],
         "fold_r2": [
-          0.9133035371168038,
-          0.7666529122584866,
-          0.8941992270279959,
-          0.9534026652115264,
-          0.8937910932294564
+          0.9114902849232998,
+          0.7807390399320544,
+          0.8929107089594072,
+          0.9565750382716789,
+          0.8979011041279836
         ],
         "fold_mae": [
-          4.067182118602288,
-          4.8041598410484125,
-          2.0901723480835934,
-          2.330187941720852,
-          5.592996794157302
+          4.242839804994754,
+          4.64097186168035,
+          2.1758383728449155,
+          2.142276606666736,
+          5.8686458849372
         ],
-        "mean_r2": 0.8842698869688539,
-        "std_r2": 0.0626822012554605,
-        "mean_mae": 3.7769398087224895,
-        "std_mae": 1.3693618950843873
+        "mean_r2": 0.8879232352428847,
+        "std_r2": 0.058105697441361036,
+        "mean_mae": 3.814114506224791,
+        "std_mae": 1.4537942293042074
       },
       "train": {
-        "r2": 0.9999994418163786,
-        "mae": 0.007302043068751569
+        "r2": 0.9999994771146167,
+        "mae": 0.007480808464394861
       },
       "feature_importance": {
         "label": "Gain",
         "kind": "gain",
         "top_items": [
           {
-            "feature": "precipitation_mm_day_lag1",
-            "score": 20.03152847290039
+            "feature": "usdm_sustainability_lag3",
+            "score": 20.15028190612793
           },
           {
-            "feature": "usdm_sustainability_lag3",
-            "score": 18.17101287841797
+            "feature": "precipitation_mm_day_lag1",
+            "score": 18.971351623535156
           },
           {
             "feature": "precipitation_mm_day_roll3",
-            "score": 15.282879829406738
-          },
-          {
-            "feature": "usdm_sustainability_roll6",
-            "score": 11.422307014465332
+            "score": 13.252981185913086
           },
           {
             "feature": "ndvi",
-            "score": 11.11064338684082
+            "score": 12.889616012573242
+          },
+          {
+            "feature": "usdm_sustainability_roll6",
+            "score": 10.559303283691406
           },
           {
             "feature": "temperature_2m_c_lag1",
-            "score": 8.223759651184082
-          },
-          {
-            "feature": "temperature_2m_c_anomaly",
-            "score": 6.7669477462768555
-          },
-          {
-            "feature": "irrigation_total_withdrawal_mgd",
-            "score": 6.630389213562012
+            "score": 8.684978485107422
           },
           {
             "feature": "precipitation_mm_day",
-            "score": 6.313287734985352
+            "score": 7.667202472686768
           },
           {
-            "feature": "usdm_sustainability_lag1",
-            "score": 6.28219747543335
-          },
-          {
-            "feature": "precipitation_mm_day_roll6",
-            "score": 5.960144996643066
-          },
-          {
-            "feature": "usdm_sustainability_roll3",
-            "score": 5.668285369873047
+            "feature": "temperature_2m_c_anomaly",
+            "score": 7.1088337898254395
           },
           {
             "feature": "powell_inflow",
-            "score": 5.506117343902588
+            "score": 6.4855146408081055
           },
           {
-            "feature": "streamflow_cfs",
-            "score": 4.610691070556641
+            "feature": "precipitation_mm_day_roll6",
+            "score": 5.828090667724609
           },
           {
-            "feature": "powell_pool_elevation",
-            "score": 4.388843059539795
+            "feature": "usdm_sustainability_lag1",
+            "score": 5.631144046783447
+          },
+          {
+            "feature": "irrigation_total_withdrawal_mgd",
+            "score": 5.462619304656982
+          },
+          {
+            "feature": "usdm_sustainability_roll3",
+            "score": 5.457778453826904
+          },
+          {
+            "feature": "month_sin",
+            "score": 5.363898277282715
+          },
+          {
+            "feature": "temperature_2m_c_roll3",
+            "score": 5.328758716583252
           }
         ]
       }
@@ -2787,7 +2781,6 @@
         "powell_evaporation",
         "powell_total_release",
         "powell_inflow",
-        "powell_storage",
         "powell_pool_elevation",
         "ndvi",
         "precipitation_mm_day",
@@ -2802,7 +2795,6 @@
         "usdm_sustainability_lag3",
         "streamflow_cfs_lag1",
         "snow_water_equivalent_in_lag1",
-        "powell_storage_lag1",
         "powell_pool_elevation_lag1",
         "precipitation_mm_day_lag1",
         "temperature_2m_c_lag1",
@@ -2821,18 +2813,18 @@
         "grace_groundwater_anomaly_roll6",
         "AZPOP_pct_change"
       ],
-      "n_features": 39,
+      "n_features": 37,
       "search_note": "RandomizedSearchCV, 80 focused iterations on residual target",
-      "search_best_score": 0.8945678442254416,
+      "search_best_score": 0.8964025907506435,
       "best_params": {
-        "base_estimator__model__subsample": 1.0,
-        "base_estimator__model__reg_lambda": 1,
-        "base_estimator__model__reg_alpha": 0.05,
-        "base_estimator__model__n_estimators": 800,
+        "base_estimator__model__subsample": 0.6,
+        "base_estimator__model__reg_lambda": 5,
+        "base_estimator__model__reg_alpha": 0.2,
+        "base_estimator__model__n_estimators": 1000,
         "base_estimator__model__min_child_weight": 1,
-        "base_estimator__model__max_depth": 3,
-        "base_estimator__model__learning_rate": 0.05,
-        "base_estimator__model__colsample_bytree": 0.7
+        "base_estimator__model__max_depth": 4,
+        "base_estimator__model__learning_rate": 0.1,
+        "base_estimator__model__colsample_bytree": 0.6
       },
       "cv": {
         "folds": [
@@ -2844,8 +2836,8 @@
             "test_end": "2008-12",
             "n_train": 39,
             "n_test": 36,
-            "r2": 0.9148101413512858,
-            "mae": 4.159257324536641
+            "r2": 0.912775805234895,
+            "mae": 4.301985249858763
           },
           {
             "fold": 2,
@@ -2855,8 +2847,8 @@
             "test_end": "2011-12",
             "n_train": 75,
             "n_test": 36,
-            "r2": 0.8733164716503422,
-            "mae": 3.8490192469540574
+            "r2": 0.8650523663839178,
+            "mae": 4.26292988681131
           },
           {
             "fold": 3,
@@ -2866,8 +2858,8 @@
             "test_end": "2014-12",
             "n_train": 111,
             "n_test": 36,
-            "r2": 0.8620482898053213,
-            "mae": 2.29320150163542
+            "r2": 0.8760238833714379,
+            "mae": 2.0904852836744654
           },
           {
             "fold": 4,
@@ -2877,8 +2869,8 @@
             "test_end": "2017-12",
             "n_train": 147,
             "n_test": 36,
-            "r2": 0.9278530066380406,
-            "mae": 2.268958900032772
+            "r2": 0.9304522112986683,
+            "mae": 2.311999936266286
           },
           {
             "fold": 5,
@@ -2888,32 +2880,32 @@
             "test_end": "2020-12",
             "n_train": 183,
             "n_test": 36,
-            "r2": 0.8948113116822172,
-            "mae": 5.621175218973723
+            "r2": 0.8977086874642992,
+            "mae": 5.632488849659761
           }
         ],
         "fold_r2": [
-          0.9148101413512858,
-          0.8733164716503422,
-          0.8620482898053213,
-          0.9278530066380406,
-          0.8948113116822172
+          0.912775805234895,
+          0.8650523663839178,
+          0.8760238833714379,
+          0.9304522112986683,
+          0.8977086874642992
         ],
         "fold_mae": [
-          4.159257324536641,
-          3.8490192469540574,
-          2.29320150163542,
-          2.268958900032772,
-          5.621175218973723
+          4.301985249858763,
+          4.26292988681131,
+          2.0904852836744654,
+          2.311999936266286,
+          5.632488849659761
         ],
-        "mean_r2": 0.8945678442254416,
-        "std_r2": 0.024604284838927598,
-        "mean_mae": 3.6383224384265227,
-        "std_mae": 1.2595219954323975
+        "mean_r2": 0.8964025907506435,
+        "std_r2": 0.023779373342998456,
+        "mean_mae": 3.719977841254117,
+        "std_mae": 1.336328977524592
       },
       "train": {
-        "r2": 0.9999820240765811,
-        "mae": 0.06604363654642316
+        "r2": 0.999999515930828,
+        "mae": 0.008093698192898059
       },
       "feature_importance": {
         "label": "Gain",
@@ -2921,63 +2913,63 @@
         "top_items": [
           {
             "feature": "precipitation_mm_day_lag1",
-            "score": 101.0537109375
-          },
-          {
-            "feature": "usdm_sustainability_lag3",
-            "score": 72.40084075927734
-          },
-          {
-            "feature": "precipitation_mm_day_roll3",
-            "score": 58.712520599365234
-          },
-          {
-            "feature": "temperature_2m_c_lag1",
-            "score": 54.945274353027344
-          },
-          {
-            "feature": "temperature_2m_c_anomaly",
-            "score": 45.63296127319336
-          },
-          {
-            "feature": "ndvi",
-            "score": 42.434486389160156
-          },
-          {
-            "feature": "temperature_2m_c_anomaly_lag1",
-            "score": 41.00539016723633
+            "score": 21.297195434570312
           },
           {
             "feature": "usdm_sustainability_roll6",
-            "score": 40.921356201171875
+            "score": 19.28375816345215
+          },
+          {
+            "feature": "usdm_sustainability_lag3",
+            "score": 18.874906539916992
+          },
+          {
+            "feature": "temperature_2m_c_lag1",
+            "score": 11.276630401611328
+          },
+          {
+            "feature": "precipitation_mm_day_roll3",
+            "score": 11.14534854888916
+          },
+          {
+            "feature": "ndvi",
+            "score": 9.255599021911621
+          },
+          {
+            "feature": "temperature_2m_c_anomaly_lag1",
+            "score": 7.908961296081543
+          },
+          {
+            "feature": "powell_inflow",
+            "score": 7.707594871520996
+          },
+          {
+            "feature": "temperature_2m_c_anomaly",
+            "score": 6.9449262619018555
+          },
+          {
+            "feature": "month_sin",
+            "score": 6.04758358001709
           },
           {
             "feature": "precipitation_mm_day",
-            "score": 30.469160079956055
-          },
-          {
-            "feature": "month_cos",
-            "score": 27.017648696899414
-          },
-          {
-            "feature": "usdm_sustainability_roll3",
-            "score": 19.211044311523438
+            "score": 5.5190606117248535
           },
           {
             "feature": "grace_groundwater_anomaly",
-            "score": 17.107038497924805
+            "score": 4.051634311676025
           },
           {
-            "feature": "streamflow_cfs",
-            "score": 16.913005828857422
+            "feature": "month_cos",
+            "score": 4.050298690795898
           },
           {
-            "feature": "grace_groundwater_anomaly_roll6",
-            "score": 15.872584342956543
+            "feature": "irrigation_total_withdrawal_mgd",
+            "score": 4.023597240447998
           },
           {
-            "feature": "grace_groundwater_anomaly_lag1",
-            "score": 15.143122673034668
+            "feature": "usdm_sustainability_roll3",
+            "score": 3.461622714996338
           }
         ]
       }
@@ -3705,7 +3697,6 @@
           "powell_evaporation",
           "powell_total_release",
           "powell_inflow",
-          "powell_storage",
           "powell_pool_elevation",
           "ndvi",
           "precipitation_mm_day",
@@ -3720,7 +3711,6 @@
           "usdm_sustainability_lag3",
           "streamflow_cfs_lag1",
           "snow_water_equivalent_in_lag1",
-          "powell_storage_lag1",
           "powell_pool_elevation_lag1",
           "precipitation_mm_day_lag1",
           "temperature_2m_c_lag1",
@@ -3739,18 +3729,18 @@
           "grace_groundwater_anomaly_roll6",
           "AZPOP_pct_change"
         ],
-        "n_features": 39,
+        "n_features": 37,
         "search_note": "RandomizedSearchCV, 80 focused iterations on residual target",
-        "search_best_score": 0.8945678442254416,
+        "search_best_score": 0.8964025907506435,
         "best_params": {
-          "base_estimator__model__subsample": 1.0,
-          "base_estimator__model__reg_lambda": 1,
-          "base_estimator__model__reg_alpha": 0.05,
-          "base_estimator__model__n_estimators": 800,
+          "base_estimator__model__subsample": 0.6,
+          "base_estimator__model__reg_lambda": 5,
+          "base_estimator__model__reg_alpha": 0.2,
+          "base_estimator__model__n_estimators": 1000,
           "base_estimator__model__min_child_weight": 1,
-          "base_estimator__model__max_depth": 3,
-          "base_estimator__model__learning_rate": 0.05,
-          "base_estimator__model__colsample_bytree": 0.7
+          "base_estimator__model__max_depth": 4,
+          "base_estimator__model__learning_rate": 0.1,
+          "base_estimator__model__colsample_bytree": 0.6
         },
         "cv": {
           "folds": [
@@ -3762,8 +3752,8 @@
               "test_end": "2008-12",
               "n_train": 39,
               "n_test": 36,
-              "r2": 0.9148101413512858,
-              "mae": 4.159257324536641
+              "r2": 0.912775805234895,
+              "mae": 4.301985249858763
             },
             {
               "fold": 2,
@@ -3773,8 +3763,8 @@
               "test_end": "2011-12",
               "n_train": 75,
               "n_test": 36,
-              "r2": 0.8733164716503422,
-              "mae": 3.8490192469540574
+              "r2": 0.8650523663839178,
+              "mae": 4.26292988681131
             },
             {
               "fold": 3,
@@ -3784,8 +3774,8 @@
               "test_end": "2014-12",
               "n_train": 111,
               "n_test": 36,
-              "r2": 0.8620482898053213,
-              "mae": 2.29320150163542
+              "r2": 0.8760238833714379,
+              "mae": 2.0904852836744654
             },
             {
               "fold": 4,
@@ -3795,8 +3785,8 @@
               "test_end": "2017-12",
               "n_train": 147,
               "n_test": 36,
-              "r2": 0.9278530066380406,
-              "mae": 2.268958900032772
+              "r2": 0.9304522112986683,
+              "mae": 2.311999936266286
             },
             {
               "fold": 5,
@@ -3806,32 +3796,32 @@
               "test_end": "2020-12",
               "n_train": 183,
               "n_test": 36,
-              "r2": 0.8948113116822172,
-              "mae": 5.621175218973723
+              "r2": 0.8977086874642992,
+              "mae": 5.632488849659761
             }
           ],
           "fold_r2": [
-            0.9148101413512858,
-            0.8733164716503422,
-            0.8620482898053213,
-            0.9278530066380406,
-            0.8948113116822172
+            0.912775805234895,
+            0.8650523663839178,
+            0.8760238833714379,
+            0.9304522112986683,
+            0.8977086874642992
           ],
           "fold_mae": [
-            4.159257324536641,
-            3.8490192469540574,
-            2.29320150163542,
-            2.268958900032772,
-            5.621175218973723
+            4.301985249858763,
+            4.26292988681131,
+            2.0904852836744654,
+            2.311999936266286,
+            5.632488849659761
           ],
-          "mean_r2": 0.8945678442254416,
-          "std_r2": 0.024604284838927598,
-          "mean_mae": 3.6383224384265227,
-          "std_mae": 1.2595219954323975
+          "mean_r2": 0.8964025907506435,
+          "std_r2": 0.023779373342998456,
+          "mean_mae": 3.719977841254117,
+          "std_mae": 1.336328977524592
         },
         "train": {
-          "r2": 0.9999820240765811,
-          "mae": 0.06604363654642316
+          "r2": 0.999999515930828,
+          "mae": 0.008093698192898059
         },
         "feature_importance": {
           "label": "Gain",
@@ -3839,63 +3829,63 @@
           "top_items": [
             {
               "feature": "precipitation_mm_day_lag1",
-              "score": 101.0537109375
-            },
-            {
-              "feature": "usdm_sustainability_lag3",
-              "score": 72.40084075927734
-            },
-            {
-              "feature": "precipitation_mm_day_roll3",
-              "score": 58.712520599365234
-            },
-            {
-              "feature": "temperature_2m_c_lag1",
-              "score": 54.945274353027344
-            },
-            {
-              "feature": "temperature_2m_c_anomaly",
-              "score": 45.63296127319336
-            },
-            {
-              "feature": "ndvi",
-              "score": 42.434486389160156
-            },
-            {
-              "feature": "temperature_2m_c_anomaly_lag1",
-              "score": 41.00539016723633
+              "score": 21.297195434570312
             },
             {
               "feature": "usdm_sustainability_roll6",
-              "score": 40.921356201171875
+              "score": 19.28375816345215
+            },
+            {
+              "feature": "usdm_sustainability_lag3",
+              "score": 18.874906539916992
+            },
+            {
+              "feature": "temperature_2m_c_lag1",
+              "score": 11.276630401611328
+            },
+            {
+              "feature": "precipitation_mm_day_roll3",
+              "score": 11.14534854888916
+            },
+            {
+              "feature": "ndvi",
+              "score": 9.255599021911621
+            },
+            {
+              "feature": "temperature_2m_c_anomaly_lag1",
+              "score": 7.908961296081543
+            },
+            {
+              "feature": "powell_inflow",
+              "score": 7.707594871520996
+            },
+            {
+              "feature": "temperature_2m_c_anomaly",
+              "score": 6.9449262619018555
+            },
+            {
+              "feature": "month_sin",
+              "score": 6.04758358001709
             },
             {
               "feature": "precipitation_mm_day",
-              "score": 30.469160079956055
-            },
-            {
-              "feature": "month_cos",
-              "score": 27.017648696899414
-            },
-            {
-              "feature": "usdm_sustainability_roll3",
-              "score": 19.211044311523438
+              "score": 5.5190606117248535
             },
             {
               "feature": "grace_groundwater_anomaly",
-              "score": 17.107038497924805
+              "score": 4.051634311676025
             },
             {
-              "feature": "streamflow_cfs",
-              "score": 16.913005828857422
+              "feature": "month_cos",
+              "score": 4.050298690795898
             },
             {
-              "feature": "grace_groundwater_anomaly_roll6",
-              "score": 15.872584342956543
+              "feature": "irrigation_total_withdrawal_mgd",
+              "score": 4.023597240447998
             },
             {
-              "feature": "grace_groundwater_anomaly_lag1",
-              "score": 15.143122673034668
+              "feature": "usdm_sustainability_roll3",
+              "score": 3.461622714996338
             }
           ]
         }
@@ -4299,8 +4289,8 @@
         "name": "grace_window_xgb_full_residual_lag1_focused",
         "label": "XGBoost (all features, residual over lag1, focused search, GRACE window)",
         "kind": "candidate",
-        "mean_r2": 0.8945678442254416,
-        "mean_mae": 3.6383224384265227
+        "mean_r2": 0.8964025907506435,
+        "mean_mae": 3.719977841254117
       },
       {
         "name": "grace_window_xgb_compact_plus_hydroclimate_residual_lag1_focused",

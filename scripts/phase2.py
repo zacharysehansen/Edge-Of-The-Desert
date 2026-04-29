@@ -106,7 +106,6 @@ lag_targets = {
 lag_features = {
     "streamflow_cfs_lag1":           ("streamflow_cfs", 1),
     "snow_water_equivalent_in_lag1": ("snow_water_equivalent_in", 1),
-    "powell_storage_lag1":           ("powell_storage", 1),
     "powell_pool_elevation_lag1":    ("powell_pool_elevation", 1),
     "precipitation_mm_day_lag1":     ("precipitation_mm_day", 1),
     "temperature_2m_c_lag1":         ("temperature_2m_c", 1),
@@ -149,7 +148,7 @@ merged["grace_groundwater_anomaly_roll6"] = (
 )
 
 merged["AZPOP_pct_change"] = merged["AZPOP"].pct_change()
-merged = merged.drop(columns=["AZPOP"])
+merged = merged.drop(columns=["AZPOP", "powell_storage"])
 
 merged = merged.dropna()
 

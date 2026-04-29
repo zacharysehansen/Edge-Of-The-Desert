@@ -20,10 +20,10 @@ The finalized exported model is:
 
 Final exported performance:
 
-- Mean CV `R² = 0.8946`
-- Mean CV `MAE = 3.6383`
-- CV `R²` standard deviation `= 0.0246`
-- CV `MAE` standard deviation `= 1.2595`
+- Mean CV `R² = 0.8964`
+- Mean CV `MAE = 3.7200`
+- CV `R²` standard deviation `= 0.0238`
+- CV `MAE` standard deviation `= 1.3363`
 
 Final export window:
 
@@ -39,8 +39,8 @@ Reason this became the final export:
 Same-window baseline comparison:
 
 - `lag1_persistence`: mean CV `R² = 0.7900`, mean CV `MAE = 5.1649`
-- Final model improvement in `R²`: `+0.1046`
-- Final model improvement in `MAE`: `-1.5266`
+- Final model improvement in `R²`: `+0.1064`
+- Final model improvement in `MAE`: `-1.4449`
 
 ## Dataset Summary
 
@@ -61,11 +61,15 @@ Feature progression:
 
 - Initial engineered feature count: `22`
 - Early compact feature set: `14`
-- Final full feature set: `39`
+- Final full feature set: `37`
 
 Target:
 
 - `usdm_sustainability`
+- derived from U.S. Drought Monitor `DSCI` as `100 - (usdm_dsci / 5)`
+- higher `DSCI` means worse drought, so lower `usdm_sustainability` is expected
+- this is an inverted drought-severity proxy on a `0-100` scale, not an independent field measurement
+- the model predicts this transformed target directly, and same-month `usdm_dsci` is excluded from the input features to avoid direct leakage
 
 ## Step 1: Initial Phase 2 Model
 
@@ -254,6 +258,12 @@ Updated best GRACE-window model:
 - mean CV `R² = 0.8946`
 - mean CV `MAE = 3.6383`
 
+Powell cleanup refinement:
+
+- we removed `powell_storage` and `powell_storage_lag1` from the modeled feature set
+- `powell_pool_elevation` remains the retained Powell state signal
+- this reduced redundancy between storage and elevation while keeping the more intuitive public-facing variable
+
 ## Step 8: Finalization To Highest-Scoring Export
 
 At this point, the highest honest score came from the GRACE observed window rather than the full window.
@@ -266,12 +276,12 @@ This changed the saved artifacts from:
 
 to:
 
-- GRACE-window winner at `R² = 0.8946`
+- GRACE-window winner at `R² = 0.8964`
 
 The exported artifacts now reflect:
 
 - `grace_window_xgb_full_residual_lag1_focused`
-- `39` input features
+- `37` input features
 - training/export window `2002-10` through `2020-12`
 
 ## Final Hyperparameters
@@ -339,11 +349,11 @@ Important note on `historical_sustainability.csv`:
 
 ## Interpretation Note
 
-`R² = 0.8946` does **not** mean the model is "89.46% accurate".
+`R² = 0.8964` does **not** mean the model is "89.64% accurate".
 
 What it means:
 
-- on the cross-validation folds, the model explains about `89.46%` of the variance in the target relative to a simple mean-only baseline
+- on the cross-validation folds, the model explains about `89.64%` of the variance in the target relative to a simple mean-only baseline
 
 Why that matters:
 
@@ -352,16 +362,16 @@ Why that matters:
 
 How to read the final MAE values:
 
-- `mean_mae = 3.6383` means the model misses the true sustainability score by about `3.64` points on average on held-out cross-validation folds
+- `mean_mae = 3.7200` means the model misses the true sustainability score by about `3.72` points on average on held-out cross-validation folds
 - because the target is a `0-100` sustainability score, the error is in score points
 - `std_mae = 1.2595` means that the fold-level average error changes by about `1.26` points across different train/test time splits
 - in plain terms, if the true score were `60`, a typical prediction would often be somewhere around `56.4` to `63.6`, though some misses will be larger and some smaller
 
 Overfitting note:
 
-- the model does fit the training data extremely closely: train `R² = 0.99998`, train `MAE = 0.0660`
+- the model does fit the training data extremely closely: train `R² = 1.00000`, train `MAE = 0.0081`
 - that means the model has enough capacity to almost memorize the training window
-- however, the held-out time-series CV results are still strong and fairly stable: mean CV `R² = 0.8946`, std `R² = 0.0246`, mean CV `MAE = 3.6383`
+- however, the held-out time-series CV results are still strong and fairly stable: mean CV `R² = 0.8964`, std `R² = 0.0238`, mean CV `MAE = 3.7200`
 - so the honest conclusion is not "no overfitting at all"; it is "some training-set overfit is likely, but out-of-sample performance remains strong enough that the model still generalizes well for this project"
 - the biggest remaining caution is selection optimism: many experiments were tried, so the final reported score is probably a little more optimistic than a never-retuned one-shot evaluation would be
 

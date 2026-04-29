@@ -4,6 +4,11 @@ matplotlib
 seaborn
 scikit-learn
 scipy
+xgboost
+onnx
+onnxruntime
+onnxmltools
+skl2onnx
 jupyter
 jupyterlab
 h5py

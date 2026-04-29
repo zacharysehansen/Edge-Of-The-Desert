@@ -7,9 +7,9 @@ All frontend application code should go in `frontend/`. Repo-level data/export h
 The target interaction model is:
 
 - overview first: gauge + aquifer cross-section + historical time series visible at load
-- zoom and filter: sliders, brush zoom, reset view
+- zoom and filter: seven control knobs, brush zoom, reset view
 - details on demand: click tooltips on time-series points
-- coordinated multiple views: every slider change updates all panels together
+- coordinated multiple views: every knob change updates all panels together
 
 ---
 
@@ -19,13 +19,14 @@ Do not skip this step. The current Phase 2 export is strong, but it does **not**
 
 Current exported model facts:
 
-- `model/water_sustainability.onnx` now uses a full `39`-feature input contract
-- exported inputs now include `streamflow_cfs`, `snow_water_equivalent_in`, `powell_pool_elevation`, `precipitation_mm_day`, `grace_groundwater_anomaly`, `temperature_2m_c`, seasonal terms, and lag/rolling features
-- the repo now includes final endpoint CSVs for `merra_precipitation.csv`, `merra_temperature_2m.csv`, and `grace_groundwater_anomaly.csv` in `data/Final/`
+- `model/water_sustainability.onnx` now uses a full `37`-feature input contract
+- exported inputs now include `streamflow_cfs`, `snow_water_equivalent_in`, `powell_pool_elevation`, `precipitation_mm_day`, `temperature_2m_c`, `irrigation_total_withdrawal_mgd`, `public_supply_groundwater_mgd`, `AZPOP_pct_change`, `grace_groundwater_anomaly`, seasonal terms, and lag/rolling features
+- the repo now includes final endpoint CSVs for the seven planned knob sources in `data/Final/`, including `merra_precipitation.csv`, `merra_temperature_2m.csv`, `powell_combined.csv`, `snotel_swe.csv`, `irrigation_huc12_monthly_az_2000_2020.csv`, `nwaa_public_supply_az_monthly.csv`, and `azpop_monthly.csv`
 - the current exported model already includes `precipitation_mm_day`
 - the current exported model already includes `grace_groundwater_anomaly`
-- the current exported model already includes temperature-derived features, even though temperature is not one of the four proposal sliders
-- these new endpoint CSVs are still not part of the browser asset bundle yet
+- the current exported model already includes temperature-derived features
+- the current exported model no longer uses `powell_storage`; `powell_pool_elevation` is the retained Lake Powell state signal
+- the current asset-prep bundle still needs to be expanded so it fully supports the seven planned user knobs
 - `model/historical_sustainability.csv` now reflects the finalized export window and currently covers `2002-10` through `2020-12`, not the full `2000-01` through `2023-12` exhibit timeline
 - `model/historical_sustainability.csv` still does not contain the full feature vector needed for time-series point tooltips
 
@@ -33,11 +34,14 @@ Because of that, Phase 3 needs a short artifact-alignment pass before the UI is 
 
 Required alignment tasks:
 
-1. Copy `data/Final/merra_precipitation.csv`, `data/Final/merra_temperature_2m.csv`, and `data/Final/grace_groundwater_anomaly.csv` into the final browser asset bundle.
-2. Freeze how the non-slider model inputs behave during browser projection.
-   - The proposal exposes four sliders: Powell pool elevation, snow water equivalent, streamflow, and precipitation.
-   - The exported model also consumes temperature, NDVI, irrigation, public supply, population change, GRACE availability, and several lag/rolling features.
-   - Decide which non-slider exogenous inputs stay fixed, which are seeded from the latest historical row, and which are recomputed during the autoregressive loop.
+1. Expand the browser asset bundle so it can support the full seven-knob plan.
+   - The user-facing controls should be: `powell_pool_elevation`, `snow_water_equivalent_in`, `precipitation_mm_day`, `temperature_2m_c`, `irrigation_total_withdrawal_mgd`, `public_supply_groundwater_mgd`, and `Population`.
+   - `Population` is a UI-facing absolute-value control, but the model consumes `AZPOP_pct_change`, so the browser bundle needs enough historical context to derive that feature during projection.
+   - `streamflow_cfs` remains model-facing under the current plan, but it is not one of the seven user knobs.
+2. Freeze how the non-knob model inputs behave during browser projection.
+   - Keep `powell_pool_elevation` as the only Powell state control; do not bring back `powell_storage` as a separate knob.
+   - Decide which non-knob exogenous inputs stay fixed, which are seeded from the latest historical row, and which are recomputed during the autoregressive loop.
+   - Document exactly how the UI `Population` control turns into the model feature `AZPOP_pct_change` at each projected step.
 3. Keep GRACE as both:
    - a model-facing input already required by the ONNX contract
    - a visual support signal for the aquifer cross-section water-table placement
@@ -49,7 +53,7 @@ Required alignment tasks:
 
 If the proposal must be implemented exactly as written, do the artifact-alignment work first and then freeze the final feature contract before writing the frontend.
 
-The biggest remaining mismatch is no longer precipitation or GRACE. It is that the current ONNX model depends on more covariates than the four planned sliders expose.
+The biggest remaining design task is no longer precipitation or GRACE. It is freezing how the seven user knobs map onto the full `37`-feature ONNX contract, especially `Population -> AZPOP_pct_change` and the choice to hold `streamflow_cfs` fixed.
 
 ---
 
@@ -117,22 +121,28 @@ Minimum required browser assets:
 - `grace_groundwater_anomaly.csv`
 - `merra_precipitation.csv`
 - `merra_temperature_2m.csv`
+- `snotel_swe.csv`
+- `powell_combined.csv`
+- `irrigation_huc12_monthly_az_2000_2020.csv`
+- `nwaa_public_supply_az_monthly.csv`
+- `azpop_monthly.csv`
 
 `display_metadata.json` should include:
 
 - display labels
 - units
 - decimal precision
-- slider eligibility
-- slider min/max/default values
+- knob eligibility
+- knob min/max/default values
 - threshold band labels for the gauge
 - color ramp constants for the gauge and aquifer
+- any browser-side transform rules, including the `Population -> AZPOP_pct_change` mapping
 
 `historical_feature_vectors.csv` should include, at minimum:
 
 - `year_month`
 - `usdm_sustainability`
-- all slider-facing raw inputs
+- all knob-facing raw inputs
 - all lag features the model actually consumes at that point
 - any visual-only fields needed by the cross-section
 - a flag indicating whether the row is historical-only or model-complete
@@ -160,7 +170,7 @@ Recommended state slices:
 - `historicalSeries`
 - `historicalFeatureVectors`
 - `projectionSeries`
-- `sliderValues`
+- `controlValues`
 - `currentPrediction`
 - `brushDomain`
 - `selectedPoint`
@@ -169,11 +179,11 @@ Recommended state slices:
 
 Keep a strict distinction between:
 
-- slider-facing environmental forcings
+- knob-facing environmental forcings
 - model-derived lag features
 - visual-only support fields such as GRACE anomaly
 
-This matters because the sliders should update only the user-facing forcings, while the autoregressive engine owns the lagged values.
+This matters because the controls should update only the user-facing forcings, while the autoregressive engine owns the lagged values.
 
 ---
 
@@ -206,20 +216,27 @@ Also add a small browser-side smoke test:
 
 ## Step 5: Implement The Control Panel
 
-The control panel sits on the left and owns the four main sliders from the proposal:
+The control panel sits on the left and owns the seven scenario knobs:
 
 - `powell_pool_elevation`
 - `snow_water_equivalent_in`
-- `streamflow_cfs`
 - `precipitation_mm_day` shown to users as `precipitation`
+- `temperature_2m_c` shown to users as `temperature`
+- `irrigation_total_withdrawal_mgd` shown to users as `irrigation withdrawal`
+- `public_supply_groundwater_mgd` shown to users as `public supply groundwater`
+- `Population`, displayed as an absolute monthly population scenario and transformed internally into `AZPOP_pct_change`
 
-Each slider should use:
+Important control-policy notes:
+
+- `powell_pool_elevation` is the only Powell state knob
+
+Each knob should use:
 
 - default = historical `median`
 - minimum = historical `p5`
 - maximum = historical `p95`
 
-Each slider row should display:
+Each control row should display:
 
 - human-readable label
 - unit
@@ -228,12 +245,11 @@ Each slider row should display:
 
 Behavior:
 
-1. Moving a slider updates shared state immediately.
+1. Moving a knob updates shared state immediately.
 2. The gauge and cross-section update on the same interaction frame.
 3. The forward projection restarts from the current seed state.
 4. The time-series amber forecast redraws from the new scenario.
-
-If the exact model retrain has not happened yet, keep the UI contract stable and gate the precipitation slider behind the Step 0 artifact-alignment work rather than silently substituting a different feature in the final build.
+5. If the `Population` knob changes, recompute the derived `AZPOP_pct_change` feature before the next model call rather than passing raw `AZPOP` into the ONNX input row.
 
 ---
 
@@ -311,7 +327,7 @@ If GRACE remains visual-only, document that clearly in the code and in the write
 
 The time-series panel should use one shared X/Y coordinate system with two visual zones:
 
-- left zone: historical record from `2000-01` through `2023-12`
+- left zone: historical record from the exported artifact window, currently `2002-10` through `2020-12`
 - right zone: forward projection in amber
 
 Historical styling:
@@ -323,6 +339,8 @@ Projection styling:
 
 - amber line
 - animated point growth one month at a time
+
+If the historical artifacts are later rebuilt to cover the full exhibit timeline, the same component should support a longer historical window without changing the interaction model.
 
 Use a configurable horizon, with `24` months as the default forward projection length.
 
@@ -346,13 +364,13 @@ This is the piece that makes the interface feel alive.
 The projection engine should:
 
 1. Start from the latest valid seed state from `projection_seed.json`.
-2. Use the current slider values as the non-lag environmental forcing.
+2. Use the current knob values as the user-controlled environmental forcing and hold non-knob exogenous fields to their documented policy values.
 3. Predict one month ahead.
 4. Feed the new predicted sustainability score back into the target lag features.
 5. Advance the calendar month.
 6. Repeat every `1000-2000` ms until the horizon is reached.
 
-For the current exported compact model, the engine must also update these derived inputs across the sequence:
+For the current exported model, the engine must also update these derived inputs across the sequence:
 
 - `month_sin`
 - `month_cos`
@@ -366,9 +384,10 @@ Recommended lag update policy:
 
 - on the first projected month, use the historical seed values for lagged fields
 - on later projected months, update target lags from previous predictions
-- for slider-controlled exogenous features with lagged versions, transition the lagged values toward the fixed scenario values as the forecast advances
+- for knob-controlled exogenous features with lagged versions, transition the lagged values toward the fixed scenario values as the forecast advances
+- for the `Population` knob, derive each month's `AZPOP_pct_change` from the scenario population path rather than treating raw `AZPOP` as a direct ONNX feature
 
-When the user moves a slider mid-animation:
+When the user moves a knob mid-animation:
 
 - stop the current timer
 - keep the historical series intact
@@ -393,7 +412,7 @@ Requirements:
 The reset behavior should:
 
 - restore the full extent
-- preserve the current slider scenario
+- preserve the current knob scenario
 - preserve the current projection state
 
 The brush is a view transform only. It should not mutate the underlying series data.
@@ -408,7 +427,8 @@ Tooltip contents should include:
 
 - date
 - sustainability score
-- raw values for the four slider-facing inputs
+- raw values for the seven user-facing knobs
+- any fixed background model inputs that materially shaped that point, such as `streamflow_cfs`
 - target lag features
 - any lagged exogenous features used by the model at that step
 - a badge for `historical` or `projected`
@@ -485,12 +505,12 @@ Before calling Phase 3 complete, verify all of the following:
 
 1. The page loads from a static build with the network disconnected.
 2. The ONNX model initializes and passes the browser smoke test.
-3. Each slider updates the gauge, cross-section, and projection together.
+3. Each of the seven knobs updates the gauge, cross-section, and projection together.
 4. The gauge color and needle match the current score.
 5. The water table line moves when Powell or GRACE-driven inputs change.
 6. The time series shows historical data in muted blue-grey and forecast data in amber.
 7. The forecast appends one new month every `1-2` seconds.
-8. Moving a slider mid-animation restarts the projection from the current state.
+8. Moving a knob mid-animation restarts the projection from the current state.
 9. Brush zoom rescales correctly and reset restores full extent.
 10. Clicking a point opens the expected tooltip and closing behavior works.
 11. Audio can be turned on and off without affecting the visual pipeline.
@@ -506,7 +526,7 @@ Phase 3 is complete when the repo contains:
 - a working `frontend/` application
 - a reproducible asset-prep step
 - a static build that runs fully offline
-- a D3 control panel with the final slider set
+- a D3 control panel with the final seven-knob set
 - a live ONNX-backed gauge
 - a live aquifer cross-section
 - a historical + projected time series with brush zoom
