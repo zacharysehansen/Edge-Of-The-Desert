@@ -1,116 +1,46 @@
 # Visual Report Log
 
-Date: 2026-04-28
+Date: 2026-04-29
 
 ## Goal
 
-Record the current Phase 3 frontend state after the control-panel and aquifer cross-section work, including the later modularization pass, the GRACE slider swap, and the most recent scene-tuning changes.
+Record the current Phase 3 frontend status in terms of what is actually implemented and verified in the browser app.
 
 ## Current Status
 
 Implemented and verified:
 
-1. Step 1: Frontend workspace scaffold
-2. Step 2: Browser-ready asset preparation
-3. Step 3: Frozen frontend data contract and bundle hydration
-4. Step 4: ONNX inference bridge
-5. Step 5: Control panel implementation
-6. Step 7: Aquifer cross-section implementation
-7. Frontend simplification pass to reduce file count and dead paths
-8. Cross-section refactor into focused scene controllers
-9. Population slider replacement with `grace_groundwater_anomaly`
-10. Score-driven scene mood pass for vegetation and lighting
+1. Frontend scaffold and browser-ready model bundle
+2. Bundle hydration and ONNX inference bridge
+3. Metadata-driven control panel with custom knob inputs
+4. Illustrated aquifer cross-section with live scene mappings
+5. Historical time-series panel with D3 rendering
+6. Brush zoom, persistent zoom window, reset button, and double-click reset
+7. Runtime split into:
+   - `frontend/src/runtime.js` for live app state and ONNX orchestration
+   - `frontend/src/runtime-utils.js` for parsing, hydration, formatting, projection helpers, and autoregressive stepping support
+8. Browser-side autoregressive projection engine
+9. Projection-point storage that keeps generated feature rows and feature-source metadata with each projected month
+10. Cross-section score behavior fixed so it now advances with each newly predicted forecast month instead of freezing on month 1
+11. Viewport-filling visualization layout with centered knob-card rows and larger responsive control cards
+12. Background sonification layer synced to the live scenario score after the first user gesture
 
 Not completed yet:
 
-- Step 8: real historical D3 time-series chart
-- Step 9: projection engine
-- Step 10: brush zoom and reset
-- Step 11: point tooltips
-- Step 12: audio behavior
+- point tooltip / detail UI built from `historical_feature_vectors.csv`
+- the original gauge panel from the broader visualization plan is still not mounted in the current app shell
 
 ## Verification
 
 - `npm run build` succeeds in `frontend/`
 - the build emits a static `frontend/dist/` bundle with copied model assets in `frontend/dist/model/`
+- runtime hydration currently preserves the intended July 2020 historical baseline and starts projection from August 2020
 
-## Simplified Frontend Structure
+## Live UI Summary
 
-The frontend is still intentionally compact, but the cross-section has now been split into focused scene helpers so tuning work stays manageable:
+### Controls
 
-```text
-frontend/
-  index.html
-  package.json
-  vite.config.js
-  public/
-    model/
-  src/
-    main.js
-    runtime.js
-    styles/app.css
-    components/
-      control-panel.js
-      cross-section-atmosphere.js
-      cross-section-irrigation.js
-      cross-section.js
-      cross-section-pipe.js
-      cross-section-snow.js
-      cross-section-temperature.js
-      cross-section-waterline.js
-      time-series.js
-```
-
-Removed during the simplification pass:
-
-- the old `src/app/` bucket
-- the unused gauge path
-- the projection stub file
-- the audio placeholder
-- the tooltip placeholder
-- the unused `Tone.js` dependency
-
-This leaves one runtime module, one stylesheet, and a small set of scene-specific component files instead of a single oversized cross-section script.
-
-## Runtime Model
-
-The biggest structural change is that the frontend no longer spreads current behavior across separate loader, store, formatter, model-session, and projection-stub files.
-
-`frontend/src/runtime.js` now owns:
-
-- bundle loading
-- CSV/JSON parsing and normalization
-- lightweight app state
-- ONNX session initialization
-- feature-row assembly
-- current-score recomputation after control changes
-- shared formatting helpers used by the panels
-
-This means most behavior changes now happen in one place instead of across several support files.
-
-## Browser Asset Prep
-
-The asset-prep script at `scripts/phase3_prepare_assets.py` still assembles the browser bundle in `frontend/public/model/`.
-
-Generated artifacts include:
-
-- `water_sustainability.onnx`
-- `feature_names.json`
-- `feature_stats.json`
-- `historical_sustainability.csv`
-- `historical_feature_vectors.csv`
-- `projection_seed.json`
-- `display_metadata.json`
-
-The browser bundle now carries a seven-knob contract with `grace_groundwater_anomaly` in the UI control set instead of `population`.
-
-Population support data still exists in the seed/derived metadata because the model path still carries `AZPOP_pct_change` internally, but population is no longer a user-facing slider.
-
-## Control Panel
-
-`frontend/src/components/control-panel.js` is live and metadata-driven.
-
-Implemented controls:
+User-facing controls currently live:
 
 - `powell_pool_elevation`
 - `snow_water_equivalent_in`
@@ -120,122 +50,157 @@ Implemented controls:
 - `public_supply_groundwater_mgd`
 - `grace_groundwater_anomaly`
 
-Current behavior:
+Notes:
 
-- renders slider cards from metadata
-- shows live values and units
-- uses p5/p95 bounds from the prepared bundle
-- resets to the metadata default
-- calls one shared runtime action for scenario changes
-- starts the GRACE slider at `-0.077` so the SVG opens at the intended groundwater state
+- GRACE is the seventh visible control in the current UI
+- controls use bundle metadata for labels, units, p5/p95 bounds, and defaults
+- controls now render as custom knob cards instead of horizontal sliders
+- each knob card shows min/max values on either side of the dial, the live value below the knob, and a reset button beneath that value
+- the knob deck is now centered into a `4 + 3` row layout on desktop
+- desktop knob cards currently render at `400px` wide, with a narrower tablet fallback
+- control changes restart the projection run from the shared runtime state
 
-## Aquifer Cross-Section
+### Layout
 
-`frontend/src/components/cross-section.js` is now the main live visualization panel.
-
-The panel now acts as a coordinator for a set of focused scene helpers:
-
-- `cross-section-waterline.js`
-- `cross-section-atmosphere.js`
-- `cross-section-snow.js`
-- `cross-section-temperature.js`
-- `cross-section-pipe.js`
-- `cross-section-irrigation.js`
-
-Core required encodings from Step 7 are still implemented:
-
-- sky/background
-- desert surface silhouette
-- layered soil bands
-- aquifer fill region
-- water table line
-- water-table position from a live GRACE/Powell blend
-- aquifer color from sustainability score
-
-Additional knob-driven scene encodings were also added:
-
-- snowpack recolors the distant mountain snow cap from dusty brown to bright white
-- precipitation darkens the sky, scales up the cloud banks, and can push the clouds all the way to black under heavy storms
-- cloned off-screen cloud elements create a continuous cloud-bank effect across the SVG
-- temperature affects mountain hue after snow is applied, while precipitation keeps priority over the sky
-- Lake Powell and GRACE together raise and lower the water table
-- irrigation and public-supply groundwater jointly drive the pipe fill and flow-arrow intensity
-- water arrows now grow larger as combined withdrawal demand rises
-- the final sustainability score pass makes vegetation greener and lighting richer at healthy scores, or browner and more blown-out/whispy at poor scores
-
-Recent cleanup/simplification in the scene:
-
-- below-water recoloring was removed because it was not needed
-- rain-line overlays were removed
-- irrigation no longer directly recolors the vegetation group
-- population is no longer part of the scene logic
-
-This makes the scene carry more of the scenario story without relying on the removed gauge, while keeping the moving parts easier to reason about.
-
-## Time Series
-
-`frontend/src/components/time-series.js` is still a summary card, not the final chart yet.
+The app shell now treats the page as two stacked bands rather than a control column beside the visuals.
 
 Current behavior:
 
-- reports historical score row count
-- reports model-complete feature-vector row count
-- shows the loaded historical window
-- shows the first projected month from the seed state
+- the `viz-panel` occupies the flexible top row and stretches to consume the remaining viewport height
+- the control panel sits in a dedicated lower row so the knobs remain visible without scrolling on a typical desktop screen
+- both visualization cards grow to fill the available height in that top band
+- shorter or narrower viewports fall back to aspect-ratio-driven chart sizing instead of forcing the viewport-fit layout
 
-Step 8 work is still ahead:
+### Cross-Section
 
-- historical line rendering
-- forecast line rendering
-- chart interactions
+The cross-section is the main finished visual.
 
-## Current Interaction Model
+Live mappings include:
 
-The current UI loop is intentionally simple:
+- water table from GRACE + Lake Powell
+- sky darkening and storm behavior from precipitation
+- mountain and snow response from temperature and snowpack
+- pipe fill and arrows from combined irrigation + public-supply demand
+- vegetation / lighting mood from sustainability score
 
-1. load the prepared browser bundle
-2. initialize the ONNX model
-3. render the controls and aquifer scene
-4. recompute the current score whenever a control changes
-5. update the cross-section from the new state
+Current score behavior:
 
-No separate projection engine is active yet. That will return later when Step 9 is implemented for real rather than as placeholder scaffolding.
+- the cross-section score chip uses the latest projected forecast month, not the first projected month
+- the display stays pending until a real projected score exists
+- the cross-section no longer falls back to a smoke-test score or to the historical July 2020 anchor as if that were the live scenario output
+- the sustainability score chip now sits centered below the SVG instead of inside the upper-right corner of the scene
+- the scene now renders at full panel height and uses centered in-panel loading / error messages rather than a separate status strip below the illustration
 
-## Practical Summary
+### Time Series
 
-The frontend is now smaller and easier to change:
+The time-series panel is now a live historical-plus-projection view rather than a scaffold.
 
-- fewer files
-- fewer placeholder modules
-- one runtime path for current behavior
-- one live visual focus: the cross-section
+Current behavior:
 
-The next major complexity jump should happen only when Step 8 and Step 9 are built, rather than being carried prematurely in the file structure.
+- renders the historical line from `historical_sustainability.csv` on a shared `0-100` y-scale
+- renders the projection line in amber with projected points added one month at a time
+- animates the projection segment as the autoregressive forecast grows
+- supports click selection and active-point highlighting
+- supports brush zoom on a persistent lower overview rail
+- supports widening the zoom window by dragging brush handles
+- supports reset via button or double-click
+- keeps the historical series visible when the projection restarts so the user always retains context
+- places the historical / projection legend in the upper-right corner of the `time-series-svg` container instead of in the panel header
+- removes the old in-SVG `Historical` and `Projection` text labels now that the overlay legend carries that job
+- uses larger, bolder chart typography so axes and chart labels stay readable at the larger panel size
+- uses a compact footer row for reset, point-status text, and the unlimited-forecast toggle so more of the card height goes to the chart itself
+- keeps the Reset Zoom and Unlimited Forecast buttons slightly enlarged for readability
+- stretches to fill the available visualization band on desktop, with aspect-ratio fallback on smaller screens
 
-## SVG Integration Update
+Important current behavior:
 
-The aquifer panel now uses the authored `Aquafer_cross_section.svg` scene instead of drawing the landscape procedurally in JavaScript.
+- the historical score artifact window runs through `2020-12`
+- the projection engine intentionally anchors on the July 2020 baseline and begins forecasting at `2020-08`
+- this means the amber projection is being compared against a longer historical record that continues beyond the forecast anchor
 
-Implemented in this pass:
+### Audio
 
-- cleaned the SVG ids used as runtime hooks so the scene is easier to target from code
-- loaded the repo-level SVG into the frontend through Vite as a bundled asset
-- replaced the old procedural cross-section drawing path with SVG group and clip-mask updates
-- kept the live environmental mappings by driving snow, sky/rain, aquifer level, vegetation, pipe water, and flow arrows from the existing runtime state
+The audio layer is now present as a background behavior rather than a visible control.
 
-The production build now emits the illustrated scene as a bundled asset in `frontend/dist/assets/`.
+Current behavior:
 
-## Cross-Section Tuning Update
+- uses the Tone-based module in `frontend/src/components/components.js`
+- enables ambient audio automatically after the first pointer or keyboard interaction so it stays within browser autoplay rules
+- keeps the audio state in shared runtime state and updates the sonification from the latest live scenario score
+- does not expose a dedicated audio toggle in the current UI
 
-The illustrated aquifer scene has been tuned to make a few of the environmental mappings read more clearly.
+## Historical Browser Assets
 
-Implemented in this pass:
+The two historical CSVs now have clearly different jobs in the app.
 
-- increased the visual lift from high Lake Powell values so the water table rises farther into the upper groundwater layer
-- darkened the sky much more aggressively as precipitation increases, with a stronger storm overlay and darker rain clouds
-- replaced the old snow clip-and-shrink behavior with a color interpolation that shifts the snow pieces from dusty brown to bright white based on the snow control value
-- moved the major visual behaviors into dedicated cross-section helper files for waterline, atmosphere, snow, temperature, pipe demand, and irrigation normalization
-- replaced the population slider with a live `grace_groundwater_anomaly` slider and fed that directly into the waterline controller
-- set the startup GRACE state to `-0.077`
-- made pipe arrows scale up as combined irrigation and public-supply demand rises
-- added a final score-based mood pass that shifts vegetation and overall lighting quality based on sustainability health
+`historical_sustainability.csv` is the skinny score-series artifact. It provides:
+
+- `year_month`
+- model-predicted sustainability score
+- actual sustainability score
+- residual
+
+In the frontend, this file is used to build the historical plotted score series and summary counts.
+
+`historical_feature_vectors.csv` is the wide monthly model-state artifact. It provides:
+
+- knob-facing raw inputs
+- lagged model inputs
+- calendar / derived fields
+- visual-support fields used by the projection context
+- row status such as `model_complete` vs `historical_only`
+
+In the frontend, this file is used to:
+
+- build the July 2020 historical baseline state when available
+- derive historical exogenous histories for the autoregressive engine
+- count model-complete rows in the time-series summary
+
+What it does not do yet:
+
+- it is not yet surfaced through a point-click tooltip or detail panel for historical months
+
+## Runtime / Projection Engine
+
+The runtime is no longer only prepared for projection. It now runs the projection.
+
+Current projection behavior:
+
+1. Load `display_metadata.json`, `feature_names.json`, `feature_stats.json`, `projection_seed.json`, `historical_sustainability.csv`, and `historical_feature_vectors.csv`
+2. Hydrate shared state and derive control definitions, historical series, historical feature vectors, and projection context
+3. Build `projectionConnections` describing control mappings, lag / rolling dependencies, fixed raw features, and history requirements
+4. Build an initial `projectionPreparation` object with the next forecast month and a generated `pendingFeatureRow`
+5. Run ONNX inference for one month ahead
+6. Append a projected point to `projectionSeries`
+7. Feed the predicted score back into target history and update lagged / rolling inputs for the next month
+8. Repeat on a timer until the configured horizon is reached
+
+Current state / data-model details:
+
+- `projectionSeries` stores the live forecast months shown in the amber line
+- each projected point stores:
+  - `featureRow`
+  - `featureSources`
+  - `scenarioControls`
+- `projectionPreparation` stores:
+  - `nextProjectionMonth`
+  - `targetHistory`
+  - `exogenousHistory`
+  - `pendingFeatureRow`
+  - `pendingFeatureSources`
+  - `latestScenarioScore`
+- moving a control mid-run clears the current projection and starts a fresh forecast from the shared runtime baseline
+
+## Remaining Work
+
+### Step 11
+
+Still needed for the time-series detail layer:
+
+- click-to-open historical / projected point detail UI
+- rendering of raw inputs, lag features, and source metadata per point
+- visible distinction between score-only historical months and model-complete months when point details are shown
+
+## Summary
+
+The frontend has moved past the scaffold phase. It now has a working browser-side ONNX runtime, a live autoregressive projection engine, a historical-plus-forecast D3 time series, a cross-section that updates off the newest projected forecast month, a background sonification layer tied to the same shared runtime state, and a viewport-aware layout that gives the two main visuals as much screen space as possible while keeping the knob deck accessible. The main remaining gaps are richer point-detail interaction and the still-unmounted gauge panel, not the core forecast loop itself.

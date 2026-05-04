@@ -22,13 +22,18 @@ import {
 } from "./cross-section-temperature.js";
 import {
   createWaterlineController,
-  getAquiferColor,
   WATERLINE_SCENE_STYLES,
 } from "./cross-section-waterline.js";
 
 const SVG_BOUNDS = {
   width: 1540,
   height: 774,
+};
+const DISPLAY_VIEWBOX = {
+  x: 0,
+  y: 0,
+  width: 1540,
+  height: 748,
 };
 const FALLBACK_BOUNDS = {
   svg: { x: 0, y: 0, width: 1540, height: 774 },
@@ -165,10 +170,6 @@ async function buildScene(container) {
     .cross-section-svg .scene-score-vegetation ellipse {
       transition: fill 700ms ease, filter 700ms ease;
     }
-    .cross-section-svg .scene-chip rect,
-    .cross-section-svg .scene-chip text {
-      transition: opacity 700ms ease, fill 700ms ease, stroke 700ms ease, transform 700ms ease;
-    }
 ${ATMOSPHERE_SCENE_STYLES}
 ${IRRIGATION_SCENE_STYLES}
 ${PIPE_SCENE_STYLES}
@@ -184,7 +185,12 @@ ${WATERLINE_SCENE_STYLES}
   const svgNode = documentNode.documentElement;
   svgNode.setAttribute("class", "cross-section-svg");
   svgNode.setAttribute("width", "100%");
-  svgNode.setAttribute("height", "auto");
+  svgNode.setAttribute("height", "100%");
+  svgNode.setAttribute("preserveAspectRatio", "xMidYMid meet");
+  svgNode.setAttribute(
+    "viewBox",
+    `${DISPLAY_VIEWBOX.x} ${DISPLAY_VIEWBOX.y} ${DISPLAY_VIEWBOX.width} ${DISPLAY_VIEWBOX.height}`,
+  );
   container.appendChild(svgNode);
 
   const svg = d3.select(svgNode);
@@ -247,28 +253,6 @@ ${WATERLINE_SCENE_STYLES}
     svgWidth: SVG_BOUNDS.width,
   });
 
-  const chipGroup = overlayGroup.append("g").attr("class", "scene-chip");
-  const chipBackground = chipGroup
-    .append("rect")
-    .attr("x", SVG_BOUNDS.width - 196)
-    .attr("y", 20)
-    .attr("width", 168)
-    .attr("height", 52)
-    .attr("rx", 12)
-    .attr("fill", getAquiferColor(50))
-    .attr("opacity", 0.9);
-
-  const chipText = chipGroup
-    .append("text")
-    .attr("x", SVG_BOUNDS.width - 112)
-    .attr("y", 52)
-    .attr("text-anchor", "middle")
-    .attr("dominant-baseline", "middle")
-    .attr("font-size", "24px")
-    .attr("font-family", "Georgia, serif")
-    .attr("fill", "#ffffff")
-    .text("Score: --");
-
   function update(inputs) {
     const {
       score,
@@ -289,10 +273,13 @@ ${WATERLINE_SCENE_STYLES}
     atmosphere.update({ precipitation, domains });
     snowCover.update({ snow, domains });
     temperatureControl.update({ temperature, precipitation, domains });
-
-    chipBackground.attr("fill", waterColor);
-    chipText.text(`Score: ${safeScore.toFixed(0)}`);
     scoreMood.update({ safeScore });
+
+    return {
+      safeScore,
+      waterColor,
+      hasScore: Number.isFinite(score),
+    };
   }
 
   return { update };
@@ -311,6 +298,17 @@ function getCurrentValue(state, id, fallback = null) {
   return definition?.knob?.default ?? fallback;
 }
 
+function getDisplayedScenarioScore(state) {
+  const projectedPoints = (state.projectionSeries ?? []).filter((point) =>
+    !point?.isProjectionAnchor && Number.isFinite(point?.score),
+  );
+  const latestProjectedPoint = projectedPoints.at(-1) ?? null;
+
+  return latestProjectedPoint?.score
+    ?? state.currentPrediction
+    ?? null;
+}
+
 function getInputs(state) {
   const grace =
     getCurrentValue(
@@ -322,7 +320,7 @@ function getInputs(state) {
     );
 
   return {
-    score: state.currentPrediction ?? state.modelInfo?.smokePrediction ?? null,
+    score: getDisplayedScenarioScore(state),
     grace,
     powell:
       getCurrentValue(state, "powell_pool_elevation")
@@ -350,45 +348,65 @@ function getInputs(state) {
 
 export function createCrossSectionPanel(store) {
   const panel = document.createElement("section");
-  panel.className = "panel viz-card";
-
-  const header = document.createElement("div");
-  header.className = "panel-header";
-  header.innerHTML = `
-    <div>
-      <h2>Aquifer Cross-Section</h2>
-      <p class="panel-meta">Authored SVG scene driven by live weather, storage, and demand signals.</p>
-    </div>
-  `;
+  panel.className = "panel viz-card cross-section-panel";
 
   const sceneContainer = document.createElement("div");
   sceneContainer.className = "cross-section-container";
 
-  const statusLine = document.createElement("p");
-  statusLine.className = "cross-section-status";
+  const scoreChip = document.createElement("div");
+  scoreChip.className = "cross-section-score-chip cross-section-score-chip--pending";
+  scoreChip.textContent = "Score: --";
 
-  panel.append(header, sceneContainer, statusLine);
+  panel.append(sceneContainer, scoreChip);
 
   let scene = null;
   let scenePromise = null;
   let sceneError = null;
 
-  function updateStatus(state) {
-    const scoreText = Number.isFinite(state.currentPrediction)
-      ? `Current score ${Math.round(state.currentPrediction)}.`
-      : "Current score pending.";
-    statusLine.textContent =
-        `${scoreText} Powell and GRACE raise and lower the water table, snow shifts from dusty brown to bright white with SNOTEL conditions, precipitation turns the sky dark and stormy, and pipe height reflects combined irrigation and public-supply groundwater withdrawals.`;
+  function getChipTextColor(backgroundColor) {
+    const color = d3.color(backgroundColor);
+    if (!color) return "#fffaf2";
+
+    const brightness = ((color.r * 299) + (color.g * 587) + (color.b * 114)) / 1000;
+    return brightness > 160 ? "#1f1a14" : "#fffaf2";
+  }
+
+  function renderScoreChip({ safeScore = null, waterColor = null, hasScore = false } = {}) {
+    if (!hasScore || !Number.isFinite(safeScore)) {
+      scoreChip.classList.add("cross-section-score-chip--pending");
+      scoreChip.textContent = "Score: --";
+      scoreChip.style.backgroundColor = "rgba(255, 255, 255, 0.88)";
+      scoreChip.style.borderColor = "rgba(79, 61, 42, 0.12)";
+      scoreChip.style.color = "#2f2418";
+      return;
+    }
+
+    scoreChip.classList.remove("cross-section-score-chip--pending");
+    scoreChip.textContent = `Sustainability Score: ${safeScore.toFixed(0)}`;
+    scoreChip.style.backgroundColor = waterColor;
+    scoreChip.style.borderColor = waterColor;
+    scoreChip.style.color = getChipTextColor(waterColor);
+  }
+
+  function renderSceneMessage(message, isError = false) {
+    sceneContainer.classList.add("cross-section-container--message");
+    sceneContainer.innerHTML = `
+      <p class="cross-section-status${isError ? " cross-section-status--error" : ""}">
+        ${message}
+      </p>
+    `;
+    renderScoreChip();
   }
 
   async function ensureScene() {
     if (scene || scenePromise) return scenePromise;
-    sceneContainer.innerHTML = `<p class="cross-section-status">Loading illustrated scene.</p>`;
+    renderSceneMessage("Loading illustrated scene.");
     scenePromise = buildScene(sceneContainer)
       .then((builtScene) => {
         scene = builtScene;
         sceneError = null;
         scenePromise = null;
+        sceneContainer.classList.remove("cross-section-container--message");
         render(store.getState());
       })
       .catch((error) => {
@@ -402,20 +420,17 @@ export function createCrossSectionPanel(store) {
 
   function render(state) {
     if (!state.bundleReady) {
-      sceneContainer.innerHTML = `<p class="cross-section-status">Waiting for visual-support values.</p>`;
-      statusLine.textContent = "";
+      renderSceneMessage("Waiting for visual-support values.");
       return;
     }
 
     if (state.modelStatus === "error") {
-      sceneContainer.innerHTML = `<p class="cross-section-status cross-section-status--error">Model error: ${state.modelError ?? "unknown"}</p>`;
-      statusLine.textContent = "";
+      renderSceneMessage(`Model error: ${state.modelError ?? "unknown"}`, true);
       return;
     }
 
     if (sceneError) {
-      sceneContainer.innerHTML = `<p class="cross-section-status cross-section-status--error">Scene load failed: ${sceneError.message}</p>`;
-      statusLine.textContent = "";
+      renderSceneMessage(`Scene load failed: ${sceneError.message}`, true);
       return;
     }
 
@@ -424,8 +439,8 @@ export function createCrossSectionPanel(store) {
       return;
     }
 
-    scene.update(getInputs(state));
-    updateStatus(state);
+    sceneContainer.classList.remove("cross-section-container--message");
+    renderScoreChip(scene.update(getInputs(state)));
   }
 
   store.subscribe(render);

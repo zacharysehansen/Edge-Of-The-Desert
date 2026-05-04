@@ -1,304 +1,25 @@
-import { csvParse } from "d3";
 import * as ort from "onnxruntime-web/wasm";
-
-const INITIAL_STATE = {
-  dataStatus: "idle",
-  bundleReady: false,
-  bundleError: null,
-  modelReady: false,
-  modelStatus: "idle",
-  modelError: null,
-  modelInfo: null,
-  displayMetadata: null,
-  featureCatalog: {},
-  controlDefinitions: [],
-  controlValues: {},
-  historicalSeries: [],
-  historicalFeatureVectors: [],
-  projectionContext: {
-    sourceLastObservedMonth: null,
-    projectionStartMonth: null,
-    featureRowLastObserved: {},
-    populationSeedAbsolute: null,
-    fixedModelInputValues: {},
-    derivedFeatureValues: {},
-    derivedFeatureOverrides: {},
-    targetLagValues: {},
-    visualSupportValues: {},
-  },
-  currentPrediction: null,
-};
+import * as audio from "./components/components.js";
+import {
+  advanceProjectionPreparation,
+  INITIAL_STATE,
+  buildHydratedState,
+  buildMedianFeatureRow,
+  buildProjectionPoint,
+  buildProjectionPreparation,
+  buildProjectionSeries,
+  computePopulationChange,
+  createScaledFloat32Array,
+  extractScalarScore,
+  fetchCsv,
+  fetchJson,
+} from "./runtime-utils.js";
 
 function isDevelopmentMode() {
   return Boolean(import.meta.env?.DEV);
 }
 
-function parseYearMonth(yearMonth) {
-  if (!yearMonth) return null;
-  return new Date(`${yearMonth}-01T00:00:00Z`);
-}
-
-function coerceCsvValue(key, value) {
-  if (value == null) return null;
-
-  const trimmed = String(value).trim();
-  if (trimmed === "") return null;
-  if (key === "year_month") return trimmed;
-
-  if (trimmed.toLowerCase() === "true") return true;
-  if (trimmed.toLowerCase() === "false") return false;
-
-  const numericValue = Number(trimmed);
-  return Number.isFinite(numericValue) ? numericValue : trimmed;
-}
-
-function parseCsvRows(text) {
-  return csvParse(text, (row) => {
-    const normalized = {};
-
-    Object.entries(row).forEach(([key, value]) => {
-      normalized[key] = coerceCsvValue(key, value);
-    });
-
-    if (normalized.year_month) {
-      normalized.yearMonth = normalized.year_month;
-      normalized.date = parseYearMonth(normalized.year_month);
-    }
-
-    return normalized;
-  });
-}
-
-function normalizeHistoricalSeries(rows) {
-  return rows.map((row) => ({
-    yearMonth: row.yearMonth,
-    date: row.date,
-    predictedScore: row.usdm_sustainability ?? null,
-    actualScore: row.actual_usdm_sustainability ?? row.usdm_sustainability ?? null,
-    score: row.actual_usdm_sustainability ?? row.usdm_sustainability ?? null,
-    residual: row.residual ?? null,
-    source: "historical",
-  }));
-}
-
-function normalizeHistoricalFeatureVectors(rows) {
-  return rows.map((row) => ({
-    ...row,
-    isModelComplete: Boolean(row.model_complete),
-    pointType: row.vector_status ?? (row.model_complete ? "model_complete" : "historical_only"),
-  }));
-}
-
-function pickValues(source, keys) {
-  return keys.reduce((accumulator, key) => {
-    if (Object.prototype.hasOwnProperty.call(source, key)) {
-      accumulator[key] = source[key];
-    }
-    return accumulator;
-  }, {});
-}
-
-const DEFAULT_GRACE_GROUNDWATER_ANOMALY = -0.077;
-
-function buildGraceControlDefinition(displayMetadata, projectionSeed) {
-  const featureDefinition = displayMetadata.features?.grace_groundwater_anomaly ?? {};
-  const featureDomain = featureDefinition.domain ?? {};
-  const defaultValue =
-    projectionSeed.control_seed_values?.grace_groundwater_anomaly
-    ?? DEFAULT_GRACE_GROUNDWATER_ANOMALY;
-  const minValue = featureDomain.p5 ?? featureDomain.min ?? defaultValue;
-  const maxValue = featureDomain.p95 ?? featureDomain.max ?? defaultValue;
-
-  return {
-    id: "grace_groundwater_anomaly",
-    label: featureDefinition.label ?? "GRACE Groundwater Anomaly",
-    unit: featureDefinition.unit ?? "anomaly",
-    decimals: featureDefinition.decimals ?? 3,
-    domain: featureDomain,
-    knob: {
-      default: defaultValue,
-      min: minValue,
-      max: maxValue,
-      step: featureDefinition.knob?.step ?? (maxValue - minValue) / 200,
-    },
-    model_mapping: {
-      type: "direct_feature",
-      output_feature: "grace_groundwater_anomaly",
-      input_feature: "grace_groundwater_anomaly",
-    },
-  };
-}
-
-function buildControlDefinitions(displayMetadata, projectionSeed) {
-  const controlIds = (displayMetadata.knob_controls ?? []).map((id) =>
-    id === "population" ? "grace_groundwater_anomaly" : id,
-  );
-
-  return controlIds.map((id) => {
-    if (id === "grace_groundwater_anomaly" && !displayMetadata.controls?.[id]) {
-      return buildGraceControlDefinition(displayMetadata, projectionSeed);
-    }
-
-    return {
-      id,
-      ...displayMetadata.controls[id],
-    };
-  });
-}
-
-function buildInitialControlValues(controlDefinitions, projectionSeed) {
-  return controlDefinitions.reduce((accumulator, definition) => {
-    const seedValue = projectionSeed.control_seed_values?.[definition.id];
-    accumulator[definition.id] = seedValue ?? definition.knob.default;
-    return accumulator;
-  }, {});
-}
-
-function computePopulationChange(absolutePop, previousPop) {
-  if (!Number.isFinite(absolutePop) || !Number.isFinite(previousPop) || previousPop === 0) {
-    return 0;
-  }
-
-  return (absolutePop - previousPop) / previousPop;
-}
-
-function buildProjectionContext(displayMetadata, projectionSeed) {
-  const projectionPolicy = displayMetadata.projection_policy ?? {};
-  const featureRowLastObserved = projectionSeed.feature_row_last_observed ?? {};
-  const derivedFeatures = projectionPolicy.derived_features ?? [];
-  const fixedRawFeatures = projectionPolicy.fixed_raw_features ?? [];
-  const targetLagFeatures = Object.keys(featureRowLastObserved).filter((name) =>
-    name.startsWith("usdm_sustainability_"),
-  );
-  const populationSeedAbsolute = projectionSeed.latest_observed_control_values?.population ?? null;
-  const defaultPopulation = projectionSeed.control_seed_values?.population ?? populationSeedAbsolute;
-
-  return {
-    sourceLastObservedMonth: projectionSeed.source_last_observed_month,
-    projectionStartMonth: projectionSeed.projection_start_month,
-    featureRowLastObserved,
-    populationSeedAbsolute,
-    fixedModelInputValues: pickValues(featureRowLastObserved, fixedRawFeatures),
-    derivedFeatureValues: pickValues(featureRowLastObserved, derivedFeatures),
-    derivedFeatureOverrides: {
-      AZPOP_pct_change: computePopulationChange(defaultPopulation, populationSeedAbsolute),
-    },
-    targetLagValues: pickValues(featureRowLastObserved, targetLagFeatures),
-    visualSupportValues: pickValues(featureRowLastObserved, [
-      "grace_groundwater_anomaly",
-      "grace_available",
-      "powell_pool_elevation",
-    ]),
-  };
-}
-
-function buildCurrentPrediction(projectionSeed, historicalSeries) {
-  return (
-    projectionSeed.latest_predicted_score
-    ?? projectionSeed.latest_observed_score
-    ?? historicalSeries.at(-1)?.score
-    ?? null
-  );
-}
-
-function buildHydratedState(displayMetadata, projectionSeed, historicalSeriesRows, historicalFeatureVectorRows) {
-  const controlDefinitions = buildControlDefinitions(displayMetadata, projectionSeed);
-  const historicalSeries = normalizeHistoricalSeries(historicalSeriesRows);
-  const historicalFeatureVectors = normalizeHistoricalFeatureVectors(historicalFeatureVectorRows);
-
-  return {
-    displayMetadata,
-    featureCatalog: displayMetadata.features ?? {},
-    controlDefinitions,
-    controlValues: buildInitialControlValues(controlDefinitions, projectionSeed),
-    historicalSeries,
-    historicalFeatureVectors,
-    projectionContext: buildProjectionContext(displayMetadata, projectionSeed),
-    currentPrediction: buildCurrentPrediction(projectionSeed, historicalSeries),
-  };
-}
-
-function assertFiniteNumber(value, message) {
-  if (!Number.isFinite(value)) {
-    throw new Error(message);
-  }
-}
-
-function clipScore(value) {
-  return Math.max(0, Math.min(100, value));
-}
-
-function buildMedianFeatureRow(featureNames, featureCatalog) {
-  return featureNames.reduce((row, featureName) => {
-    const median = featureCatalog?.[featureName]?.domain?.median;
-    if (!Number.isFinite(median)) {
-      throw new Error(`Missing median metadata for ${featureName}`);
-    }
-    row[featureName] = median;
-    return row;
-  }, {});
-}
-
-function createOrderedFloat32Array(featureNames, featureRow) {
-  const orderedValues = new Float32Array(featureNames.length);
-
-  featureNames.forEach((featureName, index) => {
-    if (!Object.prototype.hasOwnProperty.call(featureRow, featureName)) {
-      throw new Error(`Feature row is missing required feature "${featureName}"`);
-    }
-
-    const value = Number(featureRow[featureName]);
-    assertFiniteNumber(value, `Feature "${featureName}" is not finite.`);
-    orderedValues[index] = value;
-  });
-
-  return orderedValues;
-}
-
-function extractScalarScore(outputValue) {
-  if (!outputValue?.data?.length) {
-    throw new Error("Model output tensor is empty.");
-  }
-
-  const score = Number(outputValue.data[0]);
-  assertFiniteNumber(score, "Model output score is not finite.");
-  return clipScore(score);
-}
-
-async function fetchJson(basePath, fileName) {
-  const response = await fetch(`${basePath}/${fileName}`);
-  if (!response.ok) {
-    throw new Error(`Failed to load ${fileName}`);
-  }
-  return response.json();
-}
-
-async function fetchCsv(basePath, fileName) {
-  const response = await fetch(`${basePath}/${fileName}`);
-  if (!response.ok) {
-    throw new Error(`Failed to load ${fileName}`);
-  }
-
-  return parseCsvRows(await response.text());
-}
-
-export function formatDateRange(start, end) {
-  if (!start || !end) return "--";
-  return `${start} to ${end}`;
-}
-
-export function formatNumber(value, decimals = 0) {
-  if (value == null || Number.isNaN(value)) return "--";
-
-  return Number(value).toLocaleString(undefined, {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  });
-}
-
-export function formatControlValue(value, definition) {
-  return formatNumber(value, definition?.decimals ?? 0);
-}
+const PROJECTION_STEP_INTERVAL_MS = 1200;
 
 export function createRuntime({ basePath = "./model" } = {}) {
   let state = {
@@ -312,14 +33,33 @@ export function createRuntime({ basePath = "./model" } = {}) {
   let inputName = null;
   let outputName = null;
   let initPromise = null;
-  let latestPredictionRequest = 0;
+  let latestProjectionRun = 0;
+  let projectionTimerId = null;
+  let ambientAudioPromise = null;
+
+  function getLiveScenarioScore(nextState = state) {
+    const projectedPoints = (nextState.projectionSeries ?? []).filter((point) =>
+      !point?.isProjectionAnchor && Number.isFinite(point?.score),
+    );
+    const latestProjectedPoint = projectedPoints.at(-1) ?? null;
+
+    return latestProjectedPoint?.score
+      ?? nextState.currentPrediction
+      ?? null;
+  }
+
+  function syncAudio(nextState = state) {
+    const score = getLiveScenarioScore(nextState);
+    if (!Number.isFinite(score)) return;
+    audio.updateScore(score);
+  }
 
   function notify() {
     listeners.forEach((listener) => listener(state));
   }
 
   function setState(partialState) {
-    state = {
+    const nextState = {
       ...state,
       ...partialState,
       projectionContext: {
@@ -327,6 +67,8 @@ export function createRuntime({ basePath = "./model" } = {}) {
         ...(partialState.projectionContext ?? {}),
       },
     };
+    state = nextState;
+    syncAudio(nextState);
     notify();
     return state;
   }
@@ -344,60 +86,165 @@ export function createRuntime({ basePath = "./model" } = {}) {
     return state.controlDefinitions.find((control) => control.id === controlId) ?? null;
   }
 
-  function getFeatureNames() {
-    if (featureNames.length > 0) {
-      return featureNames;
+  function clearProjectionTimer() {
+    if (projectionTimerId != null) {
+      clearTimeout(projectionTimerId);
+      projectionTimerId = null;
+    }
+  }
+
+  function cancelProjectionRun() {
+    clearProjectionTimer();
+    latestProjectionRun += 1;
+  }
+
+  function getProjectedPoints() {
+    return (state.projectionSeries ?? []).filter((point) => !point?.isProjectionAnchor);
+  }
+
+  function buildProjectionPreparationFromState({ seedState = null, status = "ready" } = {}) {
+    return buildProjectionPreparation({
+      projectionConnections: state.projectionConnections,
+      projectionContext: state.projectionContext,
+      controlDefinitions: state.controlDefinitions,
+      controlValues: state.controlValues,
+      currentPrediction: state.currentPrediction,
+      displayMetadata: state.displayMetadata,
+      featureCatalog: state.featureCatalog,
+      seedState,
+      status,
+    });
+  }
+
+  function scheduleProjectionStep(runId) {
+    clearProjectionTimer();
+    projectionTimerId = window.setTimeout(() => {
+      void runProjectionStep(runId);
+    }, PROJECTION_STEP_INTERVAL_MS);
+  }
+
+  async function runProjectionStep(runId) {
+    if (runId !== latestProjectionRun) {
+      return;
     }
 
-    return Object.keys(state.featureCatalog ?? {});
-  }
+    const preparation = state.projectionPreparation;
+    const horizonMonths = state.projectionHorizonMonths;
+    const isFirstProjectedStep = (preparation?.stepIndex ?? 0) === 0;
+    const reachedHorizon = horizonMonths !== null && (preparation?.stepIndex ?? 0) >= horizonMonths;
 
-  function getFeatureFallback(featureName) {
-    return state.featureCatalog?.[featureName]?.domain?.median ?? 0;
-  }
+    if (!preparation?.pendingFeatureRow || reachedHorizon) {
+      setState({
+        animationStatus: "complete",
+        projectionPreparation: preparation
+          ? {
+              ...preparation,
+              status: "complete",
+            }
+          : preparation,
+      });
+      return;
+    }
 
-  function getSourceMonth() {
-    const sourceMonth = state.projectionContext?.sourceLastObservedMonth;
-    if (!sourceMonth) return null;
-    const [, month] = String(sourceMonth).split("-");
-    return month ?? null;
-  }
-
-  function buildFeatureRow() {
-    const projectionContext = state.projectionContext ?? {};
-    const featureRow = {
-      ...(projectionContext.featureRowLastObserved ?? {}),
-      ...(projectionContext.fixedModelInputValues ?? {}),
-      ...(projectionContext.targetLagValues ?? {}),
-      ...(projectionContext.derivedFeatureValues ?? {}),
-      ...(projectionContext.visualSupportValues ?? {}),
-      ...(projectionContext.derivedFeatureOverrides ?? {}),
-    };
-
-    state.controlDefinitions.forEach((definition) => {
-      const value = state.controlValues?.[definition.id];
-      if (value == null) return;
-
-      if (definition.model_mapping.type === "direct_feature") {
-        featureRow[definition.model_mapping.output_feature] = value;
+    let prediction;
+    try {
+      prediction = await predictScore(preparation.pendingFeatureRow);
+    } catch (error) {
+      if (runId !== latestProjectionRun) {
+        return;
       }
+
+      console.error("Inference failed while advancing the projection engine.", error);
+      setState({
+        animationStatus: "idle",
+        projectionPreparation: preparation
+          ? {
+              ...preparation,
+              status: "error",
+            }
+          : preparation,
+      });
+      return;
+    }
+
+    if (runId !== latestProjectionRun) {
+      return;
+    }
+
+    const projectedPoint = buildProjectionPoint({
+      yearMonth: preparation.nextProjectionMonth,
+      score: prediction,
+      monthIndex: (preparation.stepIndex ?? 0) + 1,
+      featureRow: preparation.pendingFeatureRow,
+      featureSources: preparation.pendingFeatureSources,
+      scenarioControls: state.controlValues,
+    });
+    const projectedPoints = projectedPoint
+      ? [...getProjectedPoints(), projectedPoint]
+      : getProjectedPoints();
+    const nextPreparation = advanceProjectionPreparation({
+      projectionPreparation: preparation,
+      projectionConnections: state.projectionConnections,
+      projectionContext: state.projectionContext,
+      controlDefinitions: state.controlDefinitions,
+      controlValues: state.controlValues,
+      predictedScore: prediction,
+      displayMetadata: state.displayMetadata,
+      featureCatalog: state.featureCatalog,
+    });
+    const nextReachedHorizon = horizonMonths !== null && (nextPreparation?.stepIndex ?? 0) >= horizonMonths;
+    const isComplete = !nextPreparation?.pendingFeatureRow || nextReachedHorizon;
+
+    setState({
+      currentPrediction: isFirstProjectedStep ? prediction : state.currentPrediction,
+      projectionSeries: buildProjectionSeries({
+        historicalSeries: state.historicalSeries,
+        projectionPoints: projectedPoints,
+        projectionAnchorYearMonth: state.projectionContext?.sourceLastObservedMonth ?? null,
+      }),
+      projectionPreparation: nextPreparation
+        ? {
+            ...nextPreparation,
+            status: isComplete ? "complete" : "running",
+          }
+        : nextPreparation,
+      animationStatus: isComplete ? "complete" : "running",
     });
 
-    if (featureRow.temperature_2m_c != null) {
-      const sourceMonth = getSourceMonth();
-      const climatology =
-        state.displayMetadata?.projection_policy?.temperature_monthly_climatology_c ?? {};
-      const baseline = sourceMonth ? climatology[sourceMonth] : null;
+    if (!isComplete) {
+      scheduleProjectionStep(runId);
+    }
+  }
 
-      if (baseline != null) {
-        featureRow.temperature_2m_c_anomaly = featureRow.temperature_2m_c - baseline;
-      }
+  function startProjectionRun() {
+    if (!state.modelReady) {
+      return;
     }
 
-    return getFeatureNames().reduce((row, featureName) => {
-      row[featureName] = featureRow[featureName] ?? getFeatureFallback(featureName);
-      return row;
-    }, {});
+    clearProjectionTimer();
+    latestProjectionRun += 1;
+    const runId = latestProjectionRun;
+    const preparation = buildProjectionPreparationFromState({
+      seedState: null,
+      status: "running",
+    });
+
+    setState({
+      projectionSeries: buildProjectionSeries({
+        historicalSeries: state.historicalSeries,
+        projectionPoints: [],
+        projectionAnchorYearMonth: state.projectionContext?.sourceLastObservedMonth ?? null,
+      }),
+      projectionPreparation: preparation,
+      currentPrediction: null,
+      animationStatus: preparation?.pendingFeatureRow ? "running" : "complete",
+    });
+
+    if (!preparation?.pendingFeatureRow) {
+      return;
+    }
+
+    void runProjectionStep(runId);
   }
 
   async function initModel() {
@@ -410,7 +257,9 @@ export function createRuntime({ basePath = "./model" } = {}) {
     }
 
     initPromise = (async () => {
-      featureNames = await fetchJson(basePath, "feature_names.json");
+      featureNames = state.modelFeatureNames?.length > 0
+        ? state.modelFeatureNames
+        : await fetchJson(basePath, "feature_names.json");
 
       session = await ort.InferenceSession.create(`${basePath}/water_sustainability.onnx`, {
         executionProviders: ["wasm"],
@@ -428,7 +277,7 @@ export function createRuntime({ basePath = "./model" } = {}) {
       const feeds = {
         [inputName]: new ort.Tensor(
           "float32",
-          createOrderedFloat32Array(featureNames, medianFeatureRow),
+          createScaledFloat32Array(featureNames, medianFeatureRow, state.featureCatalog),
           [1, featureNames.length],
         ),
       };
@@ -464,7 +313,7 @@ export function createRuntime({ basePath = "./model" } = {}) {
     const feeds = {
       [inputName]: new ort.Tensor(
         "float32",
-        createOrderedFloat32Array(featureNames, featureRow),
+        createScaledFloat32Array(featureNames, featureRow, state.featureCatalog),
         [1, featureNames.length],
       ),
     };
@@ -472,28 +321,8 @@ export function createRuntime({ basePath = "./model" } = {}) {
     return extractScalarScore(outputs[outputName]);
   }
 
-  async function updateCurrentPrediction() {
-    if (!state.modelReady) return;
-
-    const featureRow = buildFeatureRow();
-    const requestId = ++latestPredictionRequest;
-
-    let prediction;
-    try {
-      prediction = await predictScore(featureRow);
-    } catch (error) {
-      console.error("Inference failed after control update.", error);
-      return;
-    }
-
-    if (requestId !== latestPredictionRequest) {
-      return;
-    }
-
-    setState({ currentPrediction: prediction });
-  }
-
   async function load() {
+    cancelProjectionRun();
     setState({
       dataStatus: "loading",
       bundleReady: false,
@@ -502,20 +331,27 @@ export function createRuntime({ basePath = "./model" } = {}) {
       modelStatus: "idle",
       modelError: null,
       modelInfo: null,
+      animationStatus: "idle",
     });
 
     try {
       const [
         displayMetadata,
+        modelFeatureNames,
+        featureStats,
         projectionSeed,
         historicalSeriesRows,
         historicalFeatureVectorRows,
       ] = await Promise.all([
         fetchJson(basePath, "display_metadata.json"),
+        fetchJson(basePath, "feature_names.json"),
+        fetchJson(basePath, "feature_stats.json"),
         fetchJson(basePath, "projection_seed.json"),
         fetchCsv(basePath, "historical_sustainability.csv"),
         fetchCsv(basePath, "historical_feature_vectors.csv"),
       ]);
+
+      featureNames = modelFeatureNames;
 
       setState({
         ...buildHydratedState(
@@ -523,6 +359,8 @@ export function createRuntime({ basePath = "./model" } = {}) {
           projectionSeed,
           historicalSeriesRows,
           historicalFeatureVectorRows,
+          modelFeatureNames,
+          featureStats,
         ),
         dataStatus: "ready",
         bundleReady: true,
@@ -552,13 +390,14 @@ export function createRuntime({ basePath = "./model" } = {}) {
         modelError: null,
         modelInfo,
       });
-      await updateCurrentPrediction();
+      startProjectionRun();
     } catch (error) {
       setState({
         modelReady: false,
         modelStatus: "error",
         modelError: error instanceof Error ? error.message : String(error),
         modelInfo: null,
+        animationStatus: "idle",
       });
     }
   }
@@ -574,6 +413,7 @@ export function createRuntime({ basePath = "./model" } = {}) {
     const nextProjectionContext = {
       ...state.projectionContext,
     };
+    const modelReady = state.modelReady;
 
     if (definition.model_mapping.type === "pct_change_from_absolute_series") {
       nextProjectionContext.derivedFeatureOverrides = {
@@ -590,7 +430,49 @@ export function createRuntime({ basePath = "./model" } = {}) {
       projectionContext: nextProjectionContext,
     });
 
-    void updateCurrentPrediction();
+    if (!modelReady) {
+      setState({
+        projectionSeries: buildProjectionSeries({
+          historicalSeries: state.historicalSeries,
+          projectionPoints: [],
+          projectionAnchorYearMonth: nextProjectionContext?.sourceLastObservedMonth ?? null,
+        }),
+        projectionPreparation: buildProjectionPreparationFromState(),
+        currentPrediction: null,
+        animationStatus: "idle",
+      });
+      return;
+    }
+
+    startProjectionRun();
+  }
+
+  function setProjectionHorizon(horizonMonths) {
+    setState({ projectionHorizonMonths: horizonMonths });
+    startProjectionRun();
+  }
+
+  async function enableAmbientAudio() {
+    if (audio.isEnabled()) {
+      setState({ audioEnabled: true });
+      return true;
+    }
+
+    if (ambientAudioPromise) {
+      return ambientAudioPromise;
+    }
+
+    ambientAudioPromise = (async () => {
+      await audio.enable();
+      setState({ audioEnabled: audio.isEnabled() });
+      return audio.isEnabled();
+    })();
+
+    try {
+      return await ambientAudioPromise;
+    } finally {
+      ambientAudioPromise = null;
+    }
   }
 
   return {
@@ -598,5 +480,7 @@ export function createRuntime({ basePath = "./model" } = {}) {
     subscribe,
     load,
     setControlValue,
+    setProjectionHorizon,
+    enableAmbientAudio,
   };
 }

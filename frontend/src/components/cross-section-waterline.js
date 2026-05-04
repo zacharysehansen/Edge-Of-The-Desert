@@ -107,7 +107,7 @@ export function createWaterlineController({
     .attr("font-family", "Georgia, serif")
     .attr("fill", defaultWaterColor)
     .attr("opacity", 0.88)
-    .text("Water table");
+    .text("Water Line");
 
   function update({ score, grace, powell, domains }) {
     const safeScore = Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 50;
