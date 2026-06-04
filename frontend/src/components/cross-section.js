@@ -298,7 +298,74 @@ function getCurrentValue(state, id, fallback = null) {
   return definition?.knob?.default ?? fallback;
 }
 
+function getHistoricalFeatureVectorRow(state, point) {
+  return (state.historicalFeatureVectors ?? []).find((row) => row?.yearMonth === point?.yearMonth) ?? null;
+}
+
+function pointMatches(left, right) {
+  if (!left?.source || !right?.source || !left?.yearMonth || !right?.yearMonth) {
+    return false;
+  }
+
+  return (
+    left.source === right.source
+    && left.yearMonth === right.yearMonth
+    && (left.monthIndex ?? 0) === (right.monthIndex ?? 0)
+  );
+}
+
+function resolveSelectedPoint(state) {
+  const selectedPoint = state.selectedPoint;
+  if (!selectedPoint) {
+    return null;
+  }
+
+  if (selectedPoint.source === "projection") {
+    return (state.projectionSeries ?? []).find((point) =>
+      !point?.isProjectionAnchor && pointMatches(point, selectedPoint),
+    ) ?? null;
+  }
+
+  return (state.historicalSeries ?? []).find((point) =>
+    pointMatches(point, selectedPoint),
+  ) ?? null;
+}
+
+function getPointFeatureValue(point, featureName) {
+  const numericValue = Number(point?.featureRow?.[featureName]);
+  return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+function getSelectedControlValue(state, selectedPoint, controlId, featureName, fallback = null) {
+  if (selectedPoint?.source === "projection") {
+    const scenarioValue = Number(selectedPoint?.scenarioControls?.[controlId]);
+    if (Number.isFinite(scenarioValue)) {
+      return scenarioValue;
+    }
+
+    const featureValue = getPointFeatureValue(selectedPoint, featureName);
+    if (Number.isFinite(featureValue)) {
+      return featureValue;
+    }
+  }
+
+  if (selectedPoint?.source === "historical") {
+    const historicalRow = getHistoricalFeatureVectorRow(state, selectedPoint);
+    const historicalValue = Number(historicalRow?.[featureName]);
+    if (Number.isFinite(historicalValue)) {
+      return historicalValue;
+    }
+  }
+
+  return fallback;
+}
+
 function getDisplayedScenarioScore(state) {
+  const selectedPoint = resolveSelectedPoint(state);
+  if (Number.isFinite(selectedPoint?.score)) {
+    return selectedPoint.score;
+  }
+
   const projectedPoints = (state.projectionSeries ?? []).filter((point) =>
     !point?.isProjectionAnchor && Number.isFinite(point?.score),
   );
@@ -310,27 +377,69 @@ function getDisplayedScenarioScore(state) {
 }
 
 function getInputs(state) {
+  const selectedPoint = resolveSelectedPoint(state);
   const grace =
-    getCurrentValue(
+    getSelectedControlValue(
       state,
+      selectedPoint,
       "grace_groundwater_anomaly",
-      state.projectionContext?.visualSupportValues?.grace_groundwater_anomaly
-      ?? state.projectionContext?.featureRowLastObserved?.grace_groundwater_anomaly
-      ?? 0,
+      "grace_groundwater_anomaly",
+      getCurrentValue(
+        state,
+        "grace_groundwater_anomaly",
+        state.projectionContext?.visualSupportValues?.grace_groundwater_anomaly
+        ?? state.projectionContext?.featureRowLastObserved?.grace_groundwater_anomaly
+        ?? 0,
+      ),
     );
 
   return {
     score: getDisplayedScenarioScore(state),
     grace,
-    powell:
+    powell: getSelectedControlValue(
+      state,
+      selectedPoint,
+      "powell_pool_elevation",
+      "powell_pool_elevation",
       getCurrentValue(state, "powell_pool_elevation")
       ?? state.projectionContext?.visualSupportValues?.powell_pool_elevation
       ?? 3580,
-    snow: getCurrentValue(state, "snow_water_equivalent_in", 0),
-    precipitation: getCurrentValue(state, "precipitation_mm_day", 0),
-    temperature: getCurrentValue(state, "temperature_2m_c", 0),
-    irrigation: getCurrentValue(state, "irrigation_total_withdrawal_mgd", 0),
-    publicSupply: getCurrentValue(state, "public_supply_groundwater_mgd", 0),
+    ),
+    snow: getSelectedControlValue(
+      state,
+      selectedPoint,
+      "snow_water_equivalent_in",
+      "snow_water_equivalent_in",
+      getCurrentValue(state, "snow_water_equivalent_in", 0),
+    ),
+    precipitation: getSelectedControlValue(
+      state,
+      selectedPoint,
+      "precipitation_mm_day",
+      "precipitation_mm_day",
+      getCurrentValue(state, "precipitation_mm_day", 0),
+    ),
+    temperature: getSelectedControlValue(
+      state,
+      selectedPoint,
+      "temperature_2m_c",
+      "temperature_2m_c",
+      getCurrentValue(state, "temperature_2m_c", 0),
+    ),
+    irrigation: getSelectedControlValue(
+      state,
+      selectedPoint,
+      "irrigation_total_withdrawal_mgd",
+      "irrigation_total_withdrawal_mgd",
+      getCurrentValue(state, "irrigation_total_withdrawal_mgd", 0),
+    ),
+    publicSupply: getSelectedControlValue(
+      state,
+      selectedPoint,
+      "public_supply_groundwater_mgd",
+      "public_supply_groundwater_mgd",
+      getCurrentValue(state, "public_supply_groundwater_mgd", 0),
+    ),
     domains: {
       grace: getControlDomain(state, "grace_groundwater_anomaly", [
         state.featureCatalog?.grace_groundwater_anomaly?.domain?.p5 ?? -100,

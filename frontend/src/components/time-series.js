@@ -1,4 +1,5 @@
 import * as d3 from "d3";
+import { getAquiferColor } from "./cross-section-waterline.js";
 import { formatNumber } from "../runtime-utils.js";
 
 const CHART_WIDTH = 1040;
@@ -60,6 +61,20 @@ function getPointKey(point) {
 
 function pointMatches(left, right) {
   return getPointKey(left) !== "" && getPointKey(left) === getPointKey(right);
+}
+
+function resolveSelectedPoint(state) {
+  const selectedPoint = state.selectedPoint;
+  if (!selectedPoint) {
+    return null;
+  }
+
+  const interactionPoints = [
+    ...getHistoricalSeries(state),
+    ...getProjectionSeries(state).filter((point) => !point.isProjectionAnchor),
+  ];
+
+  return interactionPoints.find((point) => pointMatches(point, selectedPoint)) ?? null;
 }
 
 function getProjectionSnapshot(points) {
@@ -148,6 +163,10 @@ function describePoint(point) {
   return `Historical point · ${dateLabel} · score ${scoreLabel}`;
 }
 
+function getDefaultStatusMessage() {
+  return "Click a point to inspect the knob-driven inputs and related model features for that month.";
+}
+
 function clampBrushDomain(brushDomain, fullDomain) {
   if (!brushDomain) return null;
   if (!Array.isArray(brushDomain) || brushDomain.length !== 2) return null;
@@ -174,10 +193,317 @@ function clampBrushDomain(brushDomain, fullDomain) {
   return [clampedStart, clampedEnd];
 }
 
+function clampNumber(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function coerceFiniteNumber(value) {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+function getControlDisplayLabel(definition) {
+  if (definition?.id === "grace_groundwater_anomaly") {
+    return "Groundwater Level";
+  }
+
+  return definition?.label ?? "Control";
+}
+
+function isTemperatureControl(definition) {
+  return definition?.id === "temperature_2m_c";
+}
+
+function toTemperatureFahrenheit(value) {
+  if (!Number.isFinite(value)) return value;
+  return (value * 9) / 5 + 32;
+}
+
+function formatControlValueWithUnit(value, definition) {
+  if (!Number.isFinite(value)) {
+    return "Unavailable";
+  }
+
+  if (isTemperatureControl(definition)) {
+    return `${formatNumber(toTemperatureFahrenheit(value), definition?.decimals ?? 1)} F`;
+  }
+
+  const unitSuffix = definition?.unit ? ` ${definition.unit}` : "";
+  return `${formatNumber(value, definition?.decimals ?? 0)}${unitSuffix}`;
+}
+
+function formatFeatureName(featureName) {
+  return featureName
+    ?.replaceAll("_", " ")
+    ?.replace(/\b\w/g, (character) => character.toUpperCase()) ?? "Feature";
+}
+
+function getFeatureDefinition(state, featureName) {
+  return state.featureCatalog?.[featureName] ?? state.displayMetadata?.features?.[featureName] ?? null;
+}
+
+function getFeatureLabel(state, featureName) {
+  return getFeatureDefinition(state, featureName)?.label ?? formatFeatureName(featureName);
+}
+
+function formatFeatureValueWithUnit(state, featureName, value) {
+  if (!Number.isFinite(value)) {
+    return "Unavailable";
+  }
+
+  const featureDefinition = getFeatureDefinition(state, featureName);
+  const unitSuffix = featureDefinition?.unit ? ` ${featureDefinition.unit}` : "";
+  return `${formatNumber(value, featureDefinition?.decimals ?? 2)}${unitSuffix}`;
+}
+
+function getHistoricalFeatureVectorRow(state, point) {
+  return (state.historicalFeatureVectors ?? []).find((row) => row?.yearMonth === point?.yearMonth) ?? null;
+}
+
+function getHistoricalControlValue(definition, historicalRow) {
+  if (!historicalRow) {
+    return null;
+  }
+
+  const mappingType = definition?.model_mapping?.type;
+  const inputFeature = definition?.model_mapping?.input_feature;
+  const outputFeature = definition?.model_mapping?.output_feature;
+
+  if (mappingType === "pct_change_from_absolute_series") {
+    return coerceFiniteNumber(historicalRow?.[inputFeature]);
+  }
+
+  return (
+    coerceFiniteNumber(historicalRow?.[inputFeature])
+    ?? coerceFiniteNumber(historicalRow?.[outputFeature])
+    ?? coerceFiniteNumber(historicalRow?.[definition?.id])
+  );
+}
+
+function getProjectionControlValue(definition, point) {
+  return (
+    coerceFiniteNumber(point?.scenarioControls?.[definition?.id])
+    ?? coerceFiniteNumber(point?.featureRow?.[definition?.model_mapping?.input_feature])
+    ?? coerceFiniteNumber(point?.featureRow?.[definition?.model_mapping?.output_feature])
+  );
+}
+
+function getControlValueForPoint(definition, point, historicalRow) {
+  return point?.source === "projection"
+    ? getProjectionControlValue(definition, point)
+    : getHistoricalControlValue(definition, historicalRow);
+}
+
+function getControlConnection(state, definition) {
+  return state.projectionConnections?.controlConnections?.[definition?.id] ?? null;
+}
+
+function getAffectedFeatureNames(state, definition) {
+  const connection = getControlConnection(state, definition);
+  const orderedFeatures = [];
+
+  if (
+    definition?.model_mapping?.type !== "direct_feature"
+    && connection?.directFeatureName
+  ) {
+    orderedFeatures.push(connection.directFeatureName);
+  }
+
+  [
+    ...(connection?.derivedFeatureNames ?? []),
+    ...(connection?.lagFeatureNames ?? []),
+    ...(connection?.rollingFeatureNames ?? []),
+    ...(connection?.derivedLagFeatureNames ?? []),
+    ...(connection?.derivedRollingFeatureNames ?? []),
+  ].forEach((featureName) => {
+    if (featureName && !orderedFeatures.includes(featureName)) {
+      orderedFeatures.push(featureName);
+    }
+  });
+
+  return orderedFeatures;
+}
+
+function buildAffectedFeatureEntries({
+  state,
+  definition,
+  point,
+  featureRow,
+}) {
+  return getAffectedFeatureNames(state, definition)
+    .map((featureName) => {
+      const value = coerceFiniteNumber(featureRow?.[featureName]);
+      if (!Number.isFinite(value)) {
+        return null;
+      }
+
+      return {
+        featureName,
+        label: getFeatureLabel(state, featureName),
+        value,
+      };
+    })
+    .filter(Boolean);
+}
+
+function populatePointLegend(legend, state, point) {
+  legend.replaceChildren();
+
+  if (!state.bundleReady || !point) {
+    legend.hidden = true;
+    return false;
+  }
+
+  const historicalRow = point.source === "projection" ? null : getHistoricalFeatureVectorRow(state, point);
+  const featureRow = point.source === "projection" ? point.featureRow ?? null : historicalRow;
+  const header = document.createElement("div");
+  header.className = "time-series-point-legend__header";
+
+  const title = document.createElement("h3");
+  title.className = "time-series-point-legend__title";
+  const titleDate = document.createElement("span");
+  titleDate.textContent = `${SMALL_TICK_FORMAT(point.date)} · `;
+
+  const titleScore = document.createElement("span");
+  titleScore.className = "time-series-point-legend__score";
+  titleScore.style.color = getAquiferColor(point.score);
+  titleScore.textContent = `Sustainability Score ${formatNumber(point.score, 1)}`;
+
+  title.append(titleDate, titleScore);
+  header.append(title);
+
+  const controls = document.createElement("div");
+  controls.className = "time-series-point-legend__controls";
+
+  (state.controlDefinitions ?? []).forEach((definition) => {
+    const controlValue = getControlValueForPoint(definition, point, historicalRow);
+    const featureEntries = buildAffectedFeatureEntries({
+      state,
+      definition,
+      point,
+      featureRow,
+    });
+
+    if (controlValue == null && featureEntries.length === 0) {
+      return;
+    }
+
+    const card = document.createElement("article");
+    card.className = "time-series-point-legend__control";
+
+    const cardHeader = document.createElement("div");
+    cardHeader.className = "time-series-point-legend__control-header";
+
+    const label = document.createElement("strong");
+    label.textContent = getControlDisplayLabel(definition);
+
+    const value = document.createElement("span");
+    value.className = "time-series-point-legend__control-value";
+    value.textContent = formatControlValueWithUnit(controlValue, definition);
+
+    cardHeader.append(label, value);
+    card.appendChild(cardHeader);
+
+    if (featureEntries.length) {
+      const featureList = document.createElement("div");
+      featureList.className = "time-series-point-legend__feature-list";
+
+      featureEntries.forEach((entry) => {
+        const feature = document.createElement("div");
+        feature.className = "time-series-point-legend__feature";
+
+        const copyRow = document.createElement("div");
+        copyRow.className = "time-series-point-legend__feature-copy";
+
+        const featureLabel = document.createElement("span");
+        featureLabel.className = "time-series-point-legend__feature-label";
+        featureLabel.textContent = entry.label;
+
+        const featureValue = document.createElement("span");
+        featureValue.className = "time-series-point-legend__feature-value";
+        featureValue.textContent = formatFeatureValueWithUnit(state, entry.featureName, entry.value);
+
+        copyRow.append(featureLabel, featureValue);
+        feature.appendChild(copyRow);
+        featureList.appendChild(feature);
+      });
+
+      card.appendChild(featureList);
+    }
+
+    controls.appendChild(card);
+  });
+
+  legend.append(header, controls);
+  legend.hidden = false;
+  return true;
+}
+
+function renderPointLegend({
+  legend,
+  chartWrap,
+  state,
+  point,
+  pointX,
+  pointY,
+}) {
+  const inView = (
+    Number.isFinite(pointX)
+    && Number.isFinite(pointY)
+    && pointX >= MARGINS.left
+    && pointX <= CHART_WIDTH - MARGINS.right
+    && pointY >= MARGINS.top
+    && pointY <= CHART_HEIGHT - MARGINS.bottom
+  );
+
+  if (!point || !inView || !populatePointLegend(legend, state, point)) {
+    legend.hidden = true;
+    legend.replaceChildren();
+    return;
+  }
+
+  const wrapRect = chartWrap.getBoundingClientRect();
+  if (wrapRect.width <= 0 || wrapRect.height <= 0) {
+    legend.hidden = true;
+    return;
+  }
+
+  const pointXPx = (pointX / CHART_WIDTH) * wrapRect.width;
+  const pointYPx = (pointY / CHART_HEIGHT) * wrapRect.height;
+  const overlayPadding = 12;
+  const gap = 18;
+
+  legend.hidden = false;
+  legend.dataset.side = "right";
+  legend.style.left = `${overlayPadding}px`;
+  legend.style.top = `${overlayPadding}px`;
+  legend.style.visibility = "hidden";
+
+  const legendWidth = legend.offsetWidth;
+  const legendHeight = legend.offsetHeight;
+  const canFitRight = pointXPx + gap + legendWidth <= wrapRect.width - overlayPadding;
+  const canFitLeft = pointXPx - gap - legendWidth >= overlayPadding;
+  const side = canFitRight || !canFitLeft ? "right" : "left";
+  const left = side === "right"
+    ? Math.min(wrapRect.width - legendWidth - overlayPadding, pointXPx + gap)
+    : Math.max(overlayPadding, pointXPx - legendWidth - gap);
+  const top = clampNumber(
+    pointYPx - (legendHeight / 2),
+    overlayPadding,
+    wrapRect.height - legendHeight - overlayPadding,
+  );
+  const arrowY = clampNumber(pointYPx - top, 18, Math.max(18, legendHeight - 18));
+
+  legend.dataset.side = side;
+  legend.style.left = `${left}px`;
+  legend.style.top = `${top}px`;
+  legend.style.setProperty("--legend-arrow-y", `${arrowY}px`);
+  legend.style.visibility = "visible";
+}
+
 export function createTimeSeriesPanel(runtime) {
   const panel = document.createElement("section");
   panel.className = "panel viz-card time-series-panel";
-  panel.style.gridTemplateRows = "minmax(0, 1fr)";
 
   const shell = document.createElement("div");
   shell.className = "time-series-shell";
@@ -204,6 +530,11 @@ export function createTimeSeriesPanel(runtime) {
     .attr("viewBox", `0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`)
     .attr("preserveAspectRatio", "xMidYMid meet");
 
+  const pointLegend = document.createElement("aside");
+  pointLegend.className = "time-series-point-legend";
+  pointLegend.hidden = true;
+  chartWrap.appendChild(pointLegend);
+
   const resetButton = document.createElement("button");
   resetButton.type = "button";
   resetButton.className = "time-series-reset";
@@ -227,7 +558,6 @@ export function createTimeSeriesPanel(runtime) {
   panel.append(shell);
 
   let brushDomain = null;
-  let activePoint = null;
   let lastProjectionSnapshot = [];
   let unlimitedProjection = false;
 
@@ -251,11 +581,33 @@ export function createTimeSeriesPanel(runtime) {
     render(runtime.getState());
   });
 
+  pointLegend.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
+
+  chartWrap.addEventListener("click", () => {
+    if (!runtime.getState().selectedPoint) return;
+    runtime.setSelectedPoint(null);
+  });
+
+  if (typeof ResizeObserver !== "undefined") {
+    const resizeObserver = new ResizeObserver(() => {
+      if (runtime.getState().selectedPoint) {
+        render(runtime.getState());
+      }
+    });
+    resizeObserver.observe(chartWrap);
+  }
+
   function render(state) {
+    const activePoint = resolveSelectedPoint(state);
+
     if (!state.bundleReady) {
       chartWrap.hidden = true;
       status.hidden = true;
       status.textContent = "";
+      pointLegend.hidden = true;
+      pointLegend.replaceChildren();
       lastProjectionSnapshot = [];
       return;
     }
@@ -270,6 +622,8 @@ export function createTimeSeriesPanel(runtime) {
       chartWrap.hidden = true;
       status.hidden = true;
       status.textContent = "";
+      pointLegend.hidden = true;
+      pointLegend.replaceChildren();
       lastProjectionSnapshot = [];
       return;
     }
@@ -281,6 +635,8 @@ export function createTimeSeriesPanel(runtime) {
       chartWrap.hidden = true;
       status.hidden = true;
       status.textContent = "";
+      pointLegend.hidden = true;
+      pointLegend.replaceChildren();
       lastProjectionSnapshot = [];
       return;
     }
@@ -288,7 +644,7 @@ export function createTimeSeriesPanel(runtime) {
     brushDomain = clampBrushDomain(brushDomain, fullDomain);
 
     chartWrap.hidden = false;
-    status.hidden = !activePoint;
+    status.hidden = false;
     resetButton.disabled = !brushDomain;
 
     const xDomain = brushDomain ?? fullDomain;
@@ -478,13 +834,13 @@ export function createTimeSeriesPanel(runtime) {
         .attr("opacity", 0.95);
     }
 
+    const interactionPoints = [...historicalSeries, ...projectionFuture];
+
     if (activePoint) {
       const isProjection = activePoint.source === "projection";
       const dots = isProjection ? projectionDots : historicalDots;
       dots.filter((d) => pointMatches(d, activePoint)).attr("r", isProjection ? 10.5 : 9.5);
     }
-
-    const interactionPoints = [...historicalSeries, ...projectionFuture];
 
     plot.selectAll(".time-series-hit")
       .data(interactionPoints)
@@ -511,14 +867,13 @@ export function createTimeSeriesPanel(runtime) {
         if (activePoint) {
           status.textContent = describePoint(activePoint);
         } else {
-          status.hidden = true;
-          status.textContent = "";
+          status.hidden = false;
+          status.textContent = getDefaultStatusMessage();
         }
       })
       .on("click", (event, point) => {
         event.stopPropagation();
-        activePoint = pointMatches(activePoint, point) ? null : point;
-        render(state);
+        runtime.setSelectedPoint(pointMatches(activePoint, point) ? null : point);
       });
 
     if (activePoint && isDrawablePoint(activePoint)) {
@@ -598,27 +953,24 @@ export function createTimeSeriesPanel(runtime) {
     }
 
     if (activePoint) {
-      status.hidden = false;
       status.textContent = describePoint(activePoint);
     } else {
-      status.hidden = true;
-      status.textContent = "";
+      status.textContent = getDefaultStatusMessage();
+    }
+    if (activePoint && isDrawablePoint(activePoint)) {
+      renderPointLegend({
+        legend: pointLegend,
+        chartWrap,
+        state,
+        point: activePoint,
+        pointX: xScale(activePoint.date),
+        pointY: yScale(activePoint.score),
+      });
+    } else {
+      pointLegend.hidden = true;
+      pointLegend.replaceChildren();
     }
     lastProjectionSnapshot = projectionSnapshot;
-
-    if (
-      activePoint
-      && !interactionPoints.some((point) => pointMatches(point, activePoint))
-    ) {
-      activePoint = lastHistoricalPoint;
-      if (activePoint) {
-        status.hidden = false;
-        status.textContent = describePoint(activePoint);
-      } else {
-        status.hidden = true;
-        status.textContent = "";
-      }
-    }
   }
 
   runtime.subscribe(render);

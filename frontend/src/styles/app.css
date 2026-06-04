@@ -42,6 +42,9 @@ textarea {
 }
 
 .app-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 18px;
   width: min(1940px, calc(100vw - 16px));
   min-height: 100svh;
   margin: 0 auto;
@@ -53,7 +56,11 @@ textarea {
   align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 24px;
+  margin-bottom: 0;
+}
+
+.app-header__content {
+  min-width: 0;
 }
 
 .eyebrow {
@@ -70,26 +77,11 @@ textarea {
   line-height: 0.96;
 }
 
-.subhead {
-  max-width: 52rem;
-  margin: 12px 0 0;
-  color: var(--text-muted);
-}
-
-.status-chip {
-  flex-shrink: 0;
-  padding: 10px 14px;
-  border: 1px solid var(--panel-border);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
-  color: var(--text-muted);
-}
-
 .app-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr) auto;
-  min-height: calc(100svh - 30px);
+  min-height: 0;
   gap: 18px;
   align-items: stretch;
 }
@@ -100,26 +92,6 @@ textarea {
   background: var(--panel-bg);
   box-shadow: var(--shadow);
   backdrop-filter: blur(14px);
-}
-
-.panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
-.panel-header h2,
-.panel-header h3 {
-  margin: 0;
-  font-size: 1.15rem;
-}
-
-.panel-meta {
-  margin: 6px 0 0;
-  color: var(--text-muted);
-  font-size: 0.92rem;
 }
 
 .control-panel {
@@ -285,7 +257,7 @@ textarea {
 }
 
 .time-series-panel {
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   padding-bottom: 16px;
 }
 
@@ -458,6 +430,121 @@ textarea {
 .time-series-status[hidden] {
   display: block;
   visibility: hidden;
+}
+
+.time-series-point-legend {
+  position: absolute;
+  z-index: 2;
+  width: min(360px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  overflow: auto;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(79, 61, 42, 0.14);
+  background:
+    linear-gradient(180deg, rgba(255, 252, 246, 0.97), rgba(244, 236, 223, 0.96));
+  box-shadow: 0 20px 34px rgba(58, 41, 24, 0.18);
+}
+
+.time-series-point-legend::after {
+  content: "";
+  position: absolute;
+  top: var(--legend-arrow-y, 28px);
+  transform: translateY(-50%);
+  border-top: 9px solid transparent;
+  border-bottom: 9px solid transparent;
+}
+
+.time-series-point-legend[data-side="right"]::after {
+  left: -9px;
+  border-right: 9px solid rgba(255, 252, 246, 0.97);
+}
+
+.time-series-point-legend[data-side="left"]::after {
+  right: -9px;
+  border-left: 9px solid rgba(255, 252, 246, 0.97);
+}
+
+.time-series-point-legend__header {
+  display: grid;
+  gap: 0;
+}
+
+.time-series-point-legend__title {
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.2;
+}
+
+.time-series-point-legend__score {
+  color: var(--accent);
+}
+
+.time-series-point-legend__controls {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.time-series-point-legend__control {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(79, 61, 42, 0.08);
+}
+
+.time-series-point-legend__control-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.time-series-point-legend__control-header strong {
+  font-size: 0.95rem;
+}
+
+.time-series-point-legend__control-value {
+  color: var(--accent-deep);
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.time-series-point-legend__feature-list {
+  display: grid;
+  gap: 7px;
+}
+
+.time-series-point-legend__feature {
+  display: grid;
+  gap: 5px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(79, 61, 42, 0.08);
+}
+
+.time-series-point-legend__feature-copy {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.time-series-point-legend__feature-label {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.time-series-point-legend__feature-value {
+  color: var(--text-main);
+  font-size: 0.84rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .time-series-summary {

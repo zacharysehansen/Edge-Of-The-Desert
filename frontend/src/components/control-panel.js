@@ -5,6 +5,11 @@ import {
   formatNumber,
 } from "../runtime-utils.js";
 
+function coerceFiniteNumber(value) {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : null;
+}
+
 function isTemperatureControl(definition) {
   return definition?.id === "temperature_2m_c";
 }
@@ -29,6 +34,99 @@ function formatValueWithUnit(value, definition) {
 
   const unitSuffix = definition?.unit ? ` ${definition.unit}` : "";
   return `${formatControlValue(value, definition)}${unitSuffix}`;
+}
+
+function pointMatches(left, right) {
+  if (!left?.source || !right?.source || !left?.yearMonth || !right?.yearMonth) {
+    return false;
+  }
+
+  return (
+    left.source === right.source
+    && left.yearMonth === right.yearMonth
+    && (left.monthIndex ?? 0) === (right.monthIndex ?? 0)
+  );
+}
+
+function resolvePointFromRef(state, pointRef) {
+  if (!pointRef) {
+    return null;
+  }
+
+  if (pointRef.source === "projection") {
+    return (state.projectionSeries ?? []).find((point) =>
+      !point?.isProjectionAnchor && pointMatches(point, pointRef),
+    ) ?? null;
+  }
+
+  return (state.historicalSeries ?? []).find((point) =>
+    pointMatches(point, pointRef),
+  ) ?? null;
+}
+
+function getHistoricalFeatureVectorRow(state, point) {
+  return (state.historicalFeatureVectors ?? []).find((row) => row?.yearMonth === point?.yearMonth) ?? null;
+}
+
+function getHistoricalControlValue(definition, historicalRow) {
+  if (!historicalRow) {
+    return null;
+  }
+
+  const mappingType = definition?.model_mapping?.type;
+  const inputFeature = definition?.model_mapping?.input_feature;
+  const outputFeature = definition?.model_mapping?.output_feature;
+
+  if (mappingType === "pct_change_from_absolute_series") {
+    return coerceFiniteNumber(historicalRow?.[inputFeature]);
+  }
+
+  return (
+    coerceFiniteNumber(historicalRow?.[inputFeature])
+    ?? coerceFiniteNumber(historicalRow?.[outputFeature])
+    ?? coerceFiniteNumber(historicalRow?.[definition?.id])
+  );
+}
+
+function getProjectionControlValue(definition, point) {
+  return (
+    coerceFiniteNumber(point?.scenarioControls?.[definition?.id])
+    ?? coerceFiniteNumber(point?.featureRow?.[definition?.model_mapping?.input_feature])
+    ?? coerceFiniteNumber(point?.featureRow?.[definition?.model_mapping?.output_feature])
+  );
+}
+
+function getDisplayedPoint(state) {
+  const selectedPoint = resolvePointFromRef(state, state.selectedPoint);
+  if (selectedPoint) {
+    return selectedPoint;
+  }
+
+  if (state.animationStatus === "running") {
+    return null;
+  }
+
+  return resolvePointFromRef(state, state.defaultPoint);
+}
+
+function getDisplayedControlValue(state, definition, point = null) {
+  if (point?.source === "projection") {
+    return (
+      getProjectionControlValue(definition, point)
+      ?? state.controlValues[definition.id]
+      ?? definition.knob.default
+    );
+  }
+
+  if (point?.source === "historical") {
+    return (
+      getHistoricalControlValue(definition, getHistoricalFeatureVectorRow(state, point))
+      ?? state.controlValues[definition.id]
+      ?? definition.knob.default
+    );
+  }
+
+  return state.controlValues[definition.id] ?? definition.knob.default;
 }
 
 function renderLoadingState(stack, message) {
@@ -134,9 +232,10 @@ export function createControlPanel(runtime) {
 
   function buildCards(state) {
     stack.innerHTML = "";
+    const displayedPoint = getDisplayedPoint(state);
 
     state.controlDefinitions.forEach((definition) => {
-      const currentValue = state.controlValues[definition.id] ?? definition.knob.default;
+      const currentValue = getDisplayedControlValue(state, definition, displayedPoint);
       const card = buildKnobCard(definition, currentValue, handleKnobChange, handleKnobChange);
       stack.appendChild(card);
     });
@@ -172,8 +271,9 @@ export function createControlPanel(runtime) {
       buildCards(state);
     }
 
+    const displayedPoint = getDisplayedPoint(state);
     state.controlDefinitions.forEach((definition) => {
-      const nextValue = state.controlValues[definition.id] ?? definition.knob.default;
+      const nextValue = getDisplayedControlValue(state, definition, displayedPoint);
       syncControlCardValue(definition.id, nextValue, definition);
     });
   }

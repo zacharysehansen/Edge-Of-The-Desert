@@ -3,13 +3,21 @@ import { createControlPanel } from "./components/control-panel.js";
 import { createCrossSectionPanel } from "./components/cross-section.js";
 import { createTimeSeriesPanel } from "./components/time-series.js";
 import { createRuntime } from "./runtime.js";
-import { formatDateRange } from "./runtime-utils.js";
 
 const appRoot = document.querySelector("#app");
 const runtime = createRuntime();
 
 const shell = document.createElement("div");
 shell.className = "app-shell";
+
+const header = document.createElement("header");
+header.className = "app-header";
+header.innerHTML = `
+  <div class="app-header__content">
+    <p class="eyebrow">Arizona Water Sustainability Explorer</p>
+    <h1>Edge Of The Desert</h1>
+  </div>
+`;
 
 const layout = document.createElement("div");
 layout.className = "app-layout";
@@ -24,7 +32,7 @@ vizPanel.append(
 );
 
 layout.append(vizPanel, controlPanel);
-shell.append(layout);
+shell.append(header, layout);
 appRoot.append(shell);
 
 function armAmbientAudioOnFirstGesture() {
@@ -46,32 +54,6 @@ function armAmbientAudioOnFirstGesture() {
 }
 
 armAmbientAudioOnFirstGesture();
-
-function updateHeader(state) {
-  if (state.dataStatus === "loading") {
-    return;
-  }
-
-  if (state.dataStatus === "error") {
-    return;
-  }
-
-  if (!state.bundleReady || !state.displayMetadata) {
-    return;
-  }
-
-  if (state.modelStatus === "loading") {
-    return;
-  }
-
-  if (state.modelStatus === "error") {
-    return;
-  }
-
-}
-
-runtime.subscribe(updateHeader);
-updateHeader(runtime.getState());
 
 void runtime.load();
 

@@ -21,6 +21,8 @@ export const INITIAL_STATE = {
   projectionPreparation: null,
   animationStatus: "idle",
   audioEnabled: false,
+  selectedPoint: null,
+  defaultPoint: null,
   projectionContext: {
     contextSource: null,
     sourceLastObservedMonth: null,

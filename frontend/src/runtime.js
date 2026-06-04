@@ -37,7 +37,68 @@ export function createRuntime({ basePath = "./model" } = {}) {
   let projectionTimerId = null;
   let ambientAudioPromise = null;
 
+  function toPointRef(point) {
+    if (!point?.source || !point?.yearMonth) {
+      return null;
+    }
+
+    return {
+      source: point.source,
+      yearMonth: point.yearMonth,
+      monthIndex: point.monthIndex ?? 0,
+    };
+  }
+
+  function getDefaultPointRef(nextState = state) {
+    const projectedPoints = (nextState.projectionSeries ?? []).filter((point) =>
+      !point?.isProjectionAnchor && Number.isFinite(point?.score),
+    );
+    const latestProjectedPoint = projectedPoints.at(-1) ?? null;
+    if (latestProjectedPoint) {
+      return toPointRef(latestProjectedPoint);
+    }
+
+    const latestHistoricalPoint = (nextState.historicalSeries ?? [])
+      .filter((point) => Number.isFinite(point?.score))
+      .at(-1) ?? null;
+    return toPointRef(latestHistoricalPoint);
+  }
+
+  function pointMatches(left, right) {
+    if (!left?.source || !right?.source || !left?.yearMonth || !right?.yearMonth) {
+      return false;
+    }
+
+    return (
+      left.source === right.source
+      && left.yearMonth === right.yearMonth
+      && (left.monthIndex ?? 0) === (right.monthIndex ?? 0)
+    );
+  }
+
+  function resolveSelectedPoint(nextState = state) {
+    const selectedPoint = nextState.selectedPoint;
+    if (!selectedPoint) {
+      return null;
+    }
+
+    if (selectedPoint.source === "projection") {
+      return (nextState.projectionSeries ?? []).find((point) =>
+        !point?.isProjectionAnchor && pointMatches(point, selectedPoint),
+      ) ?? null;
+    }
+
+    return (nextState.historicalSeries ?? []).find((point) =>
+      pointMatches(point, selectedPoint),
+    ) ?? null;
+  }
+
   function getLiveScenarioScore(nextState = state) {
+    const selectedPoint = resolveSelectedPoint(nextState);
+    if (Number.isFinite(selectedPoint?.score)) {
+      return selectedPoint.score;
+    }
+
     const projectedPoints = (nextState.projectionSeries ?? []).filter((point) =>
       !point?.isProjectionAnchor && Number.isFinite(point?.score),
     );
@@ -59,7 +120,7 @@ export function createRuntime({ basePath = "./model" } = {}) {
   }
 
   function setState(partialState) {
-    const nextState = {
+    const mergedState = {
       ...state,
       ...partialState,
       projectionContext: {
@@ -67,6 +128,15 @@ export function createRuntime({ basePath = "./model" } = {}) {
         ...(partialState.projectionContext ?? {}),
       },
     };
+
+    const hasExplicitDefaultPoint = Object.prototype.hasOwnProperty.call(partialState, "defaultPoint");
+    const nextState = {
+      ...mergedState,
+      defaultPoint: hasExplicitDefaultPoint
+        ? partialState.defaultPoint
+        : getDefaultPointRef(mergedState),
+    };
+
     state = nextState;
     syncAudio(nextState);
     notify();
@@ -428,6 +498,8 @@ export function createRuntime({ basePath = "./model" } = {}) {
     setState({
       controlValues: nextControlValues,
       projectionContext: nextProjectionContext,
+      selectedPoint: null,
+      defaultPoint: null,
     });
 
     if (!modelReady) {
@@ -450,6 +522,12 @@ export function createRuntime({ basePath = "./model" } = {}) {
   function setProjectionHorizon(horizonMonths) {
     setState({ projectionHorizonMonths: horizonMonths });
     startProjectionRun();
+  }
+
+  function setSelectedPoint(point) {
+    setState({
+      selectedPoint: toPointRef(point),
+    });
   }
 
   async function enableAmbientAudio() {
@@ -481,6 +559,7 @@ export function createRuntime({ basePath = "./model" } = {}) {
     load,
     setControlValue,
     setProjectionHorizon,
+    setSelectedPoint,
     enableAmbientAudio,
   };
 }

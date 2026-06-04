@@ -1,6 +1,6 @@
 # Visual Report Log
 
-Date: 2026-04-29
+Date: 2026-05-06
 
 ## Goal
 
@@ -20,21 +20,28 @@ Implemented and verified:
    - `frontend/src/runtime.js` for live app state and ONNX orchestration
    - `frontend/src/runtime-utils.js` for parsing, hydration, formatting, projection helpers, and autoregressive stepping support
 8. Browser-side autoregressive projection engine
-9. Projection-point storage that keeps generated feature rows and feature-source metadata with each projected month
-10. Cross-section score behavior fixed so it now advances with each newly predicted forecast month instead of freezing on month 1
-11. Viewport-filling visualization layout with centered knob-card rows and larger responsive control cards
-12. Background sonification layer synced to the live scenario score after the first user gesture
+9. Projection-point storage that keeps generated feature rows, feature-source metadata, and scenario control values with each projected month
+10. Compact point-detail legend for both historical and projected points
+11. Coordinated point selection so a selected time-series point updates:
+   - the cross-section scene
+   - the score-driven ambient audio
+   - the control-panel knob positions
+12. Shared selected-point and default-point state so inspection has an explicit fallback when no point is selected
+13. Background sonification layer synced to the same shared runtime score state after the first user gesture
+14. Viewport-filling visualization layout with centered knob-card rows and responsive control cards
 
 Not completed yet:
 
-- point tooltip / detail UI built from `historical_feature_vectors.csv`
 - the original gauge panel from the broader visualization plan is still not mounted in the current app shell
+- the point-detail layer is functional but still intentionally compact rather than a full explanation drawer
+- the current UI still does not expose a visible audio toggle or an explicit out-of-distribution warning for unrealistic knob combinations
 
 ## Verification
 
 - `npm run build` succeeds in `frontend/`
 - the build emits a static `frontend/dist/` bundle with copied model assets in `frontend/dist/model/`
 - runtime hydration currently preserves the intended July 2020 historical baseline and starts projection from August 2020
+- projected points remain inspectable after they are drawn because the runtime stores their feature rows and scenario control values rather than only their scores
 
 ## Live UI Summary
 
@@ -54,15 +61,16 @@ Notes:
 
 - GRACE is the seventh visible control in the current UI
 - controls use bundle metadata for labels, units, p5/p95 bounds, and defaults
-- controls now render as custom knob cards instead of horizontal sliders
+- controls render as custom knob cards instead of horizontal sliders
 - each knob card shows min/max values on either side of the dial, the live value below the knob, and a reset button beneath that value
-- the knob deck is now centered into a `4 + 3` row layout on desktop
-- desktop knob cards currently render at `400px` wide, with a narrower tablet fallback
-- control changes restart the projection run from the shared runtime state
+- the knob deck is centered into a `4 + 3` row layout on desktop
+- control changes restart the projection run from the shared runtime baseline
+- selecting a historical or projected point repositions the knobs to that point's values when those values are available
+- editing a knob clears point inspection and returns the app to live scenario authoring so the controls do not snap back to an inspected month
 
 ### Layout
 
-The app shell now treats the page as two stacked bands rather than a control column beside the visuals.
+The app shell treats the page as two stacked bands rather than a control column beside the visuals.
 
 Current behavior:
 
@@ -83,17 +91,17 @@ Live mappings include:
 - pipe fill and arrows from combined irrigation + public-supply demand
 - vegetation / lighting mood from sustainability score
 
-Current score behavior:
+Current score / selection behavior:
 
-- the cross-section score chip uses the latest projected forecast month, not the first projected month
-- the display stays pending until a real projected score exists
-- the cross-section no longer falls back to a smoke-test score or to the historical July 2020 anchor as if that were the live scenario output
-- the sustainability score chip now sits centered below the SVG instead of inside the upper-right corner of the scene
-- the scene now renders at full panel height and uses centered in-panel loading / error messages rather than a separate status strip below the illustration
+- the cross-section score chip uses the newest projected forecast month when the app is in live scenario mode
+- selecting a historical or projected point temporarily turns the cross-section into a view of that specific month
+- if no point is selected, the cross-section falls back to the runtime's default live scenario behavior
+- the sustainability score chip sits centered below the SVG instead of inside the upper-right corner of the scene
+- the scene renders at full panel height and uses centered in-panel loading / error messages rather than a separate status strip below the illustration
 
 ### Time Series
 
-The time-series panel is now a live historical-plus-projection view rather than a scaffold.
+The time-series panel is now both the historical/projection chart and the main inspection surface.
 
 Current behavior:
 
@@ -101,19 +109,22 @@ Current behavior:
 - renders the projection line in amber with projected points added one month at a time
 - animates the projection segment as the autoregressive forecast grows
 - supports click selection and active-point highlighting
+- supports a compact point legend for both historical and projected points
 - supports brush zoom on a persistent lower overview rail
 - supports widening the zoom window by dragging brush handles
 - supports reset via button or double-click
 - keeps the historical series visible when the projection restarts so the user always retains context
-- places the historical / projection legend in the upper-right corner of the `time-series-svg` container instead of in the panel header
-- removes the old in-SVG `Historical` and `Projection` text labels now that the overlay legend carries that job
+- places the historical / projection legend in the upper-right corner of the chart container instead of in a panel header
 - uses larger, bolder chart typography so axes and chart labels stay readable at the larger panel size
 - uses a compact footer row for reset, point-status text, and the unlimited-forecast toggle so more of the card height goes to the chart itself
-- keeps the Reset Zoom and Unlimited Forecast buttons slightly enlarged for readability
 - stretches to fill the available visualization band on desktop, with aspect-ratio fallback on smaller screens
 
-Important current behavior:
+Important interaction behavior:
 
+- clicking a historical point opens a compact detail legend built from `historical_feature_vectors.csv`
+- clicking a projected point opens a matching legend built from the stored projected `featureRow` and `scenarioControls`
+- the selected point updates the cross-section, the audio layer, and the knob readouts to that month's conditions
+- clicking empty chart space clears the selection and returns the app to live scenario mode
 - the historical score artifact window runs through `2020-12`
 - the projection engine intentionally anchors on the July 2020 baseline and begins forecasting at `2020-08`
 - this means the amber projection is being compared against a longer historical record that continues beyond the forecast anchor
@@ -126,12 +137,16 @@ Current behavior:
 
 - uses the Tone-based module in `frontend/src/components/components.js`
 - enables ambient audio automatically after the first pointer or keyboard interaction so it stays within browser autoplay rules
-- keeps the audio state in shared runtime state and updates the sonification from the latest live scenario score
+- maps the sustainability score into three broad musical bands (`severe`, `moderate`, `healthy`)
+- changes the drone chord set, melody scale/register, melody pacing, and filtered noise intensity based on score
+- updates from the same shared runtime state used by the visual views
+- follows the selected point while the user is inspecting history or projection
+- falls back to the live scenario score when no point is selected
 - does not expose a dedicated audio toggle in the current UI
 
 ## Historical Browser Assets
 
-The two historical CSVs now have clearly different jobs in the app.
+The two historical CSVs have clearly different jobs in the app.
 
 `historical_sustainability.csv` is the skinny score-series artifact. It provides:
 
@@ -140,7 +155,7 @@ The two historical CSVs now have clearly different jobs in the app.
 - actual sustainability score
 - residual
 
-In the frontend, this file is used to build the historical plotted score series and summary counts.
+In the frontend, this file is used to build the plotted historical score series and the historical half of the comparison chart.
 
 `historical_feature_vectors.csv` is the wide monthly model-state artifact. It provides:
 
@@ -154,15 +169,12 @@ In the frontend, this file is used to:
 
 - build the July 2020 historical baseline state when available
 - derive historical exogenous histories for the autoregressive engine
-- count model-complete rows in the time-series summary
-
-What it does not do yet:
-
-- it is not yet surfaced through a point-click tooltip or detail panel for historical months
+- populate the compact detail legend for historical point inspection
+- supply historical control values so the knob deck can mirror inspected months
 
 ## Runtime / Projection Engine
 
-The runtime is no longer only prepared for projection. It now runs the projection.
+The runtime is no longer only prepared for projection. It now runs the projection and coordinates the interactive views.
 
 Current projection behavior:
 
@@ -175,7 +187,7 @@ Current projection behavior:
 7. Feed the predicted score back into target history and update lagged / rolling inputs for the next month
 8. Repeat on a timer until the configured horizon is reached
 
-Current state / data-model details:
+Current state / interaction details:
 
 - `projectionSeries` stores the live forecast months shown in the amber line
 - each projected point stores:
@@ -189,18 +201,21 @@ Current state / data-model details:
   - `pendingFeatureRow`
   - `pendingFeatureSources`
   - `latestScenarioScore`
-- moving a control mid-run clears the current projection and starts a fresh forecast from the shared runtime baseline
+- `selectedPoint` stores the user's current inspection target as a lightweight point reference
+- `defaultPoint` stores the no-selection fallback reference used by coordinated views
+- moving a control mid-run clears the current selection, restarts the forecast from the shared baseline, and rebuilds the live projection from the new scenario values
 
 ## Remaining Work
 
-### Step 11
+### Main Gaps
 
-Still needed for the time-series detail layer:
+Still needed for a more finished public-facing app:
 
-- click-to-open historical / projected point detail UI
-- rendering of raw inputs, lag features, and source metadata per point
-- visible distinction between score-only historical months and model-complete months when point details are shown
+- a richer point explanation layer that can expand beyond the compact legend into actual vs predicted score, residual, and a broader slice of the model state
+- the still-unmounted gauge panel from the broader design plan
+- a visible audio toggle and better user-facing communication of what the sound means
+- an out-of-distribution or scenario-validity cue for unrealistic knob combinations
 
 ## Summary
 
-The frontend has moved past the scaffold phase. It now has a working browser-side ONNX runtime, a live autoregressive projection engine, a historical-plus-forecast D3 time series, a cross-section that updates off the newest projected forecast month, a background sonification layer tied to the same shared runtime state, and a viewport-aware layout that gives the two main visuals as much screen space as possible while keeping the knob deck accessible. The main remaining gaps are richer point-detail interaction and the still-unmounted gauge panel, not the core forecast loop itself.
+The frontend has moved well past the scaffold phase. It now has a working browser-side ONNX runtime, a live autoregressive projection engine, a historical-plus-forecast D3 time series, a cross-section that can operate in both live-scenario and inspected-point modes, a compact point-detail layer for both historical and projected months, a coordinated knob deck that mirrors inspected values, and a background sonification layer tied to the same shared runtime state. The main remaining gaps are richer explanation and packaging details, not the core interactive forecast loop itself.
