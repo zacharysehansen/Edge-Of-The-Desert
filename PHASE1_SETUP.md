@@ -1,6 +1,6 @@
 # Phase 1 Setup
 
-This repo now includes an API-first phase 1 pipeline at `scripts/phase1.py`, plus Arizona-focused endpoint/source CSVs in [`data/Final`](/home/zacharyhansen/Documents/GitHub/Edge-Of-The-Desert/data/Final).
+This repo now includes an API-first phase 1 pipeline at `scripts/phase1`, plus Arizona-focused endpoint/source CSVs in [`data/Final`](/home/zacharyhansen/Documents/GitHub/Edge-Of-The-Desert/data/Final).
 
 ## Quick start
 
@@ -9,127 +9,109 @@ This repo now includes an API-first phase 1 pipeline at `scripts/phase1.py`, plu
 3. Copy `config/phase1.example.json` to your own config file if you want to change the study area, site IDs, or source behavior.
 4. Run:
 
-```bash
-python scripts/phase1.py collect
-python scripts/phase1.py build --allow-partial
+`# Southern Arizona Pipeline: File Plan
+
+## Structure
+
+One Python file per dataset. Each file is responsible for one source only: pulling or loading raw data, filtering to the eight-county region, aggregating to the model's time grain, and writing a single clean endpoint CSV. No file depends on another file's output except the join script at the end.
+
+Shared region boundary logic (the county list, the shapefile load, the point-in-polygon helper) lives in one common module so it is not duplicated eight times.
+
+```
+phase1/
+    region.py
+    population.py
+    irrigation.py
+    public_supply.py
+    lake_mead.py
+    urbanization.py
+    water_stress.py
+    ndvi.py
+    grace_groundwater.py
+    groundwater_wells.py
+    wildfire.py
+    wildlife_bbs.py
+    build_dataset.py
 ```
 
-Or run both steps together:
+## region.py
 
-```bash
-python scripts/phase1.py run --allow-partial
-```
+Holds the eight-county definition (Pima, Pinal, Santa Cruz, Cochise, Graham, Greenlee, Yuma, La Paz) and loads the county boundary shapefile (Census TIGER/Line). Exposes a function that takes a list of latitude/longitude points or a raster and returns only what falls inside the boundary. Every other file that needs spatial filtering imports from here instead of repeating the boundary logic.
 
-Usable monthly endpoint/source files will be written to `data/Final/`, raw API snapshots will be written to `data/raw/`, and the joined dataset will be written to `data/processed/phase1_monthly_dataset.csv`.
+## population.py
 
-## What is automated already
+Pulls Census Bureau county population estimates for the eight counties, sums to a regional annual total, interpolates to monthly. Replaces the old statewide `azpop_monthly.csv` rather than re-aggregating it, since the original interpolation kept no county breakdown.
 
-- MODIS monthly NDVI via NASA Earthdata / `earthaccess`
-- MERRA-2 monthly temperature, specific humidity, and precipitation via NASA Earthdata / `earthaccess`
-- GRACE land water storage anomaly via NASA Earthdata / `earthaccess`
-- GRACE/GRACE-FO-derived recharge proxy, computed from month-to-month positive changes in the GRACE storage series
-- USGS NWIS daily streamflow via Water Services
-- U.S. Drought Monitor DSCI / sustainability target via the USDM REST service
+Output: `population_monthly.csv` with `year_month, population`.
 
-## Current endpoint files in repo
+## irrigation.py
 
-These now live in [`data/Final`](/home/zacharyhansen/Documents/GitHub/Edge-Of-The-Desert/data/Final).
+Loads the existing HUC12-level irrigation source matrix, filters to HUC12s within the eight counties using `region.py`, re-aggregates to a monthly regional total the same way the original statewide file was built.
 
-This folder is now the final endpoint for the usable monthly source CSVs we were looking for before model training begins.
+Output: `irrigation_monthly.csv` with `year_month, irrigation_total_withdrawal_mgd`.
 
-1. `snotel_swe.csv`
-   Current columns: `year_month, snow_water_equivalent_in`
-   Coverage: `2000-10` through `2018-07`
-   Notes: monthly Arizona SNOTEL snow-water-equivalent feature aggregated from the Baker Butte, Happy Jack, Mormon Mountain, and Hannagan Meadows station bundle.
+## public_supply.py
 
-2. `irrigation_huc12_monthly_az_2000_2020.csv`
-   Current columns: `year_month, irrigation_total_withdrawal_mgd, irrigation_total_withdrawal_gallons_per_day, irrigation_total_withdrawal_acre_feet_month, huc12_count`
-   Coverage: `2000-01` through `2020-12`
-   Notes: Arizona statewide monthly irrigation endpoint derived from the USGS irrigation HUC12 source matrix.
+Same pattern as `irrigation.py`, loading the NWAA HUC12 shards instead.
 
-3. `nwaa_public_supply_az_monthly.csv`
-   Current columns: `year_month, public_supply_groundwater_mgd, public_supply_groundwater_gallons_per_day, public_supply_groundwater_acre_feet_month, huc12_count`
-   Coverage: `2000-01` through `2020-12`
-   Notes: Arizona statewide monthly public-supply groundwater endpoint aggregated from NWAA HUC12 shards.
+Output: `public_supply_monthly.csv` with `year_month, public_supply_groundwater_mgd`.
 
-4. `powell_combined.csv`
-   Current columns: `year_month, powell_evaporation, powell_total_release, powell_inflow, powell_storage, powell_pool_elevation`
-   Coverage: `2000-01` through `2020-12`
-   Notes: Lake Powell monthly operational feature bundle merged from manually gathered source files in `data/raw`.
+## lake_mead.py
 
-5. `azpop_monthly.csv`
-   Current columns: `year_month, AZPOP`
-   Coverage: `2000-01` through `2020-12`
-   Notes: Arizona monthly population endpoint expanded from annual `AZPOP` observations.
+Pulls the four Lake Mead CSV endpoints from the Bureau of Reclamation HydroData Navigator (reservoir ID 921: pool elevation, storage, total release, release volume), filters each to the model's date range, aggregates daily to monthly, merges into one table.
 
-6. `modis_ndvi.csv`
-   Current columns: `year_month, ndvi`
-   Coverage: `2000-02` through `2023-12`
-   Notes: Arizona-wide monthly NDVI endpoint collected from MODIS Earthdata.
+Output: `lake_mead_monthly.csv` with `year_month, mead_pool_elevation, mead_storage, mead_total_release, mead_release_volume`.
 
-7. `merra_precipitation.csv`
-   Current columns: `year_month, precipitation_mm_day`
-   Coverage: `2000-01` through `2023-12`
-   Notes: Arizona-wide monthly MERRA-2 precipitation endpoint derived from the locally downloaded `data/raw/merra_precipitation/*.nc4` files.
+## urbanization.py
 
-8. `merra_temperature_2m.csv`
-   Current columns: `year_month, temperature_2m_c`
-   Coverage: `2000-01` through `2023-12`
-   Notes: Arizona-wide monthly MERRA-2 2m temperature endpoint derived from the locally downloaded `data/raw/merra_temperature_2m/*.nc4` files.
+Downloads the relevant year's NLCD Fractional Impervious Surface raster from the S3 bucket, clips to the eight-county boundary using `region.py`, computes mean impervious percentage per year, interpolates to monthly.
 
-9. `grace_groundwater_anomaly.csv`
-   Current columns: `year_month, grace_groundwater_anomaly`
-   Coverage: `2000-01` through `2020-12`
-   Notes: Arizona-wide monthly GRACE groundwater anomaly endpoint derived from the GRACE / GRACE-FO raw files in `data/raw/grace_groundwater_anomaly/`.
+Output: `urbanization_monthly.csv` with `year_month, impervious_pct`.
 
-10. `usgs_streamflow.csv`
-   Current columns: `year_month, streamflow_cfs`
-   Coverage: `2000-01` through `2023-12`
-   Notes: monthly mean streamflow endpoint derived from the configured USGS NWIS daily gauge set.
+## water_stress.py
 
-11. `usdm_sustainability.csv`
-   Current columns: `year_month, usdm_dsci, usdm_sustainability`
-   Coverage: `2000-01` through `2023-12`
-   Notes: monthly Arizona drought endpoint built from U.S. Drought Monitor DSCI output, including the derived sustainability score used by the pipeline.
+Derives or re-extracts the USDM score for the eight-county region, 
 
-Intermediate HUC12-level files, summaries, and build artifacts remain in
-[`data/processed`](/home/zacharyhansen/Documents/GitHub/Edge-Of-The-Desert/data/processed).
+Output: `water_stress_monthly.csv` with `year_month, usdm_dsci,.
 
-## Earlier staging inputs you may still see
+## ndvi.py
 
-Some earlier notes, scripts, and config values still reference upstream staging inputs rather than the final endpoint files above. The most common examples are:
+Loads or re-pulls MODIS NDVI, clips to the eight-county boundary.
 
-- `snotel_swe_daily.csv`
-- `AZPOP.csv`
-- raw Powell source files such as `powell_evaporation.csv` and `powell_storage.csv`
-- HUC12 staging matrices such as `ir_huc12_tot_wd_az_2000_2020.csv` and `ps_huc12_tot_az_2000_2020.csv`
+Output: `ndvi_monthly.csv` with `year_month, ndvi`.
 
-Treat those older names as upstream inputs used to produce the `data/Final/` endpoint CSVs, not as the final target files we were trying to end up with.
+## grace_groundwater.py
 
-## Config values you should review before trusting the dataset
+Re-extracts GRACE groundwater anomaly from the raw `.nc4` files using a bounding box around the eight counties, applies the same `grace_available` flag and pre-2002-04 neutral fill as the original pipeline.
 
-- `project.start_year_month` / `project.end_year_month`
-  The default build window is still `2000-01` through `2023-12`, but the endpoint files do not all fully span that range: `snotel_swe.csv` stops in `2018-07`, and `irrigation_huc12_monthly_az_2000_2020.csv`, `nwaa_public_supply_az_monthly.csv`, `powell_combined.csv`, `azpop_monthly.csv`, and `grace_groundwater_anomaly.csv` stop in `2020-12`. `merra_precipitation.csv`, `merra_temperature_2m.csv`, `usgs_streamflow.csv`, and `usdm_sustainability.csv` extend through `2023-12`. Expect missing values outside the shorter source windows unless you trim the build period or backfill additional data.
+Output: `grace_monthly.csv` with `year_month, grace_groundwater_anomaly, grace_available`.
 
-- `study_area.bbox`
-  The default config now uses an Arizona-wide bounding box.
+## groundwater_wells.py
 
-- `usgs_streamflow.site_numbers`
-  The default config now uses:
-  `09380000` Colorado River at Lees Ferry,
-  `09498500` Salt River near Roosevelt,
-  `09506000` Verde River near Camp Verde.
+Pulls USGS groundwater well levels via the USGS Water Data API, filtered to wells in the Tucson and Santa Cruz Active Management Areas and any other AMA inside the eight counties, aggregates to a monthly regional mean or median water level.
 
-- `grace_groundwater_anomaly.short_names`
-  The config currently stitches the older GRACE JPL land product with the GRACE-FO successor; keep this if it matches your intended groundwater proxy, or swap to a different official GRACE product.
+Output: `groundwater_wells_monthly.csv` with `year_month, well_level_ft`.
 
-- `grace_recharge_estimate`
-  This is now derived from the GRACE/GRACE-FO anomaly series inside the pipeline rather than coming from a separate manual recharge-gap CSV.
+## wildfire.py
 
-## Outputs worth checking
+Loads the user-provided fire-event CSV, filters to fires located within the eight counties, builds the annual risk index from fire count and log-transformed total acres.
 
-- `data/processed/phase1_status.json`
-  Collection status, failures, and missing sources.
+Output: `wildfire_annual.csv` with `year, fire_count, log_acres_total, wildfire_risk_index`.
 
-- `data/processed/phase1_build_report.json`
-  Join summary and which source CSVs were missing when the flat file was built.
+## wildlife_bbs.py
+
+Uses `sciencebasepy` to pull the BBS route metadata table and the yearly count table from the 2025 release, filters routes to those falling inside the eight counties using `region.py`, aggregates to an annual regional abundance index (pooled count or species richness, decided before writing this file). Must be run from an environment with access to `sciencebase.gov`, since that host is not reachable from this sandbox.
+
+Output: `wildlife_annual.csv` with `year, route_count, total_abundance` or `year, route_count, species_richness`, depending on which index is chosen.
+
+## build_dataset.py
+
+Joins all of the above outputs on `year_month` (monthly files) or `year` (annual files: wildfire, wildlife), producing the final modeling tables. Since wildfire and wildlife are annual while the rest are monthly, this file is also responsible for deciding how the join handles grain mismatch, either by aggregating the monthly inputs to annual for those two specific targets, or by broadcasting the annual values across the twelve months of each year if a monthly wildfire or wildlife row is ever needed. Does not fetch any new data itself.
+
+## Notes
+
+`region.py` is the only file every other script depends on. Get the county shapefile and boundary logic right first, since a mistake there silently changes every other file's regional filter.
+
+`wildfire.py` and `wildlife_bbs.py` are the only two files producing annual rather than monthly output, and both need their own row-count check before any cross-validation split is chosen, since the eight-county filter will shrink both datasets and the annual grain already means far fewer rows than the monthly files.
+
+`lake_mead.py` and `urbanization.py` are the only two files that depend on an external resource not yet test-pulled in full (the exact Mead CSV parameter codes are confirmed, but the NLCD S3 bucket's file naming convention is not). Both should be the first two scripts run end to end before the others, to surface any remaining access problems early.

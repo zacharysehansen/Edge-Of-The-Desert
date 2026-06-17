@@ -10,10 +10,35 @@
     "final_dir": "data/Final"
   },
   "study_area": {
-    "name": "Arizona-wide focus box",
-    "bbox": [-114.85, 31.25, -109.0, 37.1],
+    "name": "Southern Arizona eight-county region",
+    "bbox": {
+      "min_lon": -114.81,
+      "min_lat": 31.33,
+      "max_lon": -109.05,
+      "max_lat": 34.5
+    },
     "state_fips": "04",
-    "state_abbr": "AZ"
+    "state_abbr": "AZ",
+    "counties": [
+      "Pima",
+      "Pinal",
+      "Santa Cruz",
+      "Cochise",
+      "Graham",
+      "Greenlee",
+      "Yuma",
+      "La Paz"
+    ],
+    "county_fips": [
+      "04019",
+      "04021",
+      "04023",
+      "04003",
+      "04013",
+      "04011",
+      "04027",
+      "04007"
+    ]
   },
   "sources": [
     {
@@ -102,17 +127,6 @@
       "group_aggregation": "mean"
     },
     {
-      "name": "usdm_sustainability",
-      "kind": "usdm_dsci",
-      "enabled": true,
-      "area_type": "StateStatistics",
-      "aoi": "04",
-      "feature_name": "usdm_sustainability",
-      "start_date": "2000-01-01",
-      "end_date": "2023-12-31",
-      "statistics_type": 1
-    },
-    {
       "name": "lake_mead_level",
       "kind": "rise_results",
       "enabled": false,
@@ -124,49 +138,78 @@
       "end_date": "2023-12-31"
     },
     {
-      "name": "population",
-      "kind": "census_population_download",
-      "enabled": false,
-      "state_fips": "04",
-      "feature_name": "population",
-      "start_year_month": "2000-01",
-      "end_year_month": "2023-12",
-      "anchor_month": 7
-    },
-    {
-      "name": "powell_combined",
-      "kind": "manual_monthly_csv",
-      "enabled": true,
-      "path": "powell_combined.csv",
-      "feature_columns": [
-        "powell_evaporation",
-        "powell_total_release",
-        "powell_inflow",
-        "powell_storage",
-        "powell_pool_elevation"
-      ]
-    },
-    {
+    
       "name": "azpop",
       "kind": "manual_monthly_csv",
       "enabled": true,
       "path": "AZPOP.csv",
       "feature_columns": ["AZPOP"]
     },
-
-    {
-      "name": "snotel_swe",
-      "kind": "manual_daily_csv",
+    {      "name": "population",
+      "kind": "census_county_population",
       "enabled": true,
-      "path": "snotel_swe_daily.csv",
-      "date_column": "date",
-      "feature_column": "swe_in",
-      "aggregation": "monthly_mean",
-      "notes": "Converted to monthly inside pipeline if needed"
+      "state_fips": "04",
+      "county_fips": [
+        "04019",
+        "04021",
+        "04023",
+        "04003",
+        "04013",
+        "04011",
+        "04027",
+        "04007"
+      ],
+      "feature_name": "population",
+      "start_date": "2000-01-01",
+      "end_date": "2023-12-31",
+      "aggregation": "county_sum",
+      "interpolation": "monthly"
     },
-
     {
-      "name": "irrigation_huc12",
+      "name": "urbanization",
+      "kind": "earthdata_nlcd_impervious",
+      "enabled": false,
+      "feature_name": "impervious_pct",
+      "start_date": "2000-01-01",
+      "end_date": "2023-12-31",
+      "source_url": "s3://usgs-landcover/annual-nlcd/c1/v0/cu/mosaic/"
+    },
+    {
+      "name": "water_stress",
+      "kind": "derived_usdm_sustainability",
+      "enabled": false,
+      "input_source": "usdm_sustainability",
+      "feature_name": "water_stress_score"
+    },
+    {
+      "name": "groundwater_wells",
+      "kind": "usgs_groundwater_well_level",
+      "enabled": false,
+      "feature_name": "well_level_ft",
+      "ama_filter": [
+        "Tucson",
+        "Santa Cruz"
+      ]
+    },
+    {
+      "name": "wildfire",
+      "kind": "manual_fire_event_csv",
+      "enabled": false,
+      "path": "wildfire_events.csv",
+      "year_column": "FIRE_YEAR",
+      "acres_column": "Acres",
+      "feature_name": "wildfire_risk_index"
+    },
+    {
+      "name": "wildlife_bbs",
+      "kind": "sciencebase_bbs",
+      "enabled": false,
+      "source": "sciencebase",
+      "feature_name": "wildlife_abundance",
+      "start_date": "2000-01-01",
+      "end_date": "2024-12-31"
+    },
+    { "name": "irrigation_huc12",
       "kind": "manual_huc12_wide_csv",
       "enabled": true,
       "path": "ir_huc12_tot_wd_az_2000_2020.csv",

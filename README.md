@@ -1,112 +1,160 @@
-# Southwest Water Sustainability Visualizer
-## Final Project Design
+# Southern Arizona Water and Land Model: Dataset Inventory
+
+## End Goal
+
+Build a set of regression models for an eight-county southern Arizona region (Pima, Pinal, Santa Cruz, Cochise, Graham, Greenlee, Yuma, La Paz) that take in human and environmental pressure variables and predict three separate environmental outcomes. This is a planning-stage tool, meant to let someone adjust inputs like population growth, irrigation demand, or urbanization and see how vegetation health, water levels, and wildfire risk would likely respond.
+
+Inputs: population, irrigation withdrawal, water management (reservoir behavior), urbanization, and water stress.
+
+Outputs: vegetation index (NDVI), ground and surface water levels, wildfire risk, and wildlife abundance.
+
+Each output gets its own separate XGBoost regression model trained on the same shared input set, rather than one combined model or a single bottleneck variable that all inputs route through first.
+
+
+## Research Question
+
+How do population growth, agricultural water demand, urban development, reservoir management decisions, and drought conditions influence vegetation health, water availability, wildfire risk, and wildlife abundance in Southern Arizona?
+
+Version 2 is designed around a simple conceptual framework:
+
+**Human Pressures and Environmental Conditions → Environmental Responses**
+
+Rather than combining all variables into a single sustainability metric, the project models several environmental systems independently so that users can observe how each responds to the same set of pressures.
 
 ---
 
-### Overview
+## Input Variables
 
-An interactive visualization that lets users manipulate environmental and human demand conditions across the American Southwest and see the predicted water sustainability score update in real time. The system combines satellite remote sensing data, hydrological measurements, and human consumption data to train a regression model, which is exported and run entirely in the browser via ONNX. The D3.js frontend visualizes both the user-controlled inputs and the model output simultaneously. Phase 1 data assembly is currently Arizona-focused within that broader Southwest framing, with the current monthly endpoint source files stored in `data/Final`.
+The model inputs represent human pressures, land-use change, water management decisions, and regional drought conditions.
 
----
+| Input Variable           | Description                                                        | Source                             |
+| ------------------------ | ------------------------------------------------------------------ | ---------------------------------- |
+| Population               | Regional population pressure                                       | U.S. Census Bureau                 |
+| Irrigation Withdrawal    | Agricultural water demand                                          | HUC12 irrigation datasets          |
+| Public Supply Withdrawal | Municipal groundwater demand                                       | NWAA groundwater datasets          |
+| Reservoir Operations     | Water management behavior represented through Lake Mead operations | Bureau of Reclamation              |
+| Urbanization             | Impervious surface coverage and land development                   | NLCD Fractional Impervious Surface |
+| USDM DSCI                | Regional drought severity and coverage index                       | U.S. Drought Monitor               |
 
-### Data Sources
-
-| Feature | Source | Raw Resolution | Model Resolution |
-|---|---|---|---|
-| NDVI | MODIS MOD13A3 | Monthly | Monthly |
-| 2m Temperature | MERRA-2 | Daily | Monthly avg |
-| Specific Humidity | MERRA-2 | Daily | Monthly avg |
-| Precipitation | MERRA-2 | Daily | Monthly avg |
-| Snow Water Equivalent | Arizona SNOTEL bundle (NRCS / WRCC) -> `snotel_swe.csv` | Daily | Monthly endpoint |
-| Streamflow | USGS NWIS -> `usgs_streamflow.csv` | Daily | Monthly endpoint |
-| GRACE Groundwater Anomaly | NASA GRACE | Monthly | Monthly |
-| GRACE/GRACE-FO Derived Recharge Estimate | NASA GRACE / GRACE-FO | Monthly | Monthly |
-| Lake Powell Operations | Manual Powell bundle -> `powell_combined.csv` | Daily / irregular | Monthly endpoint |
-| Irrigation Total Withdrawal | USGS Arizona HUC12 source -> `irrigation_huc12_monthly_az_2000_2020.csv` | Monthly | Monthly statewide endpoint |
-| Public-Supply Total | NWAA Arizona HUC12 source -> `nwaa_public_supply_az_monthly.csv` | Monthly | Monthly statewide endpoint |
-| Population | Arizona `AZPOP` observations -> `azpop_monthly.csv` | Annual | Monthly endpoint via interpolation |
-| Inverted USDM Score | USDM -> `usdm_sustainability.csv` | Weekly | Monthly endpoint (target) |
-
-Project target range: 2000-2023. Join key: `year_month`. The endpoint/source CSVs we were looking for now live in `data/Final`: `modis_ndvi.csv`, `usgs_streamflow.csv`, `usdm_sustainability.csv`, `snotel_swe.csv`, `irrigation_huc12_monthly_az_2000_2020.csv`, `nwaa_public_supply_az_monthly.csv`, `powell_combined.csv`, and `azpop_monthly.csv`. Coverage is still shorter for some sources: `snotel_swe.csv` spans `2000-10` through `2018-07`, and `irrigation_huc12_monthly_az_2000_2020.csv`, `nwaa_public_supply_az_monthly.csv`, `powell_combined.csv`, and `azpop_monthly.csv` span `2000-01` through `2020-12`, while `modis_ndvi.csv`, `usgs_streamflow.csv`, and `usdm_sustainability.csv` extend through `2023-12`. Earlier filenames such as `snotel_swe_daily.csv`, raw Powell inputs, `AZPOP.csv`, and the HUC12 staging matrices were upstream inputs used to produce these endpoint files.
+These variables form the shared input set used by every model in the system.
 
 ---
 
-### Target Variable
+## Output Variables
 
-The U.S. Drought Monitor weekly categorical score (D0-D4) is averaged to monthly and converted to a 0-100 numeric scale, then inverted so that 100 represents maximum sustainability and 0 represents crisis conditions. This gives a continuous regression target that is grounded in an established expert-curated index rather than an arbitrary composite.
+The model predicts ecological and hydrological responses to the selected input conditions.
 
----
+| Output Variable             | Source                              | Temporal Resolution |
+| --------------------------- | ----------------------------------- | ------------------- |
+| Vegetation Health (NDVI)    | MODIS                               | Monthly             |
+| Groundwater Storage Anomaly | GRACE / GRACE-FO                    | Monthly             |
+| Groundwater Well Levels     | USGS Water Data API                 | Monthly             |
+| Surface Water Conditions    | Regional water-level indicators     | Monthly             |
+| Wildfire Risk               | Regional fire event database        | Annual              |
+| Wildlife Abundance          | North American Breeding Bird Survey | Annual              |
 
-### Model
-
-**Algorithm:** XGBoost Regressor (via scikit-learn API)
-
-XGBoost is chosen over linear regression because the relationships between atmospheric, hydrological, and human demand variables are nonlinear and interact with each other in ways a linear model cannot capture. It is also chosen over a neural network because the dataset is tabular and small enough, on the order of a few hundred monthly rows once the final overlap window is chosen, that a tree-based ensemble will outperform a neural net and train in seconds. Feature importances come for free and are useful for the writeup.
-
-**Train/test split:** Evaluated using expanding window cross-validation via scikit-learn's `TimeSeriesSplit`, where the training window grows across 5-6 folds and predictions always run forward in time. This avoids the thin test set problem of a single year-based split and gives more reliable error estimates from the same few-hundred-row monthly dataset. Final model is trained on the full dataset after cross-validation confirms generalization.
-
-**Export:** Trained pipeline exported to ONNX via `skl2onnx`. Loaded in the browser using `onnxruntime-web` running on WebAssembly. No backend server required.
-
----
-
-### Visualization
-
-The frontend is built in D3.js and has two zones:
-
-**Control Panel**
-
-A set of sliders, one per input feature, with labels and realistic ranges drawn from the historical data distribution. Non-intuitive features like specific humidity and GRACE anomaly are given plain-language labels ("Atmospheric Moisture", "Aquifer Health"). Each slider is initialized to the historical median for that feature. As the user adjusts sliders, the model runs inference in real time and all visual elements update.
-
-Knobs available for user interaction:
-- Precipitation
-- Temperature
-- Snowpack
-- Lake Mead Level
-- Irrigation Withdrawal
-- Public-Supply Total
-- Population
-
-**Visualization Panel**
-
-Three visual elements:
-
-1. **Water sustainability gauge** - a large 0-100 arc gauge that is the primary output, color coded from red (crisis) to blue (healthy), with labeled thresholds
-
-2. **Animated water table cross-section** - an SVG illustration of a cross-section of the ground showing the water table level rising or falling based on the GRACE anomaly and Lake Mead knob values, with the sustainability score driving the overall fill color and saturation
-
-3. **Historical time series** - a D3 line chart of the real historical sustainability score from 2000-2023, with a highlighted dot showing where the user's current knob configuration falls relative to history. This grounds the hypothetical in real context and lets users see how their scenario compares to actual conditions like the 2002 or 2012 drought years
+Together, these outputs provide a multi-dimensional picture of environmental health across Southern Arizona.
 
 ---
 
-### Phased Plan
+## Modeling Framework
 
-**Phase 1 (Weeks 1-3): Data Collection**
-- Set up `earthaccess`, pull MERRA-2 and MODIS for the Southwest bounding box
-- Download or assemble the Arizona endpoint inputs for USDM, SNOTEL SWE, USGS streamflow, and Lake Powell operations
-- Pull GRACE groundwater anomaly from NASA and derive the monthly recharge estimate from the GRACE / GRACE-FO storage series
-- Use the Arizona monthly endpoint/source files already prepared in `data/Final` (`snotel_swe.csv`, `irrigation_huc12_monthly_az_2000_2020.csv`, `nwaa_public_supply_az_monthly.csv`, `powell_combined.csv`, `azpop_monthly.csv`, `modis_ndvi.csv`, `usgs_streamflow.csv`, `usdm_sustainability.csv`)
-- Join all sources into one flat monthly CSV
+Version 2 uses multiple independent machine learning models rather than a single composite environmental index.
 
-**Phase 2 (Weeks 4-5): Modeling**
-- Exploratory analysis, check correlations, handle missing values
-- Interpolate only the lower-frequency sources that still need it, such as population, and resolve missing values caused by differing source coverage windows
-- Train XGBoost regressor, evaluate with R² and MAE using expanding window cross-validation (`TimeSeriesSplit`)
-- Inspect feature importances
-- Export trained pipeline to ONNX via `skl2onnx`
+Each model receives the same set of input variables and predicts one environmental outcome.
 
-**Phase 3 (Weeks 6-9): Visualization**
-- Build D3.js interface: sliders, gauge, water table SVG, time series
-- Integrate `onnxruntime-web` so slider changes drive live ONNX inference
-- Load and render real historical data on the time series chart
-- Connect knob values to animated water table SVG elements
+| Model   | Prediction Target           |
+| ------- | --------------------------- |
+| Model 1 | NDVI                        |
+| Model 2 | Groundwater Storage Anomaly |
+| Model 3 | Groundwater Well Levels     |
+| Model 4 | Surface Water Conditions    |
+| Model 5 | Wildfire Risk               |
+| Model 6 | Wildlife Abundance          |
 
-**Phase 4 (Weeks 10-12): Polish and Writeup**
-- Refine slider ranges and default values based on testing
-- Write up the project as a visualization system contribution
-- Document data sources, modeling decisions, and design rationale
+This approach improves interpretability and allows users to examine how different environmental systems respond to the same set of human and environmental pressures.
 
 ---
 
-### Project Type Classification
+## Visualization
 
-This fits cleanly into the "building a visual solution to a particular data analysis problem" category from the project brief. The novel contribution is the integration of a pre-trained ONNX model with an interactive D3.js environment to let non-expert users explore the relationship between environmental conditions and water sustainability in an intuitive, hypothesis-driven way.
+### Control Panel
+
+Users manipulate the major drivers of environmental change:
+
+* Population
+* Irrigation Withdrawal
+* Public Supply Withdrawal
+* Reservoir Operations
+* Urbanization
+* USDM DSCI
+
+### Environmental Response Panel
+
+The system displays predicted outcomes across multiple environmental domains.
+
+**Vegetation Health**
+
+NDVI indicators show expected changes in vegetation productivity.
+
+**Groundwater Conditions**
+
+Groundwater anomaly and well-level visualizations display subsurface water conditions.
+
+**Surface Water Conditions**
+
+Water-level indicators summarize predicted surface-water response.
+
+**Wildfire Risk**
+
+A wildfire-risk indicator displays projected fire pressure under the selected scenario.
+
+**Wildlife Abundance**
+
+Ecological indicators display predicted changes in regional wildlife populations.
+
+**Historical Context**
+
+Time-series visualizations compare predicted outcomes with historical observations.
+
+## Datasets Already Available
+
+These were collected for an earlier, differently-scoped project and exist as files already, though several need to be re-aggregated to fit the new eight-county boundary.
+
+**Irrigation total withdrawal.** A pre-aggregated statewide monthly file exists (`irrigation_huc12_monthly_az_2000_2020.csv`), built from an underlying HUC12-level source matrix that is also still available. Since the statewide file can't be un-aggregated, the HUC12-level source needs to be re-filtered to only the eight counties and re-summed.
+
+**Public supply groundwater withdrawal.** Same situation as irrigation: a statewide pre-aggregated file exists (`nwaa_public_supply_az_monthly.csv`), and the underlying HUC12-level shards are also available for re-filtering and re-aggregation to the eight counties.
+
+**GRACE groundwater anomaly.** A statewide monthly file exists (`grace_groundwater_anomaly.csv`), derived from raw satellite `.nc4` files that are also still available. Because GRACE is a coarse-resolution satellite product (roughly 100km grid cells), it was never truly statewide-precise to begin with, so re-extracting it with a bounding box around the eight counties from the raw files is straightforward.
+
+**MODIS NDVI.** A statewide monthly file exists (`modis_ndvi.csv`). This is the vegetation output target. It can likely be re-clipped to the eight counties if the original raw MODIS pull is still available, or re-pulled fresh from Earthdata scoped to the new region otherwise.
+
+**Population.** A statewide monthly file exists (`azpop_monthly.csv`), interpolated from annual Census figures. This needs to be replaced rather than re-aggregated, since the original interpolation was done at the state level with no county breakdown retained.
+
+## Datasets That Need To Be Created
+
+These don't exist yet in any form and require pulling new source data.
+
+**Population, county-level.** U.S. Census Bureau county population estimates for the eight counties, summed to a regional annual total, then interpolated to monthly using the same method as the original statewide interpolation.
+
+**Lake Mead water management data.** Pulled from the Bureau of Reclamation's HydroData Navigator, reservoir ID 921. Four confirmed CSV endpoints, all daily and starting in 1935:
+
+- Pool elevation: `https://www.usbr.gov/uc/water/hydrodata/reservoir_data/921/csv/49.csv`
+- Storage: `https://www.usbr.gov/uc/water/hydrodata/reservoir_data/921/csv/17.csv`
+- Total release: `https://www.usbr.gov/uc/water/hydrodata/reservoir_data/921/csv/42.csv`
+- Release volume: `https://www.usbr.gov/uc/water/hydrodata/reservoir_data/921/csv/43.csv`
+
+Each needs filtering to the model's date range and aggregation from daily to monthly.
+
+**Urbanization.** USGS Annual NLCD (1985-2023), Fractional Impervious Surface product, pulled from the public cloud bucket (`s3://usgs-landcover/annual-nlcd/c1/v0/cu/mosaic/`). This is raster data covering the whole continental US, not pre-aggregated to any region, so it needs to be downloaded year by year, clipped to the eight-county boundary using a county shapefile, and averaged into a single impervious-surface percentage per year. The result is annual and needs interpolation to monthly.
+
+New private housing permit data from FRED was considered as an alternative urbanization signal and rejected. Permits measure new construction activity rather than the existing built footprint, and only the Tucson metro area has county-level coverage in FRED, leaving seven of the eight counties unrepresented.
+
+**Water stress (USDM-derived score).** The original statewide USDM-based sustainability score (`100 - usdm_dsci / 5`) needs to be re-derived or re-extracted for the eight-county region specifically, since the existing file is statewide.
+
+**USGS groundwater well levels.** Pulled via the USGS Water Data API (the modern replacement for NWIS), filtered to wells in the Tucson and Santa Cruz Active Management Areas and any other AMA inside the eight counties. This is a new data source not used in the earlier project at all.
+
+**Wildfire event data, regionally filtered.** The user already holds a wildfire CSV (`OBJECTID, FIRE_NAME, FIRE_Number, FireID, Acres, FIRE_YEAR, Z, KM2, Source1, Source2, Shape__Area, Shape__Length`). This needs to be filtered to fires located within the eight counties, then converted into an annual wildfire risk index combining fire count and log-transformed total acreage, since the raw file is annual-grain with no monthly date field and the acreage distribution is heavily skewed by a small number of large fires.
+
+**Wildlife abundance.** North American Breeding Bird Survey (BBS), USGS, hosted on ScienceBase, the 2025 release covering 1966 through 2024. Routes are fixed physical roadside survey lines, each with a stable latitude and longitude, sampled annually during June. Route metadata (route ID, name, latitude, longitude, state, stratum, active status) and yearly species-level counts are separate tables joined by route ID and year. Data must be filtered to routes whose coordinates fall inside the eight counties, then aggregated to a single annual abundance index per year (pooled count across species, or a species richness count, still to be decided). No data exists for 2020, since BBS field activity was cancelled that year. Access is through the `sciencebasepy` Python package, which calls the ScienceBase REST API directly. The host `sciencebase.gov` is not reachable from this sandbox's network, so this dataset must be pulled from an environment with open internet access rather than from inside the current pipeline tooling.
+
