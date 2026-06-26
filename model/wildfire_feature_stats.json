@@ -1,0 +1,74 @@
+{
+  "usdm_dsci_jja_mean": {
+    "mean": 195.67621212121213,
+    "std": 121.13956363014988
+  },
+  "temperature_2m_c_jja_mean": {
+    "mean": 28.980056060606067,
+    "std": 0.41736192627167495
+  },
+  "precipitation_mm_day_annual_sum": {
+    "mean": 9.346964454545455,
+    "std": 2.234295925607902
+  },
+  "log_precip_annual": {
+    "mean": 2.3135751438526024,
+    "std": 0.22386533203274842
+  },
+  "ndvi_annual_mean": {
+    "mean": 0.22155727651515147,
+    "std": 0.0105642875805665
+  },
+  "ndvi_jja_mean": {
+    "mean": 0.2273678636363636,
+    "std": 0.017556201147058248
+  },
+  "precip_prior_1yr": {
+    "mean": 9.260987428571429,
+    "std": 2.251871636118533
+  },
+  "precip_prior_2yr_sum": {
+    "mean": 18.691534150000003,
+    "std": 3.188557643404423
+  },
+  "wet_then_dry": {
+    "mean": 268.86782817331743,
+    "std": 68.55584775570016
+  },
+  "consecutive_dry_years": {
+    "mean": 1.0454545454545454,
+    "std": 1.4301938838683885
+  },
+  "jja_temp_anomaly": {
+    "mean": 0.10624649177542497,
+    "std": 0.4022764053018129
+  },
+  "dsci_max_prior_2yr": {
+    "mean": 251.22968253968256,
+    "std": 99.93421487772599
+  },
+  "wildfire_risk_index_lag1": {
+    "mean": 0.5716542857142857,
+    "std": 0.11199956464743192
+  },
+  "wildfire_risk_index_lag2": {
+    "mean": 0.56763335,
+    "std": 0.11334333531274973
+  },
+  "wildfire_risk_index_roll3": {
+    "mean": 0.5677852,
+    "std": 0.062410688994098816
+  },
+  "temperature_2m_c_jja_mean_lag1": {
+    "mean": 28.96683968253969,
+    "std": 0.4229250384877853
+  },
+  "precipitation_mm_day_annual_sum_lag1": {
+    "mean": 9.260987428571429,
+    "std": 2.251871636118533
+  },
+  "usdm_dsci_jja_mean_lag1": {
+    "mean": 188.7488888888889,
+    "std": 119.58267108914576
+  }
+}

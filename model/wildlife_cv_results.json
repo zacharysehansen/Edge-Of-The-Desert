@@ -1,0 +1,41 @@
+{
+  "model_id": "wildlife",
+  "model_type": "ElasticNet",
+  "formulation": "direct",
+  "cv_method": "LeaveOneOut",
+  "window_start": 2000,
+  "window_end": 2019,
+  "n_rows": 20,
+  "n_features": 22,
+  "best_params": {
+    "model__alpha": 0.5,
+    "model__l1_ratio": 0.1
+  },
+  "loo_r2": 0.208638007787039,
+  "loo_mae": 0.16168383754466936,
+  "spearman_corr": 0.5009402385096332,
+  "spearman_p": 0.02445688074109887,
+  "train_r2": 0.5103073228115664,
+  "train_mae": 0.13065900047319895,
+  "all_candidates": [
+    {
+      "name": "Ridge",
+      "loo_r2": 0.18134992138509698,
+      "loo_mae": 0.16179720536855138,
+      "spearman_corr": 0.4836405005430842
+    },
+    {
+      "name": "ElasticNet",
+      "loo_r2": 0.208638007787039,
+      "loo_mae": 0.16168383754466936,
+      "spearman_corr": 0.5009402385096332
+    },
+    {
+      "name": "XGBoost",
+      "loo_r2": 0.11888918091449707,
+      "loo_mae": 0.17134383282852172,
+      "spearman_corr": 0.2572395819373792
+    }
+  ],
+  "note": "Wildlife model trained on <25 rows. Multi-model competition: Ridge, ElasticNet, XGBoost. Treat Spearman rank correlation as primary reliability indicator."
+}

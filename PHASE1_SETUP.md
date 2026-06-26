@@ -28,10 +28,8 @@ phase1/
     water_stress.py
     ndvi.py
     grace_groundwater.py
-    groundwater_wells.py
     wildfire.py
     wildlife_bbs.py
-    build_dataset.py
 ```
 
 ## region.py
@@ -103,10 +101,6 @@ Output: `wildfire_annual.csv` with `year, fire_count, log_acres_total, wildfire_
 Uses `sciencebasepy` to pull the BBS route metadata table and the yearly count table from the 2025 release, filters routes to those falling inside the eight counties using `region.py`, aggregates to an annual regional abundance index (pooled count or species richness, decided before writing this file). Must be run from an environment with access to `sciencebase.gov`, since that host is not reachable from this sandbox.
 
 Output: `wildlife_annual.csv` with `year, route_count, total_abundance` or `year, route_count, species_richness`, depending on which index is chosen.
-
-## build_dataset.py
-
-Joins all of the above outputs on `year_month` (monthly files) or `year` (annual files: wildfire, wildlife), producing the final modeling tables. Since wildfire and wildlife are annual while the rest are monthly, this file is also responsible for deciding how the join handles grain mismatch, either by aggregating the monthly inputs to annual for those two specific targets, or by broadcasting the annual values across the twelve months of each year if a monthly wildfire or wildlife row is ever needed. Does not fetch any new data itself.
 
 ## Notes
 

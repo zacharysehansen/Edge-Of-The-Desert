@@ -67,7 +67,7 @@ log = logging.getLogger(__name__)
 # Paths — all relative to repo root, matching config paths block [3]
 # ---------------------------------------------------------------------------
 RAW_DIR = ROOT / "data" / "raw"
-PROCESSED_DIR = ROOT / "data" / "processed"
+PROCESSED_DIR = ROOT / "data" / "Final"
 INPUT_FILE = RAW_DIR / "az_wildfires.csv"
 OUTPUT_FILE = PROCESSED_DIR / "wildfire_annual.csv"
 

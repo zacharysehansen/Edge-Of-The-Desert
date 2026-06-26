@@ -74,7 +74,7 @@ log = logging.getLogger(__name__)
 # Paths
 # ---------------------------------------------------------------------------
 RAW_DIR = ROOT / "data" / "raw" / "bbs"
-PROCESSED_DIR = ROOT / "data" / "processed"
+PROCESSED_DIR = ROOT / "data" / "Final"
 ROUTES_FILE = RAW_DIR / "Routes.csv"
 COUNTS_FILE = RAW_DIR / "Arizona.csv"
 OUTPUT_FILE = PROCESSED_DIR / "wildlife_annual.csv"

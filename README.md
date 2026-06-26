@@ -48,7 +48,6 @@ The model predicts ecological and hydrological responses to the selected input c
 | --------------------------- | ----------------------------------- | ------------------- |
 | Vegetation Health (NDVI)    | MODIS                               | Monthly             |
 | Groundwater Storage Anomaly | GRACE / GRACE-FO                    | Monthly             |
-| Groundwater Well Levels     | USGS Water Data API                 | Monthly             |
 | Surface Water Conditions    | Regional water-level indicators     | Monthly             |
 | Wildfire Risk               | Regional fire event database        | Annual              |
 | Wildlife Abundance          | North American Breeding Bird Survey | Annual              |
@@ -67,7 +66,6 @@ Each model receives the same set of input variables and predicts one environment
 | ------- | --------------------------- |
 | Model 1 | NDVI                        |
 | Model 2 | Groundwater Storage Anomaly |
-| Model 3 | Groundwater Well Levels     |
 | Model 4 | Surface Water Conditions    |
 | Model 5 | Wildfire Risk               |
 | Model 6 | Wildlife Abundance          |
@@ -151,8 +149,6 @@ Each needs filtering to the model's date range and aggregation from daily to mon
 New private housing permit data from FRED was considered as an alternative urbanization signal and rejected. Permits measure new construction activity rather than the existing built footprint, and only the Tucson metro area has county-level coverage in FRED, leaving seven of the eight counties unrepresented.
 
 **Water stress (USDM-derived score).** The original statewide USDM-based sustainability score (`100 - usdm_dsci / 5`) needs to be re-derived or re-extracted for the eight-county region specifically, since the existing file is statewide.
-
-**USGS groundwater well levels.** Pulled via the USGS Water Data API (the modern replacement for NWIS), filtered to wells in the Tucson and Santa Cruz Active Management Areas and any other AMA inside the eight counties. This is a new data source not used in the earlier project at all.
 
 **Wildfire event data, regionally filtered.** The user already holds a wildfire CSV (`OBJECTID, FIRE_NAME, FIRE_Number, FireID, Acres, FIRE_YEAR, Z, KM2, Source1, Source2, Shape__Area, Shape__Length`). This needs to be filtered to fires located within the eight counties, then converted into an annual wildfire risk index combining fire count and log-transformed total acreage, since the raw file is annual-grain with no monthly date field and the acreage distribution is heavily skewed by a small number of large fires.
 

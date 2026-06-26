@@ -1,0 +1,66 @@
+{
+  "model_id": "grace",
+  "formulation": "residual_over_lag1",
+  "window_start": "2002-10",
+  "window_end": "2020-12",
+  "n_rows": 219,
+  "n_features": 51,
+  "best_params": {
+    "subsample": 0.9,
+    "reg_lambda": 2,
+    "reg_alpha": 0.1,
+    "n_estimators": 1000,
+    "min_child_weight": 1,
+    "max_depth": 3,
+    "learning_rate": 0.05,
+    "colsample_bytree": 0.7
+  },
+  "cv_mean_r2": 0.5200394210400887,
+  "cv_std_r2": 0.3963878400511833,
+  "cv_mean_mae": 0.009011500065450559,
+  "cv_std_mae": 0.0015634982538663266,
+  "train_r2": 0.9694490009629478,
+  "train_mae": 0.005514276006061624,
+  "folds": [
+    {
+      "fold": 0,
+      "test_start": "2006-01",
+      "test_end": "2008-12",
+      "test_size": 36,
+      "r2": -0.26651345616373745,
+      "mae": 0.011085205957047616
+    },
+    {
+      "fold": 1,
+      "test_start": "2009-01",
+      "test_end": "2011-12",
+      "test_size": 36,
+      "r2": 0.7122390011010025,
+      "mae": 0.008136192107693473
+    },
+    {
+      "fold": 2,
+      "test_start": "2012-01",
+      "test_end": "2014-12",
+      "test_size": 36,
+      "r2": 0.7059386683881914,
+      "mae": 0.006530390124657605
+    },
+    {
+      "fold": 3,
+      "test_start": "2015-01",
+      "test_end": "2017-12",
+      "test_size": 36,
+      "r2": 0.6466951692704112,
+      "mae": 0.009950876385990959
+    },
+    {
+      "fold": 4,
+      "test_start": "2018-01",
+      "test_end": "2020-12",
+      "test_size": 36,
+      "r2": 0.8018377226045762,
+      "mae": 0.009354835751863144
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "model_id": "wildfire_monthly",
+  "model_type": "XGBoost",
+  "formulation": "direct",
+  "window_start": "2002-10",
+  "window_end": "2020-12",
+  "n_rows": 219,
+  "n_features": 56,
+  "best_params": {
+    "model__subsample": 0.7,
+    "model__reg_lambda": 5,
+    "model__reg_alpha": 0.1,
+    "model__n_estimators": 100,
+    "model__min_child_weight": 3,
+    "model__max_depth": 3,
+    "model__learning_rate": 0.03,
+    "model__colsample_bytree": 0.5
+  },
+  "cv_mean_r2": 0.04984843567978496,
+  "cv_std_r2": 0.2842463030940315,
+  "cv_mean_mae": 0.1400172029997084,
+  "cv_std_mae": 0.028313412054792313,
+  "train_r2": 0.6317725249673032,
+  "train_mae": 0.09218380811802655,
+  "all_candidates": [
+    {
+      "label": "XGBoost (direct)",
+      "cv_mean_r2": 0.04984843567978496,
+      "cv_mean_mae": 0.1400172029997084
+    },
+    {
+      "label": "ElasticNet (direct)",
+      "cv_mean_r2": -0.03522401156619111,
+      "cv_mean_mae": 0.14717609986351218
+    },
+    {
+      "label": "Ridge (direct)",
+      "cv_mean_r2": -0.03685677903442086,
+      "cv_mean_mae": 0.15092699215618977
+    },
+    {
+      "label": "XGBoost (residual)",
+      "cv_mean_r2": -0.9238334751775742,
+      "cv_mean_mae": 0.17601253752752138
+    },
+    {
+      "label": "Ridge (residual)",
+      "cv_mean_r2": -0.9493895531517159,
+      "cv_mean_mae": 0.17859330220603023
+    },
+    {
+      "label": "ElasticNet (residual)",
+      "cv_mean_r2": -0.95185876845782,
+      "cv_mean_mae": 0.1814714204629761
+    }
+  ],
+  "note": "Monthly wildfire model. Winner: XGBoost (direct). Competed 3 models \u00d7 2 formulations (6 total). 219 monthly rows from 2002-10 to 2020-12."
+}

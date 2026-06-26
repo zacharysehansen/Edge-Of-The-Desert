@@ -1,0 +1,97 @@
+{
+  "ndvi": {
+    "lag1_persistence": {
+      "mean_r2": 0.5532314259835271,
+      "std_r2": 0.07069114961258964,
+      "mean_mae": 0.013176133333333334,
+      "std_mae": 0.003718666028220932,
+      "n_folds": 5
+    },
+    "roll3_mean": {
+      "mean_r2": -0.017296347771033303,
+      "std_r2": 0.16631218830315334,
+      "mean_mae": 0.020996696296296295,
+      "std_mae": 0.006586615339885152,
+      "n_folds": 5
+    },
+    "n_rows": 219,
+    "index_start": "2002-10",
+    "index_end": "2020-12"
+  },
+  "grace": {
+    "lag1_persistence": {
+      "mean_r2": 0.41189578154207657,
+      "std_r2": 0.4163768277798349,
+      "mean_mae": 0.00972595,
+      "std_mae": 0.0017189040892454383,
+      "n_folds": 5
+    },
+    "roll3_mean": {
+      "mean_r2": 0.14444109365246147,
+      "std_r2": 0.3566640874415591,
+      "mean_mae": 0.01342594814814815,
+      "std_mae": 0.002523116529075411,
+      "n_folds": 5
+    },
+    "n_rows": 219,
+    "index_start": "2002-10",
+    "index_end": "2020-12"
+  },
+  "wildfire_monthly": {
+    "lag1_persistence": {
+      "mean_r2": -0.97436071697597,
+      "std_r2": 0.4426025396298593,
+      "mean_mae": 0.17928782777777777,
+      "std_mae": 0.022946335872096484,
+      "n_folds": 5
+    },
+    "roll3_mean": {
+      "mean_r2": -0.31842905620888207,
+      "std_r2": 0.15548538807870418,
+      "mean_mae": 0.15565743703703702,
+      "std_mae": 0.009102921008646457,
+      "n_folds": 5
+    },
+    "n_rows": 219,
+    "index_start": "2002-10",
+    "index_end": "2020-12"
+  },
+  "wildfire": {
+    "lag1_persistence": {
+      "mean_r2": -2.1141465831369346,
+      "std_r2": 1.0215506862724115,
+      "mean_mae": 0.143462125,
+      "std_mae": 0.04555224229953588,
+      "n_folds": 4
+    },
+    "roll3_mean": {
+      "mean_r2": -1.2640890028560117,
+      "std_r2": 1.058748259048134,
+      "mean_mae": 0.12138689583333333,
+      "std_mae": 0.043306151551834635,
+      "n_folds": 4
+    },
+    "n_rows": 21,
+    "index_start": "2000",
+    "index_end": "2020"
+  },
+  "wildlife": {
+    "lag1_persistence": {
+      "mean_r2": NaN,
+      "std_r2": NaN,
+      "mean_mae": NaN,
+      "std_mae": NaN,
+      "note": "no valid folds"
+    },
+    "roll3_mean": {
+      "mean_r2": NaN,
+      "std_r2": NaN,
+      "mean_mae": NaN,
+      "std_mae": NaN,
+      "note": "no valid folds"
+    },
+    "n_rows": 20,
+    "index_start": "2000",
+    "index_end": "2019"
+  }
+}

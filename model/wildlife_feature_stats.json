@@ -1,0 +1,90 @@
+{
+  "population_annual_mean": {
+    "mean": 5517366.585083333,
+    "std": 593344.4966730471
+  },
+  "irrigation_total_withdrawal_mgd_annual_sum": {
+    "mean": 651225017.2539549,
+    "std": 8364715.049794503
+  },
+  "public_supply_groundwater_mgd_annual_sum": {
+    "mean": 417195.77672499995,
+    "std": 8677.250827870606
+  },
+  "mead_pool_elevation_annual_mean": {
+    "mean": 1117.982245,
+    "std": 35.85413493938121
+  },
+  "mead_pool_elevation_june": {
+    "mean": 1115.3045450000002,
+    "std": 37.09411739075953
+  },
+  "mead_total_release_annual_sum": {
+    "mean": 155724.89399,
+    "std": 9351.713505444159
+  },
+  "usdm_dsci_annual_mean": {
+    "mean": 172.63350000000003,
+    "std": 90.05429198106287
+  },
+  "temperature_2m_c_annual_mean": {
+    "mean": 19.007038333333334,
+    "std": 0.5127105397195124
+  },
+  "temperature_2m_c_jja_mean": {
+    "mean": 28.904565,
+    "std": 0.3202379549254807
+  },
+  "precipitation_mm_day_annual_sum": {
+    "mean": 9.3144533,
+    "std": 2.296655526720542
+  },
+  "log_precip_annual": {
+    "mean": 2.3091411048439436,
+    "std": 0.23045923912642877
+  },
+  "ndvi_annual_mean": {
+    "mean": 0.22096204583333331,
+    "std": 0.010908991563024094
+  },
+  "ndvi_jja_mean": {
+    "mean": 0.22593514999999997,
+    "std": 0.017183655041307568
+  },
+  "grace_groundwater_anomaly_annual_mean": {
+    "mean": -0.030870187499999997,
+    "std": 0.035653316843457454
+  },
+  "impervious_pct_annual_mean": {
+    "mean": 1.0743250000000002,
+    "std": 0.13176002048070587
+  },
+  "year_linear": {
+    "mean": 9.5,
+    "std": 5.916079783099616
+  },
+  "bbs_abundance_index_lag1": {
+    "mean": 0.7395738947368421,
+    "std": 0.2369887986452559
+  },
+  "bbs_abundance_index_lag2": {
+    "mean": 0.7562277777777777,
+    "std": 0.23213739716245524
+  },
+  "bbs_abundance_index_roll3": {
+    "mean": 0.7527953425925926,
+    "std": 0.18846057668114163
+  },
+  "ndvi_annual_mean_lag1": {
+    "mean": 0.22082557456140348,
+    "std": 0.011190369288060137
+  },
+  "precipitation_mm_day_annual_sum_lag1": {
+    "mean": 8.999983526315791,
+    "std": 1.865464417998382
+  },
+  "usdm_dsci_annual_mean_lag1": {
+    "mean": 179.0717543859649,
+    "std": 87.66549718973104
+  }
+}
