@@ -8,10 +8,12 @@ Returns
 -------
 dict mapping model_id -> (X: pd.DataFrame, y: pd.Series)
 
-  "ndvi"     - Model 1: NDVI (vegetation health), monthly
-  "grace"    - Model 2: GRACE groundwater anomaly, monthly
-  "wildfire" - Model 5: Wildfire risk index, annual
-  "wildlife" - Model 6: Wildlife abundance index, annual
+  "ndvi"          - Model 1: NDVI (vegetation health), monthly
+  "grace"         - Model 2: GRACE groundwater anomaly, monthly
+  "groundwater"   - Model 3: Groundwater well levels, monthly
+  "surface_water" - Model 4: Surface water discharge, monthly
+  "wildfire"      - Model 5: Wildfire risk index, annual
+  "wildlife"      - Model 6: Wildlife abundance index, annual
 
 Usage
 -----
@@ -60,6 +62,8 @@ _LAG_ROLL_COLS = _MONTHLY_BASE_INPUTS + [
     "wildfire_risk_index",
     "fire_count",
     "log_acres",
+    "depth_to_water_ft_mean",
+    "discharge_cfs_mean",
 ]
 
 
@@ -100,12 +104,25 @@ def _add_seasonal_encoding(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _add_interaction_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Add physically motivated interaction terms."""
+    df = df.copy()
+    # Precipitation × impervious = runoff proxy (dominant discharge mechanism in urban desert)
+    if "precipitation_mm_day" in df.columns and "impervious_pct" in df.columns:
+        df["precip_x_impervious"] = df["precipitation_mm_day"] * df["impervious_pct"]
+    # Precipitation × temperature = evapotranspiration proxy
+    if "precipitation_mm_day" in df.columns and "temperature_2m_c" in df.columns:
+        df["precip_x_temperature"] = df["precipitation_mm_day"] * df["temperature_2m_c"]
+    return df
+
+
 def _engineer_monthly(monthly_raw: pd.DataFrame) -> pd.DataFrame:
     """Full monthly feature engineering pipeline."""
     df = monthly_raw.copy()
     df = _add_monthly_lag_roll(df)
     df = _add_anomaly_features(df)
     df = _add_seasonal_encoding(df)
+    df = _add_interaction_features(df)
     return df
 
 
@@ -178,6 +195,21 @@ def _monthly_feature_cols(exclude_target_base: list[str]) -> list[str]:
         "ndvi_lag3",
         "ndvi_roll3",
         "ndvi_roll6",
+        # Groundwater well level (excluded in Model 3 — it's the target)
+        "depth_to_water_ft_mean",
+        "depth_to_water_ft_mean_lag1",
+        "depth_to_water_ft_mean_lag3",
+        "depth_to_water_ft_mean_roll3",
+        "depth_to_water_ft_mean_roll6",
+        # Surface water discharge (excluded in Model 4 — it's the target)
+        "discharge_cfs_mean",
+        "discharge_cfs_mean_lag1",
+        "discharge_cfs_mean_lag3",
+        "discharge_cfs_mean_roll3",
+        "discharge_cfs_mean_roll6",
+        # Interaction features
+        "precip_x_impervious",
+        "precip_x_temperature",
         # Seasonal
         "month_sin",
         "month_cos",
@@ -407,7 +439,7 @@ def build_all(
     annual_raw: pd.DataFrame | None = None,
 ) -> dict[str, tuple[pd.DataFrame, pd.Series]]:
     """
-    Build (X, y) for all four currently buildable models.
+    Build (X, y) for all models.
 
     Parameters
     ----------
@@ -451,6 +483,24 @@ def build_all(
     y_grace = monthly_w["grace_groundwater_anomaly"].copy()
     mask = X_grace.notna().all(axis=1) & y_grace.notna()
     datasets["grace"] = (X_grace[mask], y_grace[mask])
+
+    # Model 3 — Groundwater Well Levels
+    if "depth_to_water_ft_mean" in monthly_w.columns:
+        gw_features = _monthly_feature_cols(exclude_target_base=["depth_to_water_ft_mean"])
+        gw_features = [f for f in gw_features if f in monthly_w.columns]
+        X_gw = monthly_w[gw_features + ["depth_to_water_ft_mean_lag1"]].copy()
+        y_gw = monthly_w["depth_to_water_ft_mean"].copy()
+        mask = X_gw.notna().all(axis=1) & y_gw.notna()
+        datasets["groundwater"] = (X_gw[mask], y_gw[mask])
+
+    # Model 4 — Surface Water Conditions (discharge only; gage_height has gaps)
+    if "discharge_cfs_mean" in monthly_w.columns:
+        sw_features = _monthly_feature_cols(exclude_target_base=["discharge_cfs_mean", "gage_height_ft_mean"])
+        sw_features = [f for f in sw_features if f in monthly_w.columns]
+        X_sw = monthly_w[sw_features + ["discharge_cfs_mean_lag1"]].copy()
+        y_sw = monthly_w["discharge_cfs_mean"].copy()
+        mask = X_sw.notna().all(axis=1) & y_sw.notna()
+        datasets["surface_water"] = (X_sw[mask], y_sw[mask])
 
     # Model 5 (monthly) — Wildfire Risk Index
     # Exclude wildfire columns from inputs (they are the target)

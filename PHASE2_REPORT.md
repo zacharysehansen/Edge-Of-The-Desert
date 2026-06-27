@@ -2,11 +2,11 @@
 
 ## Overview
 
-Phase 2 built five independent regression models predicting environmental outcomes for the eight-county southern Arizona study area. Each model uses human pressures (population, irrigation, public supply, urbanization) and environmental conditions (temperature, precipitation, drought, lake levels, groundwater) as input features to predict a single environmental response variable.
+Phase 2 built seven independent regression models predicting environmental outcomes for the eight-county southern Arizona study area. Each model uses human pressures (population, irrigation, public supply, urbanization) and environmental conditions (temperature, precipitation, drought, lake levels, groundwater) as input features to predict a single environmental response variable.
 
-**Pipeline runtime:** ~44 seconds end-to-end  
+**Pipeline runtime:** ~60 seconds end-to-end  
 **Modeling window:** 2002-10 to 2020-12 (monthly), 2000–2021 (annual)  
-**Total input features:** 11 monthly CSVs merged into a 288-row × 20-column panel  
+**Total input features:** 13 monthly CSVs merged into a 288-row × 23-column panel  
 
 ---
 
@@ -16,11 +16,13 @@ Phase 2 built five independent regression models predicting environmental outcom
 |-------|--------|-------|------|----------|------------|--------|-------------|-------------|
 | NDVI | Vegetation health | Monthly | 219 | 51 | XGBoost (residual) | **0.8008** | 0.5532 | +0.2476 |
 | GRACE | Groundwater anomaly | Monthly | 219 | 51 | XGBoost (residual) | **0.5200** | 0.4119 | +0.1081 |
+| Groundwater | Well depth (ft) | Monthly | 219 | 32 | XGBoost tight (residual) | **0.6107** | — | — |
+| Surface Water | Discharge (cfs) | Monthly | 219 | 41 | ElasticNet (residual, log) | **0.4784** | — | — |
 | Wildfire (monthly) | Wildfire risk index | Monthly | 219 | 56 | XGBoost (direct) | **0.0498** | -0.9744 | +1.0242 |
 | Wildfire (annual) | Wildfire risk index | Annual | 22 | 18 | ElasticNet (direct) | **-0.1145** | -2.1141 | +1.9996 |
 | Wildlife | Bird abundance index | Annual | 20 | 22 | ElasticNet (direct) | **0.2086** | — | — |
 
-All five models beat their lag-1 persistence baselines. All export to ONNX format for deployment.
+All seven models beat their lag-1 persistence baselines. All export to ONNX format for deployment.
 
 ---
 
@@ -60,7 +62,61 @@ All five models beat their lag-1 persistence baselines. All export to ONNX forma
 
 ---
 
-### Model 3: Wildfire Risk (Monthly) — CV R² = 0.0498
+### Model 3: Groundwater Well Levels — CV R² = 0.6107
+
+- **Formulation:** Residual-over-lag1
+- **Algorithm:** Multi-model competition (Ridge, ElasticNet, XGBoost, XGBoost-tight, Blend × direct/residual = 8 candidates)
+- **Winner:** XGBoost-tight (residual formulation)
+- **CV Method:** TimeSeriesSplit (5 folds)
+- **Window:** 2002-10 to 2020-12
+- **Feature selection:** 32 features kept, 31 dropped (importance threshold 0.015)
+- **Key insight:** Extreme regularization was key. The winning "tight" XGBoost uses min_child_weight=120, reg_lambda=100, colsample_bytree=0.3, learning_rate=0.01 — far beyond typical XGBoost defaults. This reduced overfitting from the initial train R²=0.98/CV R²=0.50 to train R²=0.89/CV R²=0.61. A blend of XGBoost+ElasticNet was also tested but didn't outperform the tighter single model. The residual formulation dominates (all direct candidates scored negative R²).
+
+**Competition results:**
+| Candidate | CV R² |
+|-----------|--------|
+| XGBoost-tight (residual) | **0.6093** |
+| XGBoost (residual) | 0.5722 |
+| Blend XGB+EN (residual) | 0.5399 |
+| ElasticNet (residual) | 0.2156 |
+| Ridge (residual) | 0.0854 |
+| XGBoost (direct) | -2.2469 |
+| ElasticNet (direct) | -15.6824 |
+| Ridge (direct) | -20.0808 |
+
+**Best params:** `max_depth=2, min_child_weight=120, reg_lambda=100, reg_alpha=10.0, subsample=0.3, colsample_bytree=0.3, n_estimators=200, learning_rate=0.01`
+
+---
+
+### Model 4: Surface Water Conditions — CV R² = 0.4784
+
+- **Formulation:** Residual-over-lag1 with log1p target transform
+- **Algorithm:** Multi-model competition (Ridge, ElasticNet, XGBoost × direct/residual = 6 candidates)
+- **Winner:** ElasticNet (residual formulation)
+- **CV Method:** TimeSeriesSplit (5 folds)
+- **Window:** 2002-10 to 2020-12
+- **Feature selection:** 41 features kept, 22 dropped (importance threshold 0.005)
+- **Key insight:** Desert discharge is heavily right-skewed (baseflow ~50 cfs, monsoon floods >500 cfs). Log-transforming the target compresses outliers and makes the residual distribution learnable. ElasticNet's L1/L2 regularization generalizes far better than XGBoost for this noisy target — train R² (0.36) < CV R² (0.48) indicates zero overfitting. Initial XGBoost-only approach scored CV R² = -0.03 (worse than predicting the mean).
+
+**Competition results:**
+| Candidate | CV R² |
+|-----------|--------|
+| ElasticNet (residual) | **0.4784** |
+| XGBoost (residual) | 0.4768 |
+| Ridge (residual) | 0.1428 |
+| XGBoost (direct) | 0.1381 |
+| ElasticNet (direct) | -0.0287 |
+| Ridge (direct) | -0.5348 |
+
+**Design decisions:**
+1. Log-transform: converts multiplicative flood dynamics into additive residuals
+2. Residual formulation works in log-space (prior-month log-flow is informative) even though raw residuals failed
+3. Feature selection removed 22 noise dimensions, preventing overfitting in a 219-row dataset
+4. Interaction features (precip × impervious = runoff proxy, precip × temperature = ET proxy) added physical meaning
+
+---
+
+### Model 5: Wildfire Risk (Monthly) — CV R² = 0.0498
 
 - **Formulation:** Direct (residual formulation fails for episodic signals)
 - **Algorithm:** Multi-model competition (Ridge, ElasticNet, XGBoost × 2 formulations = 6 candidates)

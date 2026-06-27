@@ -1,0 +1,134 @@
+{
+  "model_id": "groundwater",
+  "formulation": "residual",
+  "winner": "xgb_tight_residual",
+  "competition": [
+    {
+      "name": "xgb_direct",
+      "formulation": "direct",
+      "mean_r2": -2.246939647756515,
+      "std_r2": 2.1095527497792257,
+      "mean_mae": 20.48951381196295,
+      "std_mae": 14.343856029092585
+    },
+    {
+      "name": "ridge_direct",
+      "formulation": "direct",
+      "mean_r2": -20.080821703934344,
+      "std_r2": 16.540972399201383,
+      "mean_mae": 40.24517690790411,
+      "std_mae": 20.792689285194097
+    },
+    {
+      "name": "elastic_direct",
+      "formulation": "direct",
+      "mean_r2": -15.682403371165943,
+      "std_r2": 12.17250609725614,
+      "mean_mae": 36.46450630560387,
+      "std_mae": 19.423050343572957
+    },
+    {
+      "name": "xgb_residual",
+      "formulation": "residual",
+      "mean_r2": 0.5721711278007229,
+      "std_r2": 0.2500069436580622,
+      "mean_mae": 5.548986452063441,
+      "std_mae": 2.2843132549888785
+    },
+    {
+      "name": "xgb_tight_residual",
+      "formulation": "residual",
+      "mean_r2": 0.6092645778493058,
+      "std_r2": 0.25288090126544893,
+      "mean_mae": 5.310785493771345,
+      "std_mae": 2.375463864446261
+    },
+    {
+      "name": "blend_residual",
+      "formulation": "residual",
+      "mean_r2": 0.5399354839750167,
+      "std_r2": 0.26027871245702533,
+      "mean_mae": 6.105921162301674,
+      "std_mae": 2.9665906509385276
+    },
+    {
+      "name": "ridge_residual",
+      "formulation": "residual",
+      "mean_r2": 0.085364537023269,
+      "std_r2": 0.30640641145572944,
+      "mean_mae": 9.726596523912345,
+      "std_mae": 5.972947421507868
+    },
+    {
+      "name": "elastic_residual",
+      "formulation": "residual",
+      "mean_r2": 0.21564528919719841,
+      "std_r2": 0.2721622785709811,
+      "mean_mae": 9.03768949440248,
+      "std_mae": 6.146766201755206
+    }
+  ],
+  "window_start": "2002-10",
+  "window_end": "2020-12",
+  "n_rows": 219,
+  "n_features": 32,
+  "n_features_dropped": 31,
+  "best_params": {
+    "subsample": 0.3,
+    "reg_lambda": 100,
+    "reg_alpha": 10.0,
+    "n_estimators": 200,
+    "min_child_weight": 120,
+    "max_depth": 2,
+    "learning_rate": 0.01,
+    "colsample_bytree": 0.3
+  },
+  "cv_mean_r2": 0.6107223620184848,
+  "cv_std_r2": 0.2541440888345027,
+  "cv_mean_mae": 5.293117441919224,
+  "cv_std_mae": 2.3886993807045025,
+  "train_r2": 0.8903409640370546,
+  "train_mae": 5.781142560438653,
+  "folds": [
+    {
+      "fold": 0,
+      "test_start": "2006-01",
+      "test_end": "2008-12",
+      "test_size": 36,
+      "r2": 0.8772957012256981,
+      "mae": 7.123104741950546
+    },
+    {
+      "fold": 1,
+      "test_start": "2009-01",
+      "test_end": "2011-12",
+      "test_size": 36,
+      "r2": 0.17789961734608772,
+      "mae": 8.89781482000199
+    },
+    {
+      "fold": 2,
+      "test_start": "2012-01",
+      "test_end": "2014-12",
+      "test_size": 36,
+      "r2": 0.8279726133280336,
+      "mae": 3.894094884783296
+    },
+    {
+      "fold": 3,
+      "test_start": "2015-01",
+      "test_end": "2017-12",
+      "test_size": 36,
+      "r2": 0.49563678091347485,
+      "mae": 4.2966037802669526
+    },
+    {
+      "fold": 4,
+      "test_start": "2018-01",
+      "test_end": "2020-12",
+      "test_size": 36,
+      "r2": 0.6748070972791299,
+      "mae": 2.253968982593339
+    }
+  ]
+}

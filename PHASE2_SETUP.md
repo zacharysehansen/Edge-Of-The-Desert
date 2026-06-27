@@ -29,12 +29,13 @@ All inputs are in `data/Final/`. Column names are exact.
 |------|-------------|----------|-------|-------|
 | `ndvi_monthly.csv` | `year_month, ndvi` | 2000-01 – 2023-12 | 1 | Full |
 | `grace_monthly.csv` | `year_month, grace_groundwater_anomaly, grace_available` | 2000-01 – 2023-12 | 2 | Pre-2002-04 filled with 0.0, inter-mission gap interpolated |
-| *(missing)* | surface water conditions | — | 4 | **Blocked — no data file** |
+| `groundwater_levels_monthly.csv` | `year_month, depth_to_water_ft_mean` | 2000-01 – 2020-12 | 3 | Full |
+| `water_surface_monthly.csv` | `year_month, discharge_cfs_mean, gage_height_ft_mean` | 2000-01 – 2020-12 | 4 | Full |
 | `wildfire_annual.csv` | `year, fire_count, log_acres_total, wildfire_risk_index` | 1972 – 2023 (~50 rows) | 5a | Annual grain |
 | `wildfire_monthly.csv` | `year_month, fire_count, total_acres, log_acres, wildfire_risk_index` | 2000-01 – 2023-12 | 5b | Monthly grain (288 rows) |
 | `wildlife_annual.csv` | `year, route_count, total_abundance, species_richness, abundance_index` | 2000 – 2024, no 2020 | 6 | Annual grain, 24 rows |
 
-**Models 3 and 4 are blocked.** No data files exist for groundwater well levels or surface water conditions. Phase 2 scripts will be written for Models 1, 2, 5a, 5b, and 6 only. Placeholder notes are included so Models 3 and 4 can be slotted in later.
+All model data files are now available. Phase 2 scripts will be written for all models (1–6).
 
 ---
 
@@ -71,11 +72,31 @@ All inputs are in `data/Final/`. Column names are exact.
 
 ### Model 3 — Groundwater Well Levels
 
-**Status: Blocked.** No well level data file exists. Script stub will be written with a clear `raise NotImplementedError` and a comment pointing to the USGS Water Data API collection step described in DATA.md.
+| Field | Detail |
+|-------|--------|
+| **Target** | `depth_to_water_ft_mean` from `groundwater_levels_monthly.csv` |
+| **Grain** | Monthly |
+| **Modeling window** | `2002-10` through `2020-12` (219 rows) |
+| **Window rationale** | Same as NDVI/GRACE — starts after GRACE warmup, ends where irrigation data ends |
+| **CV strategy** | `TimeSeriesSplit(n_splits=5)` |
+| **Baseline** | `lag1_persistence` |
+| **Target formulation** | Residual over lag1: train on `depth_to_water - depth_to_water_lag1` |
+| **GRACE as input?** | Yes — satellite storage anomaly complements in-situ well readings |
+| **Export target** | ONNX |
 
 ### Model 4 — Surface Water Conditions
 
-**Status: Blocked.** No surface water data file exists. Script stub will be written with the same treatment as Model 3.
+| Field | Detail |
+|-------|--------|
+| **Target** | `discharge_cfs_mean` from `water_surface_monthly.csv` (secondary: `gage_height_ft_mean`) |
+| **Grain** | Monthly |
+| **Modeling window** | `2002-10` through `2020-12` (219 rows) |
+| **Window rationale** | Same as NDVI/GRACE — starts after GRACE warmup, ends where irrigation data ends |
+| **CV strategy** | `TimeSeriesSplit(n_splits=5)` |
+| **Baseline** | `lag1_persistence` |
+| **Target formulation** | Residual over lag1: train on `discharge - discharge_lag1` |
+| **GRACE as input?** | Yes — satellite storage anomaly is informative for surface flow |
+| **Export target** | ONNX |
 
 ### Model 5a — Wildfire Risk (Annual)
 
@@ -210,6 +231,8 @@ The modeling window is constrained by the intersection of target availability an
 |-------|--------|-----------------|--------|------|
 | 1 (NDVI) | 2000-01 to 2023-12 | Irrigation/supply end 2020-12; lag features need 9 months warmup | **2002-10 to 2020-12** | ~219 |
 | 2 (GRACE) | Real data 2002-04 to 2023-12 | Same input constraint as Model 1 | **2002-10 to 2020-12** | ~219 |
+| 3 (Groundwater) | 2000-01 to 2020-12 | Same input constraint as Model 1 | **2002-10 to 2020-12** | ~219 |
+| 4 (Surface Water) | 2000-01 to 2020-12 | Same input constraint as Model 1 | **2002-10 to 2020-12** | ~219 |
 | 5 (Wildfire) | 1972 to 2023 (annual) | Project range starts 2000; irrigation ends 2020 | **2000 to 2020** | ~21 |
 | 6 (Wildlife) | 2000 to 2024 minus 2020 | Irrigation ends 2020 | **2000 to 2019** | ~20 |
 
@@ -290,18 +313,19 @@ All scripts live under `scripts/phase2/`.
 
 ### `scripts/phase2/model_groundwater_wells.py`
 
-**Status: Stub only.**
-
-```python
-raise NotImplementedError(
-    "Model 3 (Groundwater Well Levels) is blocked: no data file exists. "
-    "See DATA.md section on USGS groundwater well levels for collection instructions."
-)
-```
+**Purpose:** Build, tune, evaluate, and export Model 3 (Groundwater Well Levels). Same structure as `model_ndvi.py` with these differences:
+- Target: `depth_to_water_ft_mean`
+- GRACE anomaly included as input feature (complementary signal)
+- Residual-over-lag1 uses `depth_to_water_ft_mean_lag1`
+- Export artifacts: `model/groundwater.onnx`, `model/groundwater_feature_names.json`, etc.
 
 ### `scripts/phase2/model_surface_water.py`
 
-**Status: Stub only.** Same stub pattern as groundwater wells.
+**Purpose:** Build, tune, evaluate, and export Model 4 (Surface Water Conditions). Same structure as `model_ndvi.py` with these differences:
+- Target: `discharge_cfs_mean`
+- GRACE anomaly included as input feature
+- Residual-over-lag1 uses `discharge_cfs_mean_lag1`
+- Export artifacts: `model/surface_water.onnx`, `model/surface_water_feature_names.json`, etc.
 
 ### `scripts/phase2/model_wildfire.py`
 
@@ -390,6 +414,20 @@ model/
   grace_feature_importance.json
   grace_cv_results.json
   historical_grace.csv
+
+  groundwater.onnx
+  groundwater_feature_names.json
+  groundwater_feature_stats.json
+  groundwater_feature_importance.json
+  groundwater_cv_results.json
+  historical_groundwater.csv
+
+  surface_water.onnx
+  surface_water_feature_names.json
+  surface_water_feature_stats.json
+  surface_water_feature_importance.json
+  surface_water_cv_results.json
+  historical_surface_water.csv
 
   wildfire.onnx
   wildfire_feature_names.json

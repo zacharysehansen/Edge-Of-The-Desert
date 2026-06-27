@@ -42,17 +42,61 @@ The following sources provided data used in this project:
    NASA Physical Oceanography Distributed Active Archive Center (PO.DAAC), Jet Propulsion Laboratory.
    GRACE-FO monthly terrestrial water storage anomaly product used for the later part of the groundwater anomaly series.
 
-9. Derived Internal Product - GRACE/GRACE-FO Recharge Proxy
-   Derived inside this repository from month-to-month positive changes in the combined
-   GRACE and GRACE-FO land water storage anomaly series.
-   This is a project-derived feature rather than a separately downloaded external dataset.
+9. U.S. Census Bureau - Population Estimates Program (PEP)
+   [https://www.census.gov/programs-surveys/popest.html](https://www.census.gov/programs-surveys/popest.html)
+   U.S. Census Bureau.
+   Annual county-level population estimates (intercensal 2000-2010, postcensal 2010-2023)
+   for eight southern Arizona counties. Interpolated to monthly via cubic spline.
 
-10. FRED - Resident Population in Arizona (AZPOP)
-   [https://fred.stlouisfed.org/series/AZPOP](https://fred.stlouisfed.org/series/AZPOP)
-   Federal Reserve Bank of St. Louis.
-   Historical Arizona resident population series.
+10. USGS NLCD - Annual Fractional Impervious Surface
+   [https://www.mrlc.gov/data](https://www.mrlc.gov/data)
+   Multi-Resolution Land Characteristics Consortium (MRLC).
+   Annual fractional impervious surface rasters (30m resolution) for CONUS, clipped to
+   the eight-county study area. Used to derive urbanization trend (impervious_pct).
 
-11. U.S. Bureau of Reclamation - Lake Powell Reservoir Data
+11. U.S. Drought Monitor - DSCI Statistics API
+   [https://droughtmonitor.unl.edu/](https://droughtmonitor.unl.edu/)
+   National Drought Mitigation Center, University of Nebraska-Lincoln.
+   Weekly county-level Drought Severity and Coverage Index (DSCI) for eight southern
+   Arizona counties. Area-weighted and aggregated to monthly.
+
+12. U.S. Bureau of Reclamation - Lake Powell Reservoir Data
    [https://www.usbr.gov/uc/water/hydrodata/reservoir_data/919/dashboard.html#csv/](https://www.usbr.gov/uc/water/hydrodata/reservoir_data/919/dashboard.html#csv/)
    U.S. Bureau of Reclamation.
    Historical Lake Powell reservoir data, including lake level information.
+
+13. U.S. Bureau of Reclamation - Lake Mead Reservoir Data
+   [https://www.usbr.gov/uc/water/hydrodata/reservoir_data/921/dashboard.html#csv/](https://www.usbr.gov/uc/water/hydrodata/reservoir_data/921/dashboard.html#csv/)
+   U.S. Bureau of Reclamation, HydroData Navigator.
+   Daily pool elevation, storage, total release, and release volume for Lake Mead
+   (reservoir ID 921). Aggregated to monthly means for the 2000-2023 period.
+
+14. NIFC - InterAgency Fire Perimeter History
+   [https://data-nifc.opendata.arcgis.com/datasets/nifc::interagencyfireperimeterhistory-all-years-view/](https://data-nifc.opendata.arcgis.com/datasets/nifc::interagencyfireperimeterhistory-all-years-view/)
+   National Interagency Fire Center (NIFC).
+   Historical wildfire perimeter records for all years, filtered to Arizona fires.
+   Used to build monthly wildfire risk index (fire count + log-acres).
+
+15. Arizona Wildfire Records
+   State of Arizona / compiled wildfire event data.
+   Annual fire records with acreage for the southern Arizona region.
+   Used to build annual wildfire risk index.
+
+16. USGS - North American Breeding Bird Survey (BBS)
+   [https://www.sciencebase.gov/catalog/item/691cfb53d4be021d1d89b482](https://www.sciencebase.gov/catalog/item/691cfb53d4be021d1d89b482)
+   U.S. Geological Survey, Patuxent Wildlife Research Center.
+   2025 Release - North American Breeding Bird Survey Dataset (1966-2024).
+   Route-level bird counts for routes within the eight-county study area,
+   aggregated to an annual wildlife abundance index.
+
+17. USGS NWIS Daily Values Service - Surface Water
+   [https://waterservices.usgs.gov/nwis/dv/](https://waterservices.usgs.gov/nwis/dv/)
+   U.S. Geological Survey, National Water Information System.
+   Daily mean discharge (parameter 00060) and gage height (parameter 00065) from
+   stream gages in eight southern Arizona counties. Aggregated to monthly regional means.
+
+18. USGS NWIS Daily Values Service - Groundwater Levels
+   [https://waterservices.usgs.gov/nwis/dv/](https://waterservices.usgs.gov/nwis/dv/)
+   U.S. Geological Survey, National Water Information System.
+   Daily mean depth to water level (parameters 72019, 72008, 62610, 62611) from
+   monitoring wells in eight southern Arizona counties. Aggregated to monthly regional means.

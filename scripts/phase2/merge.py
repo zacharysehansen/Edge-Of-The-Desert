@@ -111,6 +111,8 @@ def build_monthly_panel() -> pd.DataFrame:
         _read_monthly("ndvi_monthly.csv"),
         _read_monthly("wildfire_monthly.csv"),
         _read_monthly("urbanization_monthly.csv"),
+        _read_monthly("groundwater_levels_monthly.csv"),
+        _read_monthly("water_surface_monthly.csv"),
     ]
 
     panel = pd.DataFrame(index=full_index)

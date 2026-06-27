@@ -28,8 +28,8 @@ def main() -> None:
     parser.add_argument(
         "--models",
         nargs="*",
-        default=["ndvi", "grace", "wildfire", "wildfire_monthly", "wildlife"],
-        help="Which models to train (default: all five)",
+        default=["ndvi", "grace", "groundwater", "surface_water", "wildfire", "wildfire_monthly", "wildlife"],
+        help="Which models to train (default: all seven)",
     )
     parser.add_argument(
         "--skip-models",
@@ -73,6 +73,12 @@ def main() -> None:
         if "grace" in args.models:
             from scripts.phase2.model_grace import train_and_evaluate as train_grace
             model_funcs["grace"] = train_grace
+        if "groundwater" in args.models:
+            from scripts.phase2.model_groundwater import train_and_evaluate as train_groundwater
+            model_funcs["groundwater"] = train_groundwater
+        if "surface_water" in args.models:
+            from scripts.phase2.model_surface_water import train_and_evaluate as train_surface_water
+            model_funcs["surface_water"] = train_surface_water
         if "wildfire" in args.models:
             from scripts.phase2.model_wildfire import train_and_evaluate as train_wildfire
             model_funcs["wildfire"] = train_wildfire

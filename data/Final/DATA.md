@@ -203,6 +203,47 @@ This document catalogs all data inputs for the Southern Arizona Water and Land S
 
 ---
 
+### 11. Groundwater Well Levels
+
+| Field | Detail |
+|-------|--------|
+| **Description** | Regional mean depth to water level from USGS monitoring wells — in-situ complement to GRACE satellite anomaly [2] |
+| **Source** | USGS National Water Information System (NWIS) Daily Values Service [2] |
+| **Specific Endpoint** | `https://waterservices.usgs.gov/nwis/dv/` with `siteType=GW` |
+| **Parameters** | 72019 (depth to water level, ft below land surface), 72008 (depth to water in well, periodic), 62610 (GW level above NGVD 1929, ft), 62611 (GW level above NAVD 1988, ft) |
+| **Format** | JSON responses parsed per site/timestep |
+| **Temporal Resolution** | Daily (aggregated to monthly mean) [1] |
+| **Spatial Resolution** | Individual monitoring wells, queried by county FIPS for eight counties [1] |
+| **Date Range** | 2000-01 through 2020-12 [1] |
+| **Output File** | `data/Final/groundwater_levels_monthly.csv` |
+| **Output Columns** | `year_month, depth_to_water_ft_mean` [1] |
+| **Processing** | Daily values fetched per county per parameter per year (JSON format), combined, aggregated to monthly regional mean using parameter 72019 as primary [1] |
+| **Row Count** | 252 monthly rows (full coverage) [1] |
+| **Access Date** | June 2025 |
+
+---
+
+### 11b. Surface Water Conditions
+
+| Field | Detail |
+|-------|--------|
+| **Description** | Regional mean stream discharge and gage height from USGS stream gages — surface water availability indicator [2] |
+| **Source** | USGS National Water Information System (NWIS) Daily Values Service [2] |
+| **Specific Endpoint** | `https://waterservices.usgs.gov/nwis/dv/` with `siteType=ST` |
+| **Parameters** | 00060 (discharge, cubic feet per second), 00065 (gage height, feet) |
+| **Format** | JSON responses parsed per site/timestep |
+| **Temporal Resolution** | Daily (aggregated to monthly mean) [1] |
+| **Spatial Resolution** | Individual stream gages, queried by county FIPS for eight counties [1] |
+| **Date Range** | 2000-01 through 2020-12 [1] |
+| **Output File** | `data/Final/water_surface_monthly.csv` |
+| **Output Columns** | `year_month, discharge_cfs_mean, gage_height_ft_mean` [1] |
+| **Processing** | Daily values fetched per county per parameter per year (JSON format), combined, pivoted so each parameter is its own column, aggregated to monthly regional mean [1] |
+| **Row Count** | 252 monthly rows (full coverage) [1] |
+| **Note** | Some months may have missing gage height values where fewer gages report that parameter |
+| **Access Date** | June 2025 |
+
+---
+
 ### 12. Wildfire Risk
 
 | Field | Detail |
@@ -291,6 +332,8 @@ This document catalogs all data inputs for the Southern Arizona Water and Land S
 | Precipitation | Monthly | 2000-01 | 2023-12 | ✓ |
 | NDVI | Monthly | 2000-01 | 2023-12 | ✓ |
 | GRACE | Monthly | 2000-01 | 2023-12 | Filled pre-2002 & gap |
+| Groundwater Levels | Monthly | 2000-01 | 2020-12 | ✓ (252 rows) |
+| Surface Water | Monthly | 2000-01 | 2020-12 | ✓ (252 rows) |
 | Wildfire (annual) | Annual | 2000 | 2023 | ✓ |
 | Wildfire (monthly) | Monthly | 2000-01 | 2023-12 | ✓ (288 rows) |
 | Wildlife | Annual | 2000 | 2024 | Missing 2020 (24 rows) |
