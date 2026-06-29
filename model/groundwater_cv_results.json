@@ -76,11 +76,11 @@
   "best_params": {
     "subsample": 0.3,
     "reg_lambda": 100,
-    "reg_alpha": 10.0,
-    "n_estimators": 200,
+    "reg_alpha": 5.0,
+    "n_estimators": 300,
     "min_child_weight": 120,
     "max_depth": 2,
-    "learning_rate": 0.01,
+    "learning_rate": 0.02,
     "colsample_bytree": 0.3
   },
   "cv_mean_r2": 0.6107223620184848,

@@ -44,25 +44,26 @@ ANNUAL_WINDOW_END = 2020
 # "last"   — December value (end-of-year stock, e.g. lake elevation)
 
 MONTHLY_TO_ANNUAL_RULES = {
-    "population":                       ["mean", "june"],
-    "irrigation_total_withdrawal_mgd":  ["sum",  "mean"],
-    "public_supply_groundwater_mgd":    ["sum",  "mean"],
-    "mead_pool_elevation":              ["mean", "june", "last"],
-    "mead_total_release":               ["sum",  "mean"],
-    "usdm_dsci":                        ["mean", "jja"],
-    "water_stress_score":               ["mean", "jja"],
-    "temperature_2m_c":                 ["mean", "jja"],
-    "precipitation_mm_day":             ["mean", "sum", "jja"],
-    "grace_groundwater_anomaly":        ["mean"],
-    "grace_available":                  ["mean"],     # fraction of year with real GRACE
-    "ndvi":                             ["mean", "jja"],
-    "impervious_pct":                   ["mean"],
+    "population": ["mean", "june"],
+    "irrigation_total_withdrawal_mgd": ["sum", "mean"],
+    "public_supply_groundwater_mgd": ["sum", "mean"],
+    "mead_pool_elevation": ["mean", "june", "last"],
+    "mead_total_release": ["sum", "mean"],
+    "usdm_dsci": ["mean", "jja"],
+    "water_stress_score": ["mean", "jja"],
+    "temperature_2m_c": ["mean", "jja"],
+    "precipitation_mm_day": ["mean", "sum", "jja"],
+    "grace_groundwater_anomaly": ["mean"],
+    "grace_available": ["mean"],  # fraction of year with real GRACE
+    "ndvi": ["mean", "jja"],
+    "impervious_pct": ["mean"],
 }
 
 
 # ---------------------------------------------------------------------------
 # Loaders
 # ---------------------------------------------------------------------------
+
 
 def _read_monthly(filename: str, rename: dict | None = None) -> pd.DataFrame:
     """Read a year_month-indexed monthly CSV from data/Final/."""
@@ -88,6 +89,7 @@ def _read_annual(filename: str) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Build monthly panel
 # ---------------------------------------------------------------------------
+
 
 def build_monthly_panel() -> pd.DataFrame:
     """
@@ -132,6 +134,7 @@ def build_monthly_panel() -> pd.DataFrame:
 # Aggregate monthly → annual
 # ---------------------------------------------------------------------------
 
+
 def _agg_column(monthly: pd.DataFrame, col: str, rules: list[str]) -> pd.DataFrame:
     """Apply a list of aggregation rules for one column, return annual DataFrame."""
     # Work on a plain datetime-indexed copy for resample
@@ -145,7 +148,7 @@ def _agg_column(monthly: pd.DataFrame, col: str, rules: list[str]) -> pd.DataFra
         elif rule == "sum":
             agg = s.resample("YE").sum(min_count=1).rename(f"{col}_annual_sum")
         elif rule == "june":
-            june = s[s.index.month == 6]
+            june = s[s.index.month == 6]  # noqa: PLR2004
             agg = june.resample("YE").first().rename(f"{col}_june")
         elif rule == "jja":
             jja = s[s.index.month.isin([6, 7, 8])]
@@ -177,7 +180,9 @@ def build_annual_panel(monthly: pd.DataFrame) -> pd.DataFrame:
 
     # Log-transformed annual precipitation total
     if "precipitation_mm_day_annual_sum" in annual.columns:
-        annual["log_precip_annual"] = np.log1p(annual["precipitation_mm_day_annual_sum"])
+        annual["log_precip_annual"] = np.log1p(
+            annual["precipitation_mm_day_annual_sum"]
+        )
 
     # Linear year index (long-term trend feature)
     annual["year_linear"] = annual.index - ANNUAL_WINDOW_START
@@ -189,12 +194,14 @@ def build_annual_panel(monthly: pd.DataFrame) -> pd.DataFrame:
     # Join wildlife targets
     wildlife = _read_annual("wildlife_annual.csv")
     # Rename to avoid column clashes
-    wildlife = wildlife.rename(columns={
-        "route_count":       "bbs_route_count",
-        "total_abundance":   "bbs_total_abundance",
-        "species_richness":  "bbs_species_richness",
-        "abundance_index":   "bbs_abundance_index",
-    })
+    wildlife = wildlife.rename(
+        columns={
+            "route_count": "bbs_route_count",
+            "total_abundance": "bbs_total_abundance",
+            "species_richness": "bbs_species_richness",
+            "abundance_index": "bbs_abundance_index",
+        }
+    )
     annual = annual.join(wildlife, how="left")
 
     return annual
@@ -203,6 +210,7 @@ def build_annual_panel(monthly: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Coverage report
 # ---------------------------------------------------------------------------
+
 
 def _coverage_report(panel: pd.DataFrame, name: str) -> None:
     """Print a per-column NaN summary for the panel."""
@@ -226,6 +234,7 @@ def _coverage_report(panel: pd.DataFrame, name: str) -> None:
 # Main
 # ---------------------------------------------------------------------------
 
+
 def run() -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Build both panels, write to processed/, and return (monthly, annual).
@@ -245,6 +254,6 @@ def run() -> tuple[pd.DataFrame, pd.DataFrame]:
 if __name__ == "__main__":
     monthly, annual = run()
     _coverage_report(monthly, "Monthly Panel  →  data/processed/monthly_panel.csv")
-    _coverage_report(annual,  "Annual Panel   →  data/processed/annual_panel.csv")
+    _coverage_report(annual, "Annual Panel   →  data/processed/annual_panel.csv")
     print(f"\nMonthly panel  : {MONTHLY_PANEL_PATH}")
     print(f"Annual panel   : {ANNUAL_PANEL_PATH}")

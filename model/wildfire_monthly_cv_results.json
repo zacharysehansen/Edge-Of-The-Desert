@@ -5,53 +5,53 @@
   "window_start": "2002-10",
   "window_end": "2020-12",
   "n_rows": 219,
-  "n_features": 56,
+  "n_features": 68,
   "best_params": {
-    "model__subsample": 0.7,
-    "model__reg_lambda": 5,
+    "model__subsample": 0.9,
+    "model__reg_lambda": 1,
     "model__reg_alpha": 0.1,
-    "model__n_estimators": 100,
-    "model__min_child_weight": 3,
+    "model__n_estimators": 300,
+    "model__min_child_weight": 10,
     "model__max_depth": 3,
-    "model__learning_rate": 0.03,
-    "model__colsample_bytree": 0.5
+    "model__learning_rate": 0.01,
+    "model__colsample_bytree": 0.6
   },
-  "cv_mean_r2": 0.04984843567978496,
-  "cv_std_r2": 0.2842463030940315,
-  "cv_mean_mae": 0.1400172029997084,
-  "cv_std_mae": 0.028313412054792313,
-  "train_r2": 0.6317725249673032,
-  "train_mae": 0.09218380811802655,
+  "cv_mean_r2": 0.05758309788685874,
+  "cv_std_r2": 0.326936555481737,
+  "cv_mean_mae": 0.13967524940624904,
+  "cv_std_mae": 0.030619302651241007,
+  "train_r2": 0.6534914036214058,
+  "train_mae": 0.09045480405869115,
   "all_candidates": [
     {
       "label": "XGBoost (direct)",
-      "cv_mean_r2": 0.04984843567978496,
-      "cv_mean_mae": 0.1400172029997084
-    },
-    {
-      "label": "ElasticNet (direct)",
-      "cv_mean_r2": -0.03522401156619111,
-      "cv_mean_mae": 0.14717609986351218
+      "cv_mean_r2": 0.05758309788685874,
+      "cv_mean_mae": 0.13967524940624904
     },
     {
       "label": "Ridge (direct)",
-      "cv_mean_r2": -0.03685677903442086,
-      "cv_mean_mae": 0.15092699215618977
+      "cv_mean_r2": -0.030559302724572347,
+      "cv_mean_mae": 0.1502400740884205
+    },
+    {
+      "label": "ElasticNet (direct)",
+      "cv_mean_r2": -0.045817879013916187,
+      "cv_mean_mae": 0.1494145834231514
     },
     {
       "label": "XGBoost (residual)",
-      "cv_mean_r2": -0.9238334751775742,
-      "cv_mean_mae": 0.17601253752752138
+      "cv_mean_r2": -0.9247374266793557,
+      "cv_mean_mae": 0.17572764244536726
     },
     {
       "label": "Ridge (residual)",
-      "cv_mean_r2": -0.9493895531517159,
-      "cv_mean_mae": 0.17859330220603023
+      "cv_mean_r2": -0.9436536924876272,
+      "cv_mean_mae": 0.17827460920489163
     },
     {
       "label": "ElasticNet (residual)",
-      "cv_mean_r2": -0.95185876845782,
-      "cv_mean_mae": 0.1814714204629761
+      "cv_mean_r2": -0.955168998355669,
+      "cv_mean_mae": 0.18165257559435294
     }
   ],
   "note": "Monthly wildfire model. Winner: XGBoost (direct). Competed 3 models \u00d7 2 formulations (6 total). 219 monthly rows from 2002-10 to 2020-12."

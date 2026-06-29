@@ -37,6 +37,44 @@
     "index_start": "2002-10",
     "index_end": "2020-12"
   },
+  "groundwater": {
+    "lag1_persistence": {
+      "mean_r2": 0.6156201050602577,
+      "std_r2": 0.2592494189890971,
+      "mean_mae": 5.092860956455015,
+      "std_mae": 2.2739594030158776,
+      "n_folds": 5
+    },
+    "roll3_mean": {
+      "mean_r2": 0.41953551008213924,
+      "std_r2": 0.3474535809837244,
+      "mean_mae": 6.453139759721239,
+      "std_mae": 2.957020199631468,
+      "n_folds": 5
+    },
+    "n_rows": 219,
+    "index_start": "2002-10",
+    "index_end": "2020-12"
+  },
+  "surface_water": {
+    "lag1_persistence": {
+      "mean_r2": 0.2490047220786069,
+      "std_r2": 0.14305114106916358,
+      "mean_mae": 24.418193827651002,
+      "std_mae": 7.342700822879957,
+      "n_folds": 5
+    },
+    "roll3_mean": {
+      "mean_r2": -0.10809839199468532,
+      "std_r2": 0.11627771066074902,
+      "mean_mae": 31.729029255662994,
+      "std_mae": 8.476706210095859,
+      "n_folds": 5
+    },
+    "n_rows": 219,
+    "index_start": "2002-10",
+    "index_end": "2020-12"
+  },
   "wildfire_monthly": {
     "lag1_persistence": {
       "mean_r2": -0.97436071697597,
@@ -56,39 +94,20 @@
     "index_start": "2002-10",
     "index_end": "2020-12"
   },
-  "wildfire": {
-    "lag1_persistence": {
-      "mean_r2": -2.1141465831369346,
-      "std_r2": 1.0215506862724115,
-      "mean_mae": 0.143462125,
-      "std_mae": 0.04555224229953588,
-      "n_folds": 4
-    },
-    "roll3_mean": {
-      "mean_r2": -1.2640890028560117,
-      "std_r2": 1.058748259048134,
-      "mean_mae": 0.12138689583333333,
-      "std_mae": 0.043306151551834635,
-      "n_folds": 4
-    },
-    "n_rows": 21,
-    "index_start": "2000",
-    "index_end": "2020"
-  },
   "wildlife": {
     "lag1_persistence": {
-      "mean_r2": NaN,
+      "mean_r2": 0.09429952521085727,
       "std_r2": NaN,
-      "mean_mae": NaN,
+      "mean_mae": 0.1868367894736842,
       "std_mae": NaN,
-      "note": "no valid folds"
+      "n_folds": 19
     },
     "roll3_mean": {
-      "mean_r2": NaN,
+      "mean_r2": -0.2910591412009569,
       "std_r2": NaN,
-      "mean_mae": NaN,
+      "mean_mae": 0.2013733725490196,
       "std_mae": NaN,
-      "note": "no valid folds"
+      "n_folds": 17
     },
     "n_rows": 20,
     "index_start": "2000",

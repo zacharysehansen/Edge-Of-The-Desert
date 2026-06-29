@@ -195,6 +195,54 @@
     "mean": 0.22220071461187216,
     "std": 0.017626650241107465
   },
+  "depth_to_water_ft_mean": {
+    "mean": 113.25093425456167,
+    "std": 27.383719191693082
+  },
+  "depth_to_water_ft_mean_lag1": {
+    "mean": 113.14807070549797,
+    "std": 27.476407739296842
+  },
+  "depth_to_water_ft_mean_lag3": {
+    "mean": 112.90314580610338,
+    "std": 27.658220980802863
+  },
+  "depth_to_water_ft_mean_roll3": {
+    "mean": 113.02624256209903,
+    "std": 26.86188990667069
+  },
+  "depth_to_water_ft_mean_roll6": {
+    "mean": 112.84811867117966,
+    "std": 26.28441379025202
+  },
+  "discharge_cfs_mean": {
+    "mean": 98.77305483787885,
+    "std": 91.17798613535261
+  },
+  "discharge_cfs_mean_lag1": {
+    "mean": 98.91057268773825,
+    "std": 91.12292336496022
+  },
+  "discharge_cfs_mean_lag3": {
+    "mean": 99.08553741321576,
+    "std": 91.06234793812524
+  },
+  "discharge_cfs_mean_roll3": {
+    "mean": 98.99928190381132,
+    "std": 73.69131087928942
+  },
+  "discharge_cfs_mean_roll6": {
+    "mean": 99.02174648709655,
+    "std": 57.88830948181653
+  },
+  "precip_x_impervious": {
+    "mean": 0.9002241401744292,
+    "std": 0.9191700753187723
+  },
+  "precip_x_temperature": {
+    "mean": 16.132612544576713,
+    "std": 20.93728188492961
+  },
   "month_sin": {
     "mean": -0.006237558921390139,
     "std": 0.7070791429434027

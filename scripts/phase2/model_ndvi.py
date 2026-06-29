@@ -22,6 +22,8 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from onnxmltools import convert_xgboost
+from onnxmltools.convert.common.data_types import FloatTensorType
 from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
 from xgboost import XGBRegressor
@@ -42,13 +44,13 @@ RANDOM_STATE = 42
 # ---------------------------------------------------------------------------
 
 PARAM_SPACE = {
-    "n_estimators":     [400, 600, 800, 1000],
-    "max_depth":        [3, 4, 5],
-    "learning_rate":    [0.01, 0.03, 0.05, 0.08],
-    "subsample":        [0.8, 0.9, 1.0],
+    "n_estimators": [400, 600, 800, 1000],
+    "max_depth": [3, 4, 5],
+    "learning_rate": [0.01, 0.03, 0.05, 0.08],
+    "subsample": [0.8, 0.9, 1.0],
     "colsample_bytree": [0.6, 0.7, 0.8, 0.9],
-    "reg_alpha":        [0, 0.01, 0.05, 0.1],
-    "reg_lambda":       [0.5, 1, 2, 5],
+    "reg_alpha": [0, 0.01, 0.05, 0.1],
+    "reg_lambda": [0.5, 1, 2, 5],
     "min_child_weight": [1, 3, 5],
 }
 
@@ -57,16 +59,17 @@ PARAM_SPACE = {
 # Core training
 # ---------------------------------------------------------------------------
 
+
 def train_and_evaluate() -> dict:
     """Build, tune, evaluate, and export the NDVI model."""
     datasets = build_all()
-    X, y = datasets[MODEL_ID]
+    x, y = datasets[MODEL_ID]
 
     # Separate lag1 column for residual formulation
     lag1_col = "ndvi_lag1"
-    lag1 = X[lag1_col].copy()
-    X_train = X.drop(columns=[lag1_col])
-    feature_names = list(X_train.columns)
+    lag1 = x[lag1_col].copy()
+    x_train = x.drop(columns=[lag1_col])
+    feature_names = list(x_train.columns)
 
     # Residual target
     y_residual = y - lag1
@@ -89,7 +92,7 @@ def train_and_evaluate() -> dict:
         n_jobs=-1,
         refit=True,
     )
-    search.fit(X_train, y_residual)
+    search.fit(x_train, y_residual)
     best_model = search.best_estimator_
     best_params = search.best_params_
 
@@ -97,59 +100,72 @@ def train_and_evaluate() -> dict:
     fold_r2, fold_mae = [], []
     fold_details = []
 
-    for fold_i, (train_idx, test_idx) in enumerate(CV.split(X_train)):
-        X_tr = X_train.iloc[train_idx]
+    for fold_i, (train_idx, test_idx) in enumerate(CV.split(x_train)):
+        x_tr = x_train.iloc[train_idx]
         y_tr = y_residual.iloc[train_idx]
-        X_te = X_train.iloc[test_idx]
+        x_te = x_train.iloc[test_idx]
         y_te_actual = y.iloc[test_idx]
         lag1_te = lag1.iloc[test_idx]
 
-        fold_model = XGBRegressor(**best_params, objective="reg:squarederror",
-                                   tree_method="hist", random_state=RANDOM_STATE, verbosity=0)
-        fold_model.fit(X_tr, y_tr)
-        pred_residual = fold_model.predict(X_te)
+        fold_model = XGBRegressor(
+            **best_params,
+            objective="reg:squarederror",
+            tree_method="hist",
+            random_state=RANDOM_STATE,
+            verbosity=0,
+        )
+        fold_model.fit(x_tr, y_tr)
+        pred_residual = fold_model.predict(x_te)
         pred_actual = pred_residual + lag1_te.values
 
         r2 = r2_score(y_te_actual, pred_actual)
         mae = mean_absolute_error(y_te_actual, pred_actual)
         fold_r2.append(r2)
         fold_mae.append(mae)
-        fold_details.append({
-            "fold": fold_i,
-            "test_start": str(y.index[test_idx[0]]),
-            "test_end":   str(y.index[test_idx[-1]]),
-            "test_size":  len(test_idx),
-            "r2":         float(r2),
-            "mae":        float(mae),
-        })
+        fold_details.append(
+            {
+                "fold": fold_i,
+                "test_start": str(y.index[test_idx[0]]),
+                "test_end": str(y.index[test_idx[-1]]),
+                "test_size": len(test_idx),
+                "r2": float(r2),
+                "mae": float(mae),
+            }
+        )
 
-    mean_r2  = float(np.mean(fold_r2))
-    std_r2   = float(np.std(fold_r2))
+    mean_r2 = float(np.mean(fold_r2))
+    std_r2 = float(np.std(fold_r2))
     mean_mae = float(np.mean(fold_mae))
-    std_mae  = float(np.std(fold_mae))
+    std_mae = float(np.std(fold_mae))
 
     # ----- Train score (for overfit diagnostic) -----
-    train_pred_residual = best_model.predict(X_train)
+    train_pred_residual = best_model.predict(x_train)
     train_pred_actual = train_pred_residual + lag1.values
     train_r2 = float(r2_score(y, train_pred_actual))
     train_mae = float(mean_absolute_error(y, train_pred_actual))
 
     # ----- Historical predictions -----
-    hist_pred_residual = best_model.predict(X_train)
+    hist_pred_residual = best_model.predict(x_train)
     hist_pred_actual = hist_pred_residual + lag1.values
-    historical = pd.DataFrame({
-        "year_month": y.index.astype(str),
-        "ndvi_actual": y.values,
-        "ndvi_predicted": hist_pred_actual,
-    })
+    historical = pd.DataFrame(
+        {
+            "year_month": y.index.astype(str),
+            "ndvi_actual": y.values,
+            "ndvi_predicted": hist_pred_actual,
+        }
+    )
 
     # ----- Feature importance -----
-    importance = dict(zip(feature_names, best_model.feature_importances_.tolist()))
-    sorted_importance = dict(sorted(importance.items(), key=lambda x: x[1], reverse=True))
+    importance = dict(
+        zip(feature_names, best_model.feature_importances_.tolist(), strict=False)
+    )
+    sorted_importance = dict(
+        sorted(importance.items(), key=lambda x: x[1], reverse=True)
+    )
 
     # ----- Feature stats (mean/std for input scaling in ONNX consumer) -----
     feature_stats = {
-        col: {"mean": float(X_train[col].mean()), "std": float(X_train[col].std())}
+        col: {"mean": float(x_train[col].mean()), "std": float(x_train[col].std())}
         for col in feature_names
     }
 
@@ -187,14 +203,9 @@ def train_and_evaluate() -> dict:
 # ONNX export
 # ---------------------------------------------------------------------------
 
+
 def _export_onnx(model: XGBRegressor, feature_names: list[str]) -> None:
     """Export to ONNX. Renames features to f0..fN for onnxmltools compatibility."""
-    try:
-        from onnxmltools import convert_xgboost
-        from onnxmltools.convert.common.data_types import FloatTensorType
-    except ImportError:
-        print("  [WARN] onnxmltools not installed — skipping ONNX export")
-        return
 
     # onnxmltools requires numeric feature names; clone with f0..fN
     booster = model.get_booster()
@@ -219,18 +230,15 @@ def _export_onnx(model: XGBRegressor, feature_names: list[str]) -> None:
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _save_json(obj, path: Path) -> None:
+
+def _save_json(obj: json, path: Path) -> None:
     with open(path, "w") as f:
         json.dump(obj, f, indent=2)
 
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
-
-if __name__ == "__main__":
+def main() -> None:
     print(f"\n{'='*60}")
-    print(f"  Model 1: NDVI (Vegetation Health)")
+    print("  Model 1: NDVI (Vegetation Health)")
     print(f"{'='*60}\n")
 
     results = train_and_evaluate()
@@ -244,3 +252,7 @@ if __name__ == "__main__":
     print(f"  Train MAE  : {results['train_mae']:.6f}")
     print(f"\n  Best params: {results['best_params']}")
     print(f"\n  Artifacts saved to {MODEL_DIR}/")
+
+
+if __name__ == "__main__":
+    main()

@@ -73,11 +73,11 @@ def _add_monthly_lag_roll(df: pd.DataFrame) -> pd.DataFrame:
     for col in _LAG_ROLL_COLS:
         if col not in df.columns:
             continue
-        df[f"{col}_lag1"]   = df[col].shift(1)
-        df[f"{col}_lag3"]   = df[col].shift(3)
-        df[f"{col}_lag6"]   = df[col].shift(6)
-        df[f"{col}_roll3"]  = df[col].shift(1).rolling(3,  min_periods=2).mean()
-        df[f"{col}_roll6"]  = df[col].shift(1).rolling(6,  min_periods=4).mean()
+        df[f"{col}_lag1"] = df[col].shift(1)
+        df[f"{col}_lag3"] = df[col].shift(3)
+        df[f"{col}_lag6"] = df[col].shift(6)
+        df[f"{col}_roll3"] = df[col].shift(1).rolling(3, min_periods=2).mean()
+        df[f"{col}_roll6"] = df[col].shift(1).rolling(6, min_periods=4).mean()
         df[f"{col}_roll12"] = df[col].shift(1).rolling(12, min_periods=8).mean()
     return df
 
@@ -91,8 +91,10 @@ def _add_anomaly_features(df: pd.DataFrame) -> pd.DataFrame:
         roll12_col = f"{col}_roll12"
         if roll12_col in df.columns:
             df[f"{col}_anomaly"] = df[col] - df[roll12_col]
-            df[f"{col}_anomaly_lag1"]  = df[f"{col}_anomaly"].shift(1)
-            df[f"{col}_anomaly_roll3"] = df[f"{col}_anomaly"].shift(1).rolling(3, min_periods=2).mean()
+            df[f"{col}_anomaly_lag1"] = df[f"{col}_anomaly"].shift(1)
+            df[f"{col}_anomaly_roll3"] = (
+                df[f"{col}_anomaly"].shift(1).rolling(3, min_periods=2).mean()
+            )
     return df
 
 
@@ -107,7 +109,7 @@ def _add_seasonal_encoding(df: pd.DataFrame) -> pd.DataFrame:
 def _add_interaction_features(df: pd.DataFrame) -> pd.DataFrame:
     """Add physically motivated interaction terms."""
     df = df.copy()
-    # Precipitation × impervious = runoff proxy (dominant discharge mechanism in urban desert)
+    # Precipitation × impervious = runoff proxy (dominant discharge in urban desert)
     if "precipitation_mm_day" in df.columns and "impervious_pct" in df.columns:
         df["precip_x_impervious"] = df["precipitation_mm_day"] * df["impervious_pct"]
     # Precipitation × temperature = evapotranspiration proxy
@@ -129,6 +131,7 @@ def _engineer_monthly(monthly_raw: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Explicit feature lists for each monthly model
 # ---------------------------------------------------------------------------
+
 
 def _monthly_feature_cols(exclude_target_base: list[str]) -> list[str]:
     """
@@ -233,6 +236,7 @@ def _monthly_feature_cols(exclude_target_base: list[str]) -> list[str]:
 # Annual feature engineering
 # ---------------------------------------------------------------------------
 
+
 def _add_annual_lag_roll(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
     """Add 1-year and 2-year lags and 3-year rolling mean for annual columns."""
     df = df.copy()
@@ -294,7 +298,10 @@ def _add_fire_ecology_features(df: pd.DataFrame) -> pd.DataFrame:
 
     # Wet-then-dry interaction: high prior precip × high current summer temp
     # (wet year grows fuel → hot dry year ignites it)
-    if "precipitation_mm_day_annual_sum" in df.columns and "temperature_2m_c_jja_mean" in df.columns:
+    if (
+        "precipitation_mm_day_annual_sum" in df.columns
+        and "temperature_2m_c_jja_mean" in df.columns
+    ):
         df["wet_then_dry"] = df["precip_prior_1yr"] * df["temperature_2m_c_jja_mean"]
 
     # Consecutive dry year count: years where annual precip is below median
@@ -332,77 +339,6 @@ def _add_fire_ecology_features(df: pd.DataFrame) -> pd.DataFrame:
 # Feature columns for annual models
 # ---------------------------------------------------------------------------
 
-_WILDFIRE_FEATURES = [
-    "population_annual_mean",
-    "irrigation_total_withdrawal_mgd_annual_sum",
-    "public_supply_groundwater_mgd_annual_sum",
-    "mead_pool_elevation_annual_mean",
-    "mead_pool_elevation_june",
-    "mead_total_release_annual_sum",
-    "usdm_dsci_annual_mean",
-    "usdm_dsci_jja_mean",
-    "temperature_2m_c_annual_mean",
-    "temperature_2m_c_jja_mean",
-    "precipitation_mm_day_annual_sum",
-    "log_precip_annual",
-    "ndvi_annual_mean",
-    "ndvi_jja_mean",
-    "grace_groundwater_anomaly_annual_mean",
-    "impervious_pct_annual_mean",
-    "year_linear",
-    # Lag/roll
-    "wildfire_risk_index_lag1",
-    "wildfire_risk_index_lag2",
-    "wildfire_risk_index_roll3",
-    "temperature_2m_c_jja_mean_lag1",
-    "precipitation_mm_day_annual_sum_lag1",
-    "usdm_dsci_jja_mean_lag1",
-    "ndvi_jja_mean_lag1",
-    # Fire-ecology features
-    "precip_prior_2yr_sum",
-    "precip_prior_1yr",
-    "wet_then_dry",
-    "consecutive_dry_years",
-    "jja_temp_anomaly",
-    "dsci_max_prior_2yr",
-]
-
-# Climate-only feature set for wildfire: drops irrigation/supply/population
-# so the model can extend to years where those inputs are unavailable (2021+)
-_WILDFIRE_CLIMATE_FEATURES = [
-    "usdm_dsci_jja_mean",
-    "temperature_2m_c_jja_mean",
-    "precipitation_mm_day_annual_sum",
-    "log_precip_annual",
-    "ndvi_annual_mean",
-    "ndvi_jja_mean",
-    # Fire-ecology features (the key innovation)
-    "precip_prior_1yr",
-    "precip_prior_2yr_sum",
-    "wet_then_dry",
-    "consecutive_dry_years",
-    "jja_temp_anomaly",
-    "dsci_max_prior_2yr",
-    # Lag/roll
-    "wildfire_risk_index_lag1",
-    "wildfire_risk_index_lag2",
-    "wildfire_risk_index_roll3",
-    "temperature_2m_c_jja_mean_lag1",
-    "precipitation_mm_day_annual_sum_lag1",
-    "usdm_dsci_jja_mean_lag1",
-]
-
-# Minimal domain-pruned set: only the 5-6 physically motivated features
-_WILDFIRE_MINIMAL_FEATURES = [
-    "precip_prior_1yr",
-    "precip_prior_2yr_sum",
-    "wet_then_dry",
-    "temperature_2m_c_jja_mean",
-    "usdm_dsci_jja_mean",
-    "consecutive_dry_years",
-    "wildfire_risk_index_lag1",
-]
-
 _WILDLIFE_FEATURES = [
     "population_annual_mean",
     "irrigation_total_withdrawal_mgd_annual_sum",
@@ -420,7 +356,6 @@ _WILDLIFE_FEATURES = [
     "grace_groundwater_anomaly_annual_mean",
     "impervious_pct_annual_mean",
     "year_linear",
-    # Lag/roll
     "bbs_abundance_index_lag1",
     "bbs_abundance_index_lag2",
     "bbs_abundance_index_roll3",
@@ -429,12 +364,12 @@ _WILDLIFE_FEATURES = [
     "usdm_dsci_annual_mean_lag1",
 ]
 
-
 # ---------------------------------------------------------------------------
 # Build all datasets
 # ---------------------------------------------------------------------------
 
-def build_all(
+
+def build_all(  # noqa: PLR0915
     monthly_raw: pd.DataFrame | None = None,
     annual_raw: pd.DataFrame | None = None,
 ) -> dict[str, tuple[pd.DataFrame, pd.Series]]:
@@ -465,115 +400,96 @@ def build_all(
 
     # Clip to modeling window
     window_start = pd.Period(MONTHLY_WINDOW_START, freq="M")
-    window_end   = pd.Period(MONTHLY_WINDOW_END,   freq="M")
+    window_end = pd.Period(MONTHLY_WINDOW_END, freq="M")
     monthly_w = monthly.loc[window_start:window_end].copy()
 
     # Model 1 — NDVI
     ndvi_features = _monthly_feature_cols(exclude_target_base=["ndvi"])
     ndvi_features = [f for f in ndvi_features if f in monthly_w.columns]
-    X_ndvi = monthly_w[ndvi_features + ["ndvi_lag1"]].copy()  # lag1 kept for residual
+    x_ndvi = monthly_w[ndvi_features + ["ndvi_lag1"]].copy()  # lag1 kept for residual
     y_ndvi = monthly_w["ndvi"].copy()
-    mask = X_ndvi.notna().all(axis=1) & y_ndvi.notna()
-    datasets["ndvi"] = (X_ndvi[mask], y_ndvi[mask])
+    mask = x_ndvi.notna().all(axis=1) & y_ndvi.notna()
+    datasets["ndvi"] = (x_ndvi[mask], y_ndvi[mask])
 
     # Model 2 — GRACE
-    grace_features = _monthly_feature_cols(exclude_target_base=["grace_groundwater_anomaly"])
+    grace_features = _monthly_feature_cols(
+        exclude_target_base=["grace_groundwater_anomaly"]
+    )
     grace_features = [f for f in grace_features if f in monthly_w.columns]
-    X_grace = monthly_w[grace_features + ["grace_groundwater_anomaly_lag1"]].copy()
+    x_grace = monthly_w[grace_features + ["grace_groundwater_anomaly_lag1"]].copy()
     y_grace = monthly_w["grace_groundwater_anomaly"].copy()
-    mask = X_grace.notna().all(axis=1) & y_grace.notna()
-    datasets["grace"] = (X_grace[mask], y_grace[mask])
+    mask = x_grace.notna().all(axis=1) & y_grace.notna()
+    datasets["grace"] = (x_grace[mask], y_grace[mask])
 
     # Model 3 — Groundwater Well Levels
     if "depth_to_water_ft_mean" in monthly_w.columns:
-        gw_features = _monthly_feature_cols(exclude_target_base=["depth_to_water_ft_mean"])
+        gw_features = _monthly_feature_cols(
+            exclude_target_base=["depth_to_water_ft_mean"]
+        )
         gw_features = [f for f in gw_features if f in monthly_w.columns]
-        X_gw = monthly_w[gw_features + ["depth_to_water_ft_mean_lag1"]].copy()
+        x_gw = monthly_w[gw_features + ["depth_to_water_ft_mean_lag1"]].copy()
         y_gw = monthly_w["depth_to_water_ft_mean"].copy()
-        mask = X_gw.notna().all(axis=1) & y_gw.notna()
-        datasets["groundwater"] = (X_gw[mask], y_gw[mask])
+        mask = x_gw.notna().all(axis=1) & y_gw.notna()
+        datasets["groundwater"] = (x_gw[mask], y_gw[mask])
 
     # Model 4 — Surface Water Conditions (discharge only; gage_height has gaps)
     if "discharge_cfs_mean" in monthly_w.columns:
-        sw_features = _monthly_feature_cols(exclude_target_base=["discharge_cfs_mean", "gage_height_ft_mean"])
+        sw_features = _monthly_feature_cols(
+            exclude_target_base=["discharge_cfs_mean", "gage_height_ft_mean"]
+        )
         sw_features = [f for f in sw_features if f in monthly_w.columns]
-        X_sw = monthly_w[sw_features + ["discharge_cfs_mean_lag1"]].copy()
+        x_sw = monthly_w[sw_features + ["discharge_cfs_mean_lag1"]].copy()
         y_sw = monthly_w["discharge_cfs_mean"].copy()
-        mask = X_sw.notna().all(axis=1) & y_sw.notna()
-        datasets["surface_water"] = (X_sw[mask], y_sw[mask])
+        mask = x_sw.notna().all(axis=1) & y_sw.notna()
+        datasets["surface_water"] = (x_sw[mask], y_sw[mask])
 
     # Model 5 (monthly) — Wildfire Risk Index
-    # Exclude wildfire columns from inputs (they are the target)
     if "wildfire_risk_index" in monthly_w.columns:
         wf_monthly_features = _monthly_feature_cols(
-            exclude_target_base=["wildfire_risk_index", "fire_count", "log_acres", "total_acres"]
+            exclude_target_base=[
+                "wildfire_risk_index",
+                "fire_count",
+                "log_acres",
+                "total_acres",
+            ]
         )
         wf_monthly_features = [f for f in wf_monthly_features if f in monthly_w.columns]
-        X_wf_monthly = monthly_w[wf_monthly_features + ["wildfire_risk_index_lag1"]].copy()
+        x_wf_monthly = monthly_w[
+            wf_monthly_features + ["wildfire_risk_index_lag1"]
+        ].copy()
         y_wf_monthly = monthly_w["wildfire_risk_index"].copy()
-        mask = X_wf_monthly.notna().all(axis=1) & y_wf_monthly.notna()
-        datasets["wildfire_monthly"] = (X_wf_monthly[mask], y_wf_monthly[mask])
+        mask = x_wf_monthly.notna().all(axis=1) & y_wf_monthly.notna()
+        datasets["wildfire_monthly"] = (x_wf_monthly[mask], y_wf_monthly[mask])
 
     # -----------------------------------------------------------------------
-    # Annual models (Model 5: Wildfire, Model 6: Wildlife)
+    # Annual models (Model 6: Wildlife)
     # -----------------------------------------------------------------------
     annual = _engineer_annual(annual_raw)
     annual_w = annual.loc[ANNUAL_WINDOW_START:ANNUAL_WINDOW_END].copy()
 
-    # Model 5 — Wildfire (standard window: 2000-2020)
-    # Linear models get NaN imputed; XGBoost handles NaN natively.
-    # Only require same-year climate features + target to be present.
-    _WF_NONTEMPORAL = ["temperature_2m_c_jja_mean", "precipitation_mm_day_annual_sum",
-                       "usdm_dsci_jja_mean", "ndvi_annual_mean"]
-    wf_features = [f for f in _WILDFIRE_FEATURES if f in annual_w.columns]
-    X_wildfire = annual_w[wf_features].copy()
-    y_wildfire = annual_w["wildfire_risk_index"].copy()
-    _req_wf = [c for c in _WF_NONTEMPORAL if c in X_wildfire.columns]
-    mask = X_wildfire[_req_wf].notna().all(axis=1) & y_wildfire.notna()
-    datasets["wildfire"] = (X_wildfire[mask], y_wildfire[mask])
-
-    # Wildfire extended window (2000-2021): climate-only features
-    # Drops irrigation/supply dependency so we can include 2021
-    annual_ext = annual.loc[ANNUAL_WINDOW_START:2021].copy()
-    wf_clim_features = [f for f in _WILDFIRE_CLIMATE_FEATURES if f in annual_ext.columns]
-    X_wf_clim = annual_ext[wf_clim_features].copy()
-    y_wf_clim = annual_ext["wildfire_risk_index"].copy()
-    _req_clim = [c for c in _WF_NONTEMPORAL if c in X_wf_clim.columns]
-    mask_clim = X_wf_clim[_req_clim].notna().all(axis=1) & y_wf_clim.notna()
-    datasets["wildfire_climate"] = (X_wf_clim[mask_clim], y_wf_clim[mask_clim])
-
-    # Wildfire minimal feature set (same extended window)
-    wf_min_features = [f for f in _WILDFIRE_MINIMAL_FEATURES if f in annual_ext.columns]
-    X_wf_min = annual_ext[wf_min_features].copy()
-    y_wf_min = annual_ext["wildfire_risk_index"].copy()
-    _req_min = [c for c in _WF_NONTEMPORAL if c in X_wf_min.columns]
-    mask_min = X_wf_min[_req_min].notna().all(axis=1) & y_wf_min.notna()
-    datasets["wildfire_minimal"] = (X_wf_min[mask_min], y_wf_min[mask_min])
-
-    # Model 6 — Wildlife
-    # Exclude 2020 (BBS cancelled) and stay within window.
-    # Same NaN-tolerant approach for lag features.
     wildlife_w = annual_w.drop(index=2020, errors="ignore")
     wl_features = [f for f in _WILDLIFE_FEATURES if f in wildlife_w.columns]
-    X_wildlife = wildlife_w[wl_features].copy()
+    x_wildlife = wildlife_w[wl_features].copy()
     y_wildlife = wildlife_w["bbs_abundance_index"].copy()
     _base_cols_wl = [c for c in wl_features if "_lag" not in c and "_roll" not in c]
-    mask = X_wildlife[_base_cols_wl].notna().all(axis=1) & y_wildlife.notna()
-    datasets["wildlife"] = (X_wildlife[mask], y_wildlife[mask])
+    mask = x_wildlife[_base_cols_wl].notna().all(axis=1) & y_wildlife.notna()
+    datasets["wildlife"] = (x_wildlife[mask], y_wildlife[mask])
 
     return datasets
 
 
-# ---------------------------------------------------------------------------
-# Quick self-test
-# ---------------------------------------------------------------------------
-
-if __name__ == "__main__":
+def main() -> None:
     datasets = build_all()
     print("\nFeature engineering complete.\n")
-    for name, (X, y) in datasets.items():
-        print(f"  {name:<10}  X: {X.shape}  y: {y.shape}  "
-              f"index: {y.index[0]} → {y.index[-1]}")
-        null_counts = X.isna().sum()
+    for name, (x, y) in datasets.items():
+        print(
+            f"  {name:<10}  X: {x.shape}  y: {y.shape}  "
+            f"index: {y.index[0]} → {y.index[-1]}"
+        )
+        null_counts = x.isna().sum()
         if null_counts.any():
             print(f"    WARNING: NaN columns: {null_counts[null_counts > 0].to_dict()}")
+
+
+if __name__ == "__main__":
+    main()

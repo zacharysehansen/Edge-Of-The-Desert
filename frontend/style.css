@@ -1,0 +1,354 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --green:      #8FD694;
+  --sand:       #E3DACC;
+  --teal:       #28536B;
+  --terra:      #A76D60;
+  --brown:      #504B43;
+  --sand-dark:  #D4C9B7;
+  --teal-light: #3A6E8A;
+  --bg:         #F0EBE1;
+}
+
+html, body {
+  height: 100%;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--brown);
+}
+
+/* ── Page shell ──────────────────────────────────────────── */
+
+#app-header {
+  background: var(--teal);
+  color: var(--sand);
+  padding: 18px 28px 14px;
+  border-bottom: 3px solid var(--terra);
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+#app-header h1 {
+  font-family: 'IBM Plex Serif', Georgia, serif;
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--sand);
+}
+
+#app-header .subtitle {
+  font-size: 0.8rem;
+  color: var(--sand-dark);
+  opacity: 0.85;
+}
+
+#app-body {
+  display: grid;
+  grid-template-columns: 260px 220px 1fr;
+  grid-template-rows: 1fr auto;
+  height: calc(100vh - 60px);
+  overflow: hidden;
+}
+
+/* ── Panels ──────────────────────────────────────────────── */
+
+.panel {
+  padding: 20px 18px;
+  overflow-y: auto;
+  border-right: 1px solid var(--sand-dark);
+}
+
+.panel:last-child {
+  border-right: none;
+}
+
+#panel-human {
+  background: var(--sand);
+}
+
+#panel-climate {
+  background: #E8E2D8;
+}
+
+#panel-outputs {
+  background: var(--bg);
+  padding: 20px 22px;
+}
+
+.panel h2 {
+  font-family: 'IBM Plex Serif', Georgia, serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--teal);
+  border-bottom: 1px solid var(--teal);
+  padding-bottom: 6px;
+  margin-bottom: 16px;
+}
+
+/* ── Footer strip ────────────────────────────────────────── */
+
+#app-footer {
+  grid-column: 1 / -1;
+  background: var(--teal);
+  padding: 8px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#reset-btn {
+  background: transparent;
+  border: 1px solid var(--sand-dark);
+  color: var(--sand);
+  font-size: 0.75rem;
+  padding: 4px 12px;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: background 0.15s;
+}
+
+#reset-btn:hover {
+  background: var(--teal-light);
+}
+
+#run-btn {
+  background: var(--terra);
+  border: 1px solid var(--terra);
+  color: var(--sand);
+  font-size: 0.75rem;
+  padding: 4px 14px;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: opacity 0.15s;
+}
+
+#run-btn:hover {
+  opacity: 0.82;
+}
+
+/* ── Sliders ─────────────────────────────────────────────── */
+
+.slider-group {
+  margin-bottom: 18px;
+}
+
+.slider-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 5px;
+}
+
+.slider-label-row label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--teal);
+}
+
+.slider-value {
+  font-size: 0.75rem;
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--brown);
+}
+
+.slider-unit {
+  display: block;
+  font-size: 0.67rem;
+  color: var(--brown);
+  opacity: 0.6;
+  margin-top: 2px;
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: var(--sand-dark);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--teal);
+  border: 2px solid var(--sand);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+  transition: background 0.15s;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  background: var(--teal-light);
+}
+
+select {
+  width: 100%;
+  padding: 5px 8px;
+  background: var(--sand);
+  border: 1px solid var(--sand-dark);
+  color: var(--teal);
+  font-size: 0.8rem;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%2328536B' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 28px;
+}
+
+select:focus {
+  outline: 2px solid var(--teal);
+  outline-offset: 1px;
+}
+
+/* ── Output blocks ───────────────────────────────────────── */
+
+#panel-outputs h2 {
+  font-family: 'IBM Plex Serif', Georgia, serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--teal);
+  border-bottom: 1px solid var(--teal);
+  padding-bottom: 6px;
+  margin-bottom: 16px;
+}
+
+.output-block {
+  background: var(--sand);
+  border: 1px solid var(--sand-dark);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  position: relative;
+}
+
+.output-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.output-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--teal);
+}
+
+.output-unit {
+  font-size: 0.68rem;
+  color: var(--brown);
+  opacity: 0.65;
+}
+
+.bar-wrap {
+  position: relative;
+  height: 8px;
+  background: var(--sand-dark);
+  margin-bottom: 8px;
+  overflow: visible;
+}
+
+.bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--teal);
+  transition: width 0.25s ease-out;
+}
+
+.bar-baseline-marker {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 14px;
+  background: var(--terra);
+  left: 50%;
+  pointer-events: none;
+}
+
+.output-meta {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 5px;
+  flex-wrap: wrap;
+}
+
+.output-score,
+.output-raw {
+  font-size: 0.72rem;
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--brown);
+}
+
+.output-delta {
+  font-size: 0.72rem;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+}
+
+.delta-positive { color: #2e7d32; }
+.delta-negative { color: var(--terra); }
+.delta-neutral  { color: var(--brown); opacity: 0.6; }
+
+.output-responds {
+  font-size: 0.67rem;
+  color: var(--brown);
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.output-loading {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  font-size: 0.65rem;
+  color: var(--brown);
+  opacity: 0.55;
+}
+
+/* ── Legend and caveats ──────────────────────────────────── */
+
+.chain-legend {
+  font-size: 0.7rem;
+  color: var(--brown);
+  border-top: 1px solid var(--sand-dark);
+  padding-top: 10px;
+  margin-top: 4px;
+  margin-bottom: 10px;
+}
+
+.caveats {
+  list-style: none;
+  padding: 0;
+}
+
+.caveats li {
+  font-size: 0.67rem;
+  color: var(--terra);
+  padding-left: 10px;
+  position: relative;
+  margin-bottom: 3px;
+  line-height: 1.4;
+}
+
+.caveats li::before {
+  content: '!';
+  position: absolute;
+  left: 0;
+  font-weight: 700;
+}

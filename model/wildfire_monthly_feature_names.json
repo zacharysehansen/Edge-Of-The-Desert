@@ -53,6 +53,18 @@
   "ndvi_lag3",
   "ndvi_roll3",
   "ndvi_roll6",
+  "depth_to_water_ft_mean",
+  "depth_to_water_ft_mean_lag1",
+  "depth_to_water_ft_mean_lag3",
+  "depth_to_water_ft_mean_roll3",
+  "depth_to_water_ft_mean_roll6",
+  "discharge_cfs_mean",
+  "discharge_cfs_mean_lag1",
+  "discharge_cfs_mean_lag3",
+  "discharge_cfs_mean_roll3",
+  "discharge_cfs_mean_roll6",
+  "precip_x_impervious",
+  "precip_x_temperature",
   "month_sin",
   "month_cos"
 ]
