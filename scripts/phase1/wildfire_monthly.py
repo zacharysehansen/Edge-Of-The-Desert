@@ -32,13 +32,19 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)-8s  %(message)s", datefmt="%H:%M:%S")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s  %(levelname)-8s  %(message)s",
+    datefmt="%H:%M:%S",
+)
 log = logging.getLogger(__name__)
 
 RAW_DIR = ROOT / "data" / "raw" / "wildfire"
 OUTPUT_FILE = ROOT / "data" / "Final" / "wildfire_monthly.csv"
 
-HISTORICAL_FILE = RAW_DIR / "InterAgencyFirePerimeterHistory_All_Years_View_-1590405183658604377.csv"
+HISTORICAL_FILE = (
+    RAW_DIR / "InterAgencyFirePerimeterHistory_All_Years_View_-1590405183658604377.csv"
+)
 
 PROJECT_START = 2000
 PROJECT_END = 2023
@@ -47,33 +53,33 @@ PROJECT_END = 2023
 def _load_historical() -> pd.DataFrame:
     """Load and filter the historical fire perimeter file to AZ fires, 2000-2023."""
     log.info("Loading %s", HISTORICAL_FILE.name)
-    df = pd.read_csv(HISTORICAL_FILE, usecols=["FIRE_YEAR", "GIS_ACRES", "DATE_CUR", "UNIT_ID"], low_memory=False)
+    df = pd.read_csv(
+        HISTORICAL_FILE,
+        usecols=["FIRE_YEAR", "GIS_ACRES", "DATE_CUR", "UNIT_ID"],
+        low_memory=False,
+    )
 
-    # Filter to AZ
     az = df[df["UNIT_ID"].str.contains("AZ", na=False)].copy()
     log.info("AZ fires (all years): %d", len(az))
 
-    # Coerce types
     az["FIRE_YEAR"] = pd.to_numeric(az["FIRE_YEAR"], errors="coerce")
     az["GIS_ACRES"] = pd.to_numeric(az["GIS_ACRES"], errors="coerce")
     az = az.dropna(subset=["FIRE_YEAR", "GIS_ACRES"])
     az["FIRE_YEAR"] = az["FIRE_YEAR"].astype(int)
 
-    # Filter to project range
-    az = az[(az["FIRE_YEAR"] >= PROJECT_START) & (az["FIRE_YEAR"] <= PROJECT_END)].copy()
+    az = az[
+        (az["FIRE_YEAR"] >= PROJECT_START) & (az["FIRE_YEAR"] <= PROJECT_END)
+    ].copy()
     log.info("AZ fires %d-%d: %d", PROJECT_START, PROJECT_END, len(az))
 
-    # Drop zero/negative acreage
     az = az[az["GIS_ACRES"] > 0].copy()
 
-    # Extract month from DATE_CUR (format: YYYYMMDDHHMMSS as float/int)
     az["date_str"] = az["DATE_CUR"].astype(str).str.split(".").str[0]
-    az["month"] = pd.to_numeric(az["date_str"].str[4:6], errors="coerce").astype("Int64")
+    az["month"] = pd.to_numeric(az["date_str"].str[4:6], errors="coerce").astype(
+        "Int64"
+    )
     az["year"] = az["FIRE_YEAR"]
 
-    # Use FIRE_YEAR as the authoritative year (fire occurrence year)
-    # Use month from DATE_CUR (best available monthly signal for recent data)
-    # Drop rows where month couldn't be parsed
     pre = len(az)
     az = az.dropna(subset=["month"])
     az["month"] = az["month"].astype(int)
@@ -81,9 +87,13 @@ def _load_historical() -> pd.DataFrame:
         log.warning("Dropped %d rows with unparseable month.", pre - len(az))
 
     # Sanity: month must be 1-12
-    az = az[(az["month"] >= 1) & (az["month"] <= 12)]
+    az = az[(az["month"] >= 1) & (az["month"] <= 12)]  # noqa: PLR2004
 
-    return az[["year", "month", "GIS_ACRES"]].rename(columns={"GIS_ACRES": "acres"}).reset_index(drop=True)
+    return (
+        az[["year", "month", "GIS_ACRES"]]
+        .rename(columns={"GIS_ACRES": "acres"})
+        .reset_index(drop=True)
+    )
 
 
 def _build_monthly_index() -> pd.DataFrame:
@@ -96,21 +106,24 @@ def _aggregate_monthly(fires: pd.DataFrame) -> pd.DataFrame:
     """Aggregate individual fire records to monthly totals."""
     fires = fires.copy()
     fires["year_month"] = fires.apply(
-        lambda r: pd.Period(year=int(r["year"]), month=int(r["month"]), freq="M"), axis=1
+        lambda r: pd.Period(year=int(r["year"]), month=int(r["month"]), freq="M"),
+        axis=1,
     )
 
-    monthly = fires.groupby("year_month").agg(
-        fire_count=("acres", "count"),
-        total_acres=("acres", "sum"),
-    ).reset_index()
+    monthly = (
+        fires.groupby("year_month")
+        .agg(
+            fire_count=("acres", "count"),
+            total_acres=("acres", "sum"),
+        )
+        .reset_index()
+    )
 
-    # Join to complete index (fill months with no fires as 0)
     full_index = _build_monthly_index()
     result = full_index.merge(monthly, on="year_month", how="left")
     result["fire_count"] = result["fire_count"].fillna(0).astype(int)
     result["total_acres"] = result["total_acres"].fillna(0.0)
 
-    # Log-transform acres (handles skew; log1p safe for 0)
     result["log_acres"] = np.log1p(result["total_acres"])
 
     return result
@@ -137,8 +150,7 @@ def _build_risk_index(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def run() -> pd.DataFrame:
-    """Full pipeline: load → aggregate → risk index → write."""
+def main() -> None:
     log.info("=== wildfire_monthly.py start ===")
 
     fires = _load_historical()
@@ -149,16 +161,15 @@ def run() -> pd.DataFrame:
     monthly = _aggregate_monthly(fires)
     monthly = _build_risk_index(monthly)
 
-    # Select output columns
-    output = monthly[["year_month", "fire_count", "total_acres", "log_acres", "wildfire_risk_index"]].copy()
+    output = monthly[
+        ["year_month", "fire_count", "total_acres", "log_acres", "wildfire_risk_index"]
+    ].copy()
     output["year_month"] = output["year_month"].astype(str)
 
-    # Write
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     output.to_csv(OUTPUT_FILE, index=False)
     log.info("Wrote %d rows to %s", len(output), OUTPUT_FILE)
 
-    # Summary stats
     log.info("Monthly stats:")
     log.info("  Mean fire count: %.1f", output["fire_count"].mean())
     log.info("  Months with 0 fires: %d", (output["fire_count"] == 0).sum())
@@ -166,14 +177,7 @@ def run() -> pd.DataFrame:
     log.info("  Mean log_acres: %.2f", output["log_acres"].mean())
 
     log.info("=== wildfire_monthly.py complete ===")
-    return output
 
 
 if __name__ == "__main__":
-    result = run()
-    print(f"\nOutput: {OUTPUT_FILE}")
-    print(f"Rows: {len(result)}")
-    print(f"\nSample:")
-    print(result.head(12).to_string(index=False))
-    print("\n...")
-    print(result.tail(6).to_string(index=False))
+    main()

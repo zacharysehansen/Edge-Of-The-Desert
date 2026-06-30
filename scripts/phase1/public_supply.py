@@ -40,9 +40,6 @@ from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 
-# ---------------------------------------------------------------------------
-# Path setup
-# ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
@@ -51,9 +48,6 @@ from phase1.region import (
     filter_points,
 )
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(message)s",
@@ -61,9 +55,6 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
 RAW_DIR = ROOT / "data" / "raw"
 PROCESSED_DIR = ROOT / "data" / "Final"
 INPUT_FILE = RAW_DIR / "PS_HUC12_Tot_2000_2020.csv"
@@ -75,16 +66,8 @@ HUC12_SHAPEFILE = RAW_DIR / "wbd" / "WBDHU12.shp"
 # Optional: HUC12-to-county crosswalk (shared with irrigation.py)
 HUC12_COUNTY_CROSSWALK = RAW_DIR / "wbd" / "huc12_county_crosswalk.csv"
 
-# ---------------------------------------------------------------------------
-# Config [3]
-# ---------------------------------------------------------------------------
 YEAR_COL = "Year"
 MONTH_COL = "Month"
-
-
-# ---------------------------------------------------------------------------
-# Loaders
-# ---------------------------------------------------------------------------
 
 
 def _load_raw(path: Path) -> pd.DataFrame:
@@ -161,11 +144,6 @@ def _identify_huc12_columns(df: pd.DataFrame) -> list[str]:
         )
 
     return huc12_cols
-
-
-# ---------------------------------------------------------------------------
-# Spatial filter — determine which HUC12s are in the eight-county region
-# ---------------------------------------------------------------------------
 
 
 def _filter_huc12s_with_shapefile(
@@ -327,11 +305,6 @@ def _get_regional_huc12_columns(huc12_cols: list[str]) -> list[str]:
     return _filter_huc12s_bbox_fallback(huc12_cols)
 
 
-# ---------------------------------------------------------------------------
-# Aggregation
-# ---------------------------------------------------------------------------
-
-
 def _aggregate_to_monthly(
     df: pd.DataFrame,
     regional_cols: list[str],
@@ -383,11 +356,6 @@ def _aggregate_to_monthly(
     )
 
     return result
-
-
-# ---------------------------------------------------------------------------
-# Sanity checks
-# ---------------------------------------------------------------------------
 
 
 def _sanity_checks(df: pd.DataFrame) -> None:
@@ -452,43 +420,13 @@ def _sanity_checks(df: pd.DataFrame) -> None:
     )
 
 
-# ---------------------------------------------------------------------------
-# Main pipeline
-# ---------------------------------------------------------------------------
-
-
-def run(
-    input_file: Path = INPUT_FILE,
-    output_file: Path = OUTPUT_FILE,
-) -> pd.DataFrame:
-    """
-    Full public supply pipeline:
-        load wide CSV → identify HUC12 columns → spatial filter →
-        aggregate to monthly → sanity checks → write CSV.
-
-    Parameters
-    ----------
-    input_file : Path
-        Path to ps_huc12_tot_az_2000_2020.csv.
-        Defaults to data/raw/ps_huc12_tot_az_2000_2020.csv.
-    output_file : Path
-        Path for output CSV.
-        Defaults to data/processed/public_supply_monthly.csv.
-
-    Returns
-    -------
-    DataFrame
-        Final monthly public supply table, also written to output_file.
-    """
+def main() -> None:
     log.info("=== public_supply.py start ===")
 
-    # 1. Load raw wide-format file
-    df = _load_raw(input_file)
+    df = _load_raw(INPUT_FILE)
 
-    # 2. Identify HUC12 columns
     huc12_cols = _identify_huc12_columns(df)
 
-    # 3. Determine which HUC12s are in the eight-county region
     regional_cols = _get_regional_huc12_columns(huc12_cols)
     log.info(
         "Using %d of %d HUC12 columns for the eight-county region.",
@@ -496,48 +434,16 @@ def run(
         len(huc12_cols),
     )
 
-    # 4. Aggregate to monthly regional total
     monthly = _aggregate_to_monthly(df, regional_cols)
 
-    # 5. Sanity checks
     _sanity_checks(monthly)
 
-    # 6. Write output
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    monthly.to_csv(output_file, index=False)
-    log.info("Wrote %d rows to %s", len(monthly), output_file)
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    monthly.to_csv(OUTPUT_FILE, index=False)
+    log.info("Wrote %d rows to %s", len(monthly), OUTPUT_FILE)
 
     log.info("=== public_supply.py complete ===")
-    return monthly
 
-
-# ---------------------------------------------------------------------------
-# CLI entry point
-# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description="Build monthly regional public supply groundwater "
-        "withdrawal for the eight-county southern Arizona "
-        "study area from HUC12 source matrix."
-    )
-    parser.add_argument(
-        "--input",
-        type=Path,
-        default=INPUT_FILE,
-        help=f"Path to raw HUC12 public supply CSV (default: {INPUT_FILE})",
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=OUTPUT_FILE,
-        help=f"Path for output CSV (default: {OUTPUT_FILE})",
-    )
-    args = parser.parse_args()
-
-    result = run(input_file=args.input, output_file=args.output)
-    print(result.head(12).to_string(index=False))
-    print("...")
-    print(result.tail(12).to_string(index=False))
+    main()

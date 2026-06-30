@@ -9,10 +9,6 @@ Residual-over-lag1 formulation:
 
 TimeSeriesSplit(n_splits=5) cross-validation.
 Export: ONNX + artifacts to model/.
-
-Usage
------
-    python -m scripts.phase2.model_ndvi
 """
 
 from __future__ import annotations
@@ -39,10 +35,6 @@ N_SPLITS = 5
 CV = TimeSeriesSplit(n_splits=N_SPLITS)
 RANDOM_STATE = 42
 
-# ---------------------------------------------------------------------------
-# Hyperparameter search space (focused, per prior model report)
-# ---------------------------------------------------------------------------
-
 PARAM_SPACE = {
     "n_estimators": [400, 600, 800, 1000],
     "max_depth": [3, 4, 5],
@@ -55,26 +47,18 @@ PARAM_SPACE = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Core training
-# ---------------------------------------------------------------------------
-
-
 def train_and_evaluate() -> dict:
     """Build, tune, evaluate, and export the NDVI model."""
     datasets = build_all()
     x, y = datasets[MODEL_ID]
 
-    # Separate lag1 column for residual formulation
     lag1_col = "ndvi_lag1"
     lag1 = x[lag1_col].copy()
     x_train = x.drop(columns=[lag1_col])
     feature_names = list(x_train.columns)
 
-    # Residual target
     y_residual = y - lag1
 
-    # ----- Randomized search -----
     base_model = XGBRegressor(
         objective="reg:squarederror",
         tree_method="hist",
@@ -96,7 +80,6 @@ def train_and_evaluate() -> dict:
     best_model = search.best_estimator_
     best_params = search.best_params_
 
-    # ----- Fold-level evaluation (full residual → actual scale) -----
     fold_r2, fold_mae = [], []
     fold_details = []
 
@@ -138,13 +121,11 @@ def train_and_evaluate() -> dict:
     mean_mae = float(np.mean(fold_mae))
     std_mae = float(np.std(fold_mae))
 
-    # ----- Train score (for overfit diagnostic) -----
     train_pred_residual = best_model.predict(x_train)
     train_pred_actual = train_pred_residual + lag1.values
     train_r2 = float(r2_score(y, train_pred_actual))
     train_mae = float(mean_absolute_error(y, train_pred_actual))
 
-    # ----- Historical predictions -----
     hist_pred_residual = best_model.predict(x_train)
     hist_pred_actual = hist_pred_residual + lag1.values
     historical = pd.DataFrame(
@@ -155,7 +136,6 @@ def train_and_evaluate() -> dict:
         }
     )
 
-    # ----- Feature importance -----
     importance = dict(
         zip(feature_names, best_model.feature_importances_.tolist(), strict=False)
     )
@@ -163,16 +143,13 @@ def train_and_evaluate() -> dict:
         sorted(importance.items(), key=lambda x: x[1], reverse=True)
     )
 
-    # ----- Feature stats (mean/std for input scaling in ONNX consumer) -----
     feature_stats = {
         col: {"mean": float(x_train[col].mean()), "std": float(x_train[col].std())}
         for col in feature_names
     }
 
-    # ----- Export ONNX -----
     _export_onnx(best_model, feature_names)
 
-    # ----- Save artifacts -----
     cv_results = {
         "model_id": MODEL_ID,
         "formulation": "residual_over_lag1",
@@ -199,15 +176,11 @@ def train_and_evaluate() -> dict:
     return cv_results
 
 
-# ---------------------------------------------------------------------------
-# ONNX export
-# ---------------------------------------------------------------------------
-
-
 def _export_onnx(model: XGBRegressor, feature_names: list[str]) -> None:
     """Export to ONNX. Renames features to f0..fN for onnxmltools compatibility."""
 
-    # onnxmltools requires numeric feature names; clone with f0..fN
+    # onnxmltools requires numeric feature names
+    #  clone with f0..fN
     booster = model.get_booster()
     numeric_names = [f"f{i}" for i in range(len(feature_names))]
     booster.feature_names = numeric_names
@@ -224,11 +197,6 @@ def _export_onnx(model: XGBRegressor, feature_names: list[str]) -> None:
     with open(path, "wb") as f:
         f.write(onnx_model.SerializeToString())
     print(f"  ONNX exported → {path}")
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 
 def _save_json(obj: json, path: Path) -> None:

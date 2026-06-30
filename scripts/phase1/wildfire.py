@@ -41,9 +41,6 @@ import numpy as np
 import pandas as pd
 from shapely.geometry import Point
 
-# ---------------------------------------------------------------------------
-# Path setup — allow running as a script or as part of the package
-# ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
@@ -53,9 +50,6 @@ from phase1.region import (
     filter_points,
 )
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(message)s",
@@ -63,9 +57,6 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Paths — all relative to repo root, matching config paths block [3]
-# ---------------------------------------------------------------------------
 RAW_DIR = ROOT / "data" / "raw"
 PROCESSED_DIR = ROOT / "data" / "Final"
 INPUT_FILE = RAW_DIR / "az_wildfires.csv"
@@ -78,10 +69,6 @@ ACRES_COL = "Acres"
 # Candidate coordinate column pairs, checked in order of preference
 _LAT_CANDIDATES = ["latitude", "Latitude", "LAT", "lat", "Y", "y"]
 _LON_CANDIDATES = ["longitude", "Longitude", "LON", "lon", "X", "x"]
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 
 def _find_coord_columns(df: pd.DataFrame) -> tuple[str | None, str | None]:
@@ -155,9 +142,6 @@ def _spatial_filter(df: pd.DataFrame) -> pd.DataFrame:
     """
     lat_col, lon_col = _find_coord_columns(df)
 
-    # ------------------------------------------------------------------
-    # Strategy 1: coordinate columns present → full point-in-polygon
-    # ------------------------------------------------------------------
     if lat_col and lon_col:
         log.info(
             "Coordinate columns found ('%s', '%s'). "
@@ -191,9 +175,6 @@ def _spatial_filter(df: pd.DataFrame) -> pd.DataFrame:
         # Return plain DataFrame, drop geometry column
         return filtered_gdf.drop(columns=["geometry"]).reset_index(drop=True)
 
-    # ------------------------------------------------------------------
-    # Strategy 2: no coordinate columns → bounding-box fallback
-    # ------------------------------------------------------------------
     log.warning(
         "No latitude/longitude columns found in the wildfire CSV. "
         "Falling back to bounding-box filter only (min_lon=%.2f, "
@@ -277,38 +258,11 @@ def _row_count_check(df: pd.DataFrame) -> None:
         log.info("Row count looks acceptable for modeling: %d annual rows.", n)
 
 
-# ---------------------------------------------------------------------------
-# Main pipeline
-# ---------------------------------------------------------------------------
-
-
-def run(
-    input_file: Path = INPUT_FILE,
-    output_file: Path = OUTPUT_FILE,
-) -> pd.DataFrame:
-    """
-    Full wildfire pipeline: load → spatial filter → aggregate → risk index
-    → write CSV.
-
-    Parameters
-    ----------
-    input_file : Path
-        Path to az_wildfires.csv. Defaults to data/raw/az_wildfires.csv.
-    output_file : Path
-        Path for the output CSV. Defaults to
-        data/processed/wildfire_annual.csv.
-
-    Returns
-    -------
-    DataFrame
-        The final annual wildfire table, also written to output_file.
-    """
+def main() -> None:
     log.info("=== wildfire.py start ===")
 
-    # 1. Load and coerce raw data
-    df = _load_raw(input_file)
+    df = _load_raw(INPUT_FILE)
 
-    # 2. Filter to eight-county region
     df = _spatial_filter(df)
 
     if df.empty:
@@ -318,7 +272,6 @@ def run(
             "eight-county study area and that coordinate columns are present."
         )
 
-    # 3. Aggregate to annual totals
     annual = (
         df.groupby(YEAR_COL)
         .agg(
@@ -329,10 +282,8 @@ def run(
         .rename(columns={YEAR_COL: "year"})
     )
 
-    # Log-transform total acres (log1p handles the skew noted in README [2])
     annual["log_acres_total"] = np.log1p(annual["total_acres"]).round(6)
 
-    # Sort chronologically
     annual = annual.sort_values("year").reset_index(drop=True)
 
     log.info(
@@ -345,50 +296,20 @@ def run(
         annual["total_acres"].sum(),
     )
 
-    # 4. Row count sanity check [1]
     _row_count_check(annual)
 
-    # 5. Build risk index
     annual = _build_risk_index(annual)
 
-    # 6. Select and order output columns
     output = annual[
         ["year", "fire_count", "log_acres_total", "wildfire_risk_index"]
     ].copy()
 
-    # 7. Write output
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    output.to_csv(output_file, index=False)
-    log.info("Wrote %d rows to %s", len(output), output_file)
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    output.to_csv(OUTPUT_FILE, index=False)
+    log.info("Wrote %d rows to %s", len(output), OUTPUT_FILE)
 
     log.info("=== wildfire.py complete ===")
-    return output
 
-
-# ---------------------------------------------------------------------------
-# CLI entry point
-# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description="Build annual wildfire risk index for the eight-county "
-        "southern Arizona study area."
-    )
-    parser.add_argument(
-        "--input",
-        type=Path,
-        default=INPUT_FILE,
-        help=f"Path to raw wildfire CSV (default: {INPUT_FILE})",
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=OUTPUT_FILE,
-        help=f"Path for output CSV (default: {OUTPUT_FILE})",
-    )
-    args = parser.parse_args()
-
-    result = run(input_file=args.input, output_file=args.output)
-    print(result.to_string(index=False))
+    main()

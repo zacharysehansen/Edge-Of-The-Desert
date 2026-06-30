@@ -2,9 +2,8 @@
 grace_groundwater.py
 --------------------
 Re-extracts GRACE/GRACE-FO groundwater storage anomaly from raw .nc4
-files using a bounding box around the eight counties, applies the same
-grace_available flag and pre-2002-04 neutral fill as the original
-pipeline. [1]
+files using a bounding box around the eight counties, applies
+grace_available flag and pre-2002-04 neutral fill
 
 Input  : data/raw/grace_groundwater_anomaly/*.nc4
          (TELLUS_GRAC_L3_JPL_RL06_LND_v04 and
@@ -27,10 +26,7 @@ Source: NASA GRACE / GRACE-FO JPL RL06 Mascon [3]
 
 Spatial resolution:
     GRACE is a coarse-resolution satellite product (~300km effective
-    resolution, gridded to 0.5° or 1° cells). It was never truly
-    statewide-precise to begin with, so re-extracting it with a
-    bounding box around the eight counties from the raw files is
-    straightforward. [2]
+    resolution, gridded to 0.5° or 1° cells).
 
 Fill logic:
     - Months before 2002-04: filled with 0.0 (neutral), grace_available=0
@@ -41,6 +37,7 @@ Fill logic:
 Date range: 2000-01 to 2023-12 [3]
     The config start is 2000-01 but GRACE data begins 2002-04.
     Pre-GRACE months are filled with 0.0 as documented above. [1]
+    Pre-GRACE months are filled with 0.0 as documented above.
 """
 
 import logging
@@ -51,17 +48,11 @@ from pathlib import Path
 import pandas as pd
 import xarray as xr
 
-# ---------------------------------------------------------------------------
-# Path setup
-# ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from phase1.region import BBOX
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(message)s",
@@ -69,16 +60,10 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
 RAW_DIR = ROOT / "data" / "raw" / "grace_groundwater_anomaly"
 PROCESSED_DIR = ROOT / "data" / "Final"
 OUTPUT_FILE = PROCESSED_DIR / "grace_monthly.csv"
 
-# ---------------------------------------------------------------------------
-# Config from phase1.example.json [3]
-# ---------------------------------------------------------------------------
 START_DATE = "2000-01"
 END_DATE = "2023-12"
 VARIABLE_NAME = "lwe_thickness"
@@ -86,12 +71,10 @@ GRACE_START = "2002-04"  # First valid GRACE month
 GRACE_GAP_START = "2017-07"  # Inter-mission gap begins
 GRACE_GAP_END = "2018-05"  # Inter-mission gap ends
 GRACE_FO_START = "2018-06"  # GRACE-FO begins
-PRE_GRACE_FILL = 0.0  # Neutral fill for pre-GRACE months [1]
+PRE_GRACE_FILL = 0.0
 
-# Bounding box [3]
 MIN_LON, MIN_LAT, MAX_LON, MAX_LAT = BBOX
 
-# Alternative variable names found in different GRACE products
 VARIABLE_CANDIDATES = [
     "lwe_thickness",
     "lwe_thickness_jpl",
@@ -100,15 +83,9 @@ VARIABLE_CANDIDATES = [
     "Liquid_Water_Equivalent_Thickness",
 ]
 
-# Coordinate name candidates
 LAT_CANDIDATES = ["lat", "latitude", "Latitude", "LAT"]
 LON_CANDIDATES = ["lon", "longitude", "Longitude", "LON"]
 TIME_CANDIDATES = ["time", "Time", "TIME", "t"]
-
-
-# ---------------------------------------------------------------------------
-# NetCDF file discovery
-# ---------------------------------------------------------------------------
 
 
 def _discover_nc4_files(raw_dir: Path) -> list[Path]:
@@ -126,7 +103,6 @@ def _discover_nc4_files(raw_dir: Path) -> list[Path]:
     """
     nc4_files = sorted(raw_dir.glob("*.nc4"))
 
-    # Also check for .nc extension
     nc_files = sorted(raw_dir.glob("*.nc"))
     all_files = sorted(set(nc4_files + nc_files))
 
@@ -144,11 +120,6 @@ def _discover_nc4_files(raw_dir: Path) -> list[Path]:
     return all_files
 
 
-# ---------------------------------------------------------------------------
-# NetCDF processing
-# ---------------------------------------------------------------------------
-
-
 def _find_variable(ds: xr.Dataset) -> str:
     """
     Find the lwe_thickness variable name in the dataset.
@@ -158,7 +129,8 @@ def _find_variable(ds: xr.Dataset) -> str:
         if candidate in ds.data_vars:
             return candidate
 
-    # Fallback: look for any variable with 'lwe' or 'thickness' in the name
+    # As Fallback,
+    # look for any variable with 'lwe' or 'thickness' in the name
     for var in ds.data_vars:
         if "lwe" in var.lower() or "thickness" in var.lower():
             return var
@@ -204,7 +176,6 @@ def _process_single_file(  # noqa: C901, PLR0912, PLR0915
         return None
 
     try:
-        # Find variable and coordinate names
         var_name = _find_variable(ds)
         lat_name = _find_coord(ds, LAT_CANDIDATES)
         lon_name = _find_coord(ds, LON_CANDIDATES)
@@ -222,18 +193,15 @@ def _process_single_file(  # noqa: C901, PLR0912, PLR0915
         # Handle longitude convention (0-360 vs -180-180)
         lon_vals = ds[lon_name].values
         if lon_vals.max() > 180:  # noqa: PLR2004
-            # Convert bbox to 0-360 convention
             min_lon_adj = MIN_LON % 360
             max_lon_adj = MAX_LON % 360
         else:
             min_lon_adj = MIN_LON
             max_lon_adj = MAX_LON
 
-        # Subset to bounding box
         # Handle case where lat might be decreasing
         lat_vals = ds[lat_name].values
         if lat_vals[0] > lat_vals[-1]:
-            # Latitude is decreasing
             lat_slice = slice(MAX_LAT, MIN_LAT)
         else:
             lat_slice = slice(MIN_LAT, MAX_LAT)
@@ -241,7 +209,6 @@ def _process_single_file(  # noqa: C901, PLR0912, PLR0915
         if min_lon_adj <= max_lon_adj:
             lon_slice = slice(min_lon_adj, max_lon_adj)
         else:
-            # Wraps around the date line (shouldn't happen for Arizona)
             lon_slice = slice(min_lon_adj, max_lon_adj)
 
         subset = ds[var_name].sel({lat_name: lat_slice, lon_name: lon_slice})
@@ -263,17 +230,14 @@ def _process_single_file(  # noqa: C901, PLR0912, PLR0915
                 method="nearest",
             )
 
-        # Compute spatial mean per timestep
         if time_name in subset.dims:
             spatial_mean = subset.mean(
                 dim=[d for d in subset.dims if d != time_name],
                 skipna=True,
             )
         else:
-            # Single timestep file
             spatial_mean = subset.mean(skipna=True)
 
-        # Convert to DataFrame
         if time_name in subset.dims:
             times = pd.to_datetime(ds[time_name].values)
             values = spatial_mean.values
@@ -285,7 +249,6 @@ def _process_single_file(  # noqa: C901, PLR0912, PLR0915
                 }
             )
         else:
-            # Try to extract date from filename
             date = _extract_date_from_filename(nc_path)
             if date is None:
                 log.warning("  Cannot determine date for %s", nc_path.name)
@@ -302,20 +265,17 @@ def _process_single_file(  # noqa: C901, PLR0912, PLR0915
 
         ds.close()
 
-        # Convert to year_month
         df["date"] = pd.to_datetime(df["date"])
         df["year_month"] = df["date"].dt.to_period("M").astype(str)
         df["grace_groundwater_anomaly"] = pd.to_numeric(
             df["grace_groundwater_anomaly"], errors="coerce"
         )
 
-        # Drop NaN values
         df = df.dropna(subset=["grace_groundwater_anomaly"])
 
         if df.empty:
             return None
 
-        # Average if multiple values per month (shouldn't happen but safety)
         monthly = (
             df.groupby("year_month")["grace_groundwater_anomaly"].mean().reset_index()
         )
@@ -338,22 +298,15 @@ def _extract_date_from_filename(filepath: Path) -> str | None:
     """
     name = filepath.stem
 
-    # Try to find YYYYMM pattern
     match = re.search(r"(\d{4})(\d{2})", name)
     if match:
         return f"{match.group(1)}-{match.group(2)}-01"
 
-    # Try YYYY-MM pattern
     match = re.search(r"(\d{4})-(\d{2})", name)
     if match:
         return f"{match.group(1)}-{match.group(2)}-01"
 
     return None
-
-
-# ---------------------------------------------------------------------------
-# Process all files
-# ---------------------------------------------------------------------------
 
 
 def _process_all_nc_files(nc_files: list[Path]) -> pd.DataFrame:
@@ -387,9 +340,6 @@ def _process_all_nc_files(nc_files: list[Path]) -> pd.DataFrame:
         )
 
     combined = pd.concat(frames, ignore_index=True)
-
-    # Deduplicate — same month may appear in multiple files
-    # (GRACE and GRACE-FO overlap slightly at boundaries)
     if combined["year_month"].duplicated().any():
         n_dupes = combined["year_month"].duplicated().sum()
         log.info(
@@ -421,11 +371,6 @@ def _process_all_nc_files(nc_files: list[Path]) -> pd.DataFrame:
     return combined
 
 
-# ---------------------------------------------------------------------------
-# Fill logic — pre-GRACE and inter-mission gap [1]
-# ---------------------------------------------------------------------------
-
-
 def _apply_fill_and_flags(df: pd.DataFrame) -> pd.DataFrame:
     """
     Build the complete monthly index from START_DATE to END_DATE,
@@ -449,7 +394,6 @@ def _apply_fill_and_flags(df: pd.DataFrame) -> pd.DataFrame:
     DataFrame with columns: year_month, grace_groundwater_anomaly,
     grace_available. Complete from START_DATE to END_DATE.
     """
-    # Build complete monthly index
     all_months = (
         pd.date_range(
             start=f"{START_DATE}-01",
@@ -462,13 +406,10 @@ def _apply_fill_and_flags(df: pd.DataFrame) -> pd.DataFrame:
 
     complete = pd.DataFrame({"year_month": all_months})
 
-    # Merge with extracted data
     merged = complete.merge(df, on="year_month", how="left")
 
-    # Set grace_available flag
     merged["grace_available"] = merged["grace_groundwater_anomaly"].notna().astype(int)
 
-    # --- Fill pre-GRACE months with 0.0 [1] ---
     pre_grace_mask = merged["year_month"] < GRACE_START
     pre_grace_count = pre_grace_mask.sum()
     merged.loc[pre_grace_mask, "grace_groundwater_anomaly"] = PRE_GRACE_FILL
@@ -480,7 +421,7 @@ def _apply_fill_and_flags(df: pd.DataFrame) -> pd.DataFrame:
         PRE_GRACE_FILL,
     )
 
-    # --- Interpolate the inter-mission gap [1] ---
+    # Interpolate the inter-mission gap
     gap_mask = (merged["year_month"] >= GRACE_GAP_START) & (
         merged["year_month"] <= GRACE_GAP_END
     )
@@ -491,7 +432,6 @@ def _apply_fill_and_flags(df: pd.DataFrame) -> pd.DataFrame:
         "grace_groundwater_anomaly"
     ].interpolate(method="linear", limit_direction="both")
 
-    # Set grace_available=0 for the gap months
     merged.loc[gap_mask, "grace_available"] = 0
     log.info(
         "Inter-mission gap: %d months (%s to %s) interpolated.",
@@ -500,7 +440,6 @@ def _apply_fill_and_flags(df: pd.DataFrame) -> pd.DataFrame:
         GRACE_GAP_END,
     )
 
-    # Any remaining NaN (shouldn't happen after interpolation, but safety)
     remaining_nan = merged["grace_groundwater_anomaly"].isna().sum()
     if remaining_nan > 0:
         log.warning(
@@ -511,14 +450,12 @@ def _apply_fill_and_flags(df: pd.DataFrame) -> pd.DataFrame:
         merged["grace_groundwater_anomaly"] = merged[
             "grace_groundwater_anomaly"
         ].fillna(PRE_GRACE_FILL)
-        # These are also not real data
         merged.loc[
             merged["grace_groundwater_anomaly"] == PRE_GRACE_FILL, "grace_available"
         ] = 0
 
     merged["grace_groundwater_anomaly"] = merged["grace_groundwater_anomaly"].round(6)
 
-    # Summary
     available = merged["grace_available"].sum()
     filled = len(merged) - available
     log.info(
@@ -531,27 +468,20 @@ def _apply_fill_and_flags(df: pd.DataFrame) -> pd.DataFrame:
     return merged.reset_index(drop=True)
 
 
-# ---------------------------------------------------------------------------
-# Sanity checks
-# ---------------------------------------------------------------------------
-
-
 def _sanity_checks(df: pd.DataFrame) -> None:
     """Run basic sanity checks on the GRACE output."""
 
-    # Row count — expect 288 months (2000-01 to 2023-12)
+    # Row count, expect 288 months (2000-01 to 2023-12)
     expected = 288
     if len(df) != expected:
         log.warning("Expected %d monthly rows but got %d.", expected, len(df))
     else:
         log.info("Row count correct: %d monthly rows.", len(df))
 
-    # Null check
     nulls = df["grace_groundwater_anomaly"].isna().sum()
     if nulls:
         log.warning("%d null values remain after fill logic.", nulls)
 
-    # grace_available flag check
     available = df["grace_available"].sum()
     log.info(
         "grace_available: %d months with real data, %d filled.",
@@ -566,127 +496,24 @@ def _sanity_checks(df: pd.DataFrame) -> None:
     if not (pre_grace["grace_available"] == 0).all():
         log.warning("Some pre-GRACE months have grace_available=1.")
 
-    # Magnitude check — GRACE lwe_thickness is typically in range
-    # [-30, +10] cm for Arizona (declining water storage)
-    valid_data = df[df["grace_available"] == 1]["grace_groundwater_anomaly"]
-    if not valid_data.empty:
-        if valid_data.min() < -50 or valid_data.max() > 30:  # noqa: PLR2004
-            log.warning(
-                "GRACE values [%.2f, %.2f] cm exceed expected range "
-                "[-50, +30] for Arizona. Verify units.",
-                valid_data.min(),
-                valid_data.max(),
-            )
-        else:
-            log.info(
-                "Magnitude check passed: range [%.2f, %.2f] cm.",
-                valid_data.min(),
-                valid_data.max(),
-            )
 
-    # Declining trend check — southern Arizona groundwater has generally
-    # declined since 2002 [2]
-    if not valid_data.empty:
-        early = df[(df["year_month"] >= "2002-04") & (df["year_month"] < "2005-01")][
-            "grace_groundwater_anomaly"
-        ].mean()
-        late = df[df["year_month"] >= "2021-01"]["grace_groundwater_anomaly"].mean()
-
-        if late < early:
-            log.info(
-                "Trend check passed: early mean=%.2f cm, "
-                "late mean=%.2f cm (declining as expected).",
-                early,
-                late,
-            )
-        else:
-            log.warning(
-                "GRACE anomaly increased from early (%.2f) to late (%.2f). "
-                "Unexpected for southern Arizona — verify data.",
-                early,
-                late,
-            )
-
-
-# ---------------------------------------------------------------------------
-# Main pipeline
-# ---------------------------------------------------------------------------
-
-
-def run(
-    raw_dir: Path = RAW_DIR,
-    output_file: Path = OUTPUT_FILE,
-) -> pd.DataFrame:
-    """
-    Full GRACE groundwater pipeline:
-        discover .nc4 files → extract lwe_thickness for bbox →
-        compute monthly spatial mean → apply fill logic and flags →
-        sanity checks → write CSV.
-
-    Parameters
-    ----------
-    raw_dir : Path
-        Directory containing GRACE .nc4 files.
-        Defaults to data/raw/grace_groundwater_anomaly/.
-    output_file : Path
-        Path for output CSV.
-        Defaults to data/processed/grace_monthly.csv.
-
-    Returns
-    -------
-    DataFrame
-        Final monthly GRACE table, also written to output_file.
-    """
+def main() -> None:
     log.info("=== grace_groundwater.py start ===")
 
-    # 1. Discover NetCDF files
-    nc_files = _discover_nc4_files(raw_dir)
+    nc_files = _discover_nc4_files(RAW_DIR)
 
-    # 2. Process all files and extract monthly spatial means
     monthly_raw = _process_all_nc_files(nc_files)
 
-    # 3. Apply fill logic and grace_available flag [1]
     monthly = _apply_fill_and_flags(monthly_raw)
 
-    # 4. Sanity checks
     _sanity_checks(monthly)
 
-    # 5. Write output
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    monthly.to_csv(output_file, index=False)
-    log.info("Wrote %d rows to %s", len(monthly), output_file)
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    monthly.to_csv(OUTPUT_FILE, index=False)
+    log.info("Wrote %d rows to %s", len(monthly), OUTPUT_FILE)
 
     log.info("=== grace_groundwater.py complete ===")
-    return monthly
 
-
-# ---------------------------------------------------------------------------
-# CLI entry point
-# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description="Build monthly GRACE groundwater storage anomaly for "
-        "the eight-county southern Arizona study area from "
-        "existing .nc4 files."
-    )
-    parser.add_argument(
-        "--raw-dir",
-        type=Path,
-        default=RAW_DIR,
-        help=f"Directory with .nc4 files (default: {RAW_DIR})",
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=OUTPUT_FILE,
-        help=f"Path for output CSV (default: {OUTPUT_FILE})",
-    )
-    args = parser.parse_args()
-
-    result = run(raw_dir=args.raw_dir, output_file=args.output)
-    print(result.head(12).to_string(index=False))
-    print("...")
-    print(result.tail(12).to_string(index=False))
+    main()

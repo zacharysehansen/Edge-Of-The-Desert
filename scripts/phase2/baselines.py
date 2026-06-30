@@ -30,7 +30,6 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 MODEL_DIR = REPO_ROOT / "model"
 BASELINES_PATH = MODEL_DIR / "baselines.json"
 
-# CV splitters — must match the model scripts
 CV_SPLITTERS = {
     "ndvi": TimeSeriesSplit(n_splits=5),
     "grace": TimeSeriesSplit(n_splits=5),
@@ -65,7 +64,6 @@ def _cv_score_baseline(
     for _, test_idx in cv.split(x):
         y_test = y.iloc[test_idx]
         if pred_col not in x.columns:
-            # Column not available for this model — skip
             return {
                 "mean_r2": float("nan"),
                 "std_r2": float("nan"),
@@ -247,11 +245,7 @@ def compute_baselines(
     return results
 
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
-
-if __name__ == "__main__":
+def main() -> None:
     baselines = compute_baselines()
 
     print(f"\nBaselines saved → {BASELINES_PATH}\n")
@@ -273,3 +267,7 @@ if __name__ == "__main__":
             f"{r3['mean_mae']:>10.4f} "
             f"{v['n_rows']:>6}"
         )
+
+
+if __name__ == "__main__":
+    main()

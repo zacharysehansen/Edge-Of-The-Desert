@@ -1,156 +1,235 @@
-# Southern Arizona Water and Land Model: Dataset Inventory
+# Edge of the Desert
 
-## End Goal
+A planning-stage environmental model for an eight-county southern Arizona region
+(Pima, Pinal, Santa Cruz, Cochise, Graham, Greenlee, Yuma, La Paz). It takes human
+and climate pressures as inputs — population, irrigation, public-supply withdrawal,
+urbanization, reservoir operations, temperature, precipitation, drought — and predicts
+six environmental responses: vegetation health (NDVI), groundwater storage anomaly
+(GRACE), groundwater well depth, surface-water discharge, wildfire risk, and wildlife
+abundance.
 
-Build a set of regression models for an eight-county southern Arizona region (Pima, Pinal, Santa Cruz, Cochise, Graham, Greenlee, Yuma, La Paz) that take in human and environmental pressure variables and predict three separate environmental outcomes. This is a planning-stage tool, meant to let someone adjust inputs like population growth, irrigation demand, or urbanization and see how vegetation health, water levels, and wildfire risk would likely respond.
+Each response gets its own independent regression model trained on the same shared
+input set. A browser frontend loads the exported models and lets a user move the input
+sliders and watch the predicted responses update live.
 
-Inputs: population, irrigation withdrawal, water management (reservoir behavior), urbanization, and water stress.
+The project is organized into three phases:
 
-Outputs: vegetation index (NDVI), ground and surface water levels, wildfire risk, and wildlife abundance.
+| Phase | What it does | Code | Produces |
+|-------|--------------|------|----------|
+| **Phase 1** | Pull/clean raw sources into clean monthly & annual CSVs | `scripts/phase1/` | `data/Final/*.csv` |
+| **Phase 2** | Merge, engineer features, train & export models | `scripts/phase2/` | `model/*.onnx` + JSON sidecars |
+| **Phase 3** | Compute slider/output ranges + serve the frontend | `scripts/phase3/`, `frontend/` | `frontend/computed_stats.json` + web app |
 
-Each output gets its own separate XGBoost regression model trained on the same shared input set, rather than one combined model or a single bottleneck variable that all inputs route through first.
-
-
-## Research Question
-
-How do population growth, agricultural water demand, urban development, reservoir management decisions, and drought conditions influence vegetation health, water availability, wildfire risk, and wildlife abundance in Southern Arizona?
-
-Version 2 is designed around a simple conceptual framework:
-
-**Human Pressures and Environmental Conditions → Environmental Responses**
-
-Rather than combining all variables into a single sustainability metric, the project models several environmental systems independently so that users can observe how each responds to the same set of pressures.
-
----
-
-## Input Variables
-
-The model inputs represent human pressures, land-use change, water management decisions, and regional drought conditions.
-
-| Input Variable           | Description                                                        | Source                             |
-| ------------------------ | ------------------------------------------------------------------ | ---------------------------------- |
-| Population               | Regional population pressure                                       | U.S. Census Bureau                 |
-| Irrigation Withdrawal    | Agricultural water demand                                          | HUC12 irrigation datasets          |
-| Public Supply Withdrawal | Municipal groundwater demand                                       | NWAA groundwater datasets          |
-| Reservoir Operations     | Water management behavior represented through Lake Mead operations | Bureau of Reclamation              |
-| Urbanization             | Impervious surface coverage and land development                   | NLCD Fractional Impervious Surface |
-| USDM DSCI                | Regional drought severity and coverage index                       | U.S. Drought Monitor               |
-
-These variables form the shared input set used by every model in the system.
+See [PHASE1_SETUP.md](PHASE1_SETUP.md) for the dataset inventory and
+[PHASE2_REPORT.md](PHASE2_REPORT.md) for full model-training results.
 
 ---
 
-## Output Variables
+## Repository layout
 
-The model predicts ecological and hydrological responses to the selected input conditions.
-
-| Output Variable             | Source                              | Temporal Resolution |
-| --------------------------- | ----------------------------------- | ------------------- |
-| Vegetation Health (NDVI)    | MODIS                               | Monthly             |
-| Groundwater Storage Anomaly | GRACE / GRACE-FO                    | Monthly             |
-| Surface Water Conditions    | Regional water-level indicators     | Monthly             |
-| Wildfire Risk               | Regional fire event database        | Annual              |
-| Wildlife Abundance          | North American Breeding Bird Survey | Annual              |
-
-Together, these outputs provide a multi-dimensional picture of environmental health across Southern Arizona.
-
----
-
-## Modeling Framework
-
-Version 2 uses multiple independent machine learning models rather than a single composite environmental index.
-
-Each model receives the same set of input variables and predicts one environmental outcome.
-
-| Model   | Prediction Target           |
-| ------- | --------------------------- |
-| Model 1 | NDVI                        |
-| Model 2 | Groundwater Storage Anomaly |
-| Model 4 | Surface Water Conditions    |
-| Model 5 | Wildfire Risk               |
-| Model 6 | Wildlife Abundance          |
-
-This approach improves interpretability and allows users to examine how different environmental systems respond to the same set of human and environmental pressures.
+```
+config/            phase1.example.json — study-area bbox, counties, date range
+data/
+  raw/             source files (HDF/nc4/CSV/TIF) — inputs to Phase 1
+  processed/       intermediate panels written by Phase 2 (monthly_panel, annual_panel)
+  Final/           clean per-variable CSVs written by Phase 1 — inputs to Phase 2
+scripts/
+  phase1/          one script per source variable + run_phase1.py orchestrator
+  phase2/          merge, features, baselines, model_*, export, run_phase2.py
+  phase3/          generate_stats.py
+model/             exported ONNX models + feature/CV JSON sidecars (Phase 2 output)
+frontend/          static web app (index.html, ui.js, models.js, state.js, style.css)
+requirements.txt   Python dependencies
+```
 
 ---
 
-## Visualization
+## Prerequisites
 
-### Control Panel
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+```
 
-Users manipulate the major drivers of environmental change:
+All commands below are run **from the repository root**. The geospatial Phase 1
+scripts need GDAL/rasterio system libraries; on most systems the pip wheels suffice,
+otherwise install GDAL via your package manager or conda
+(`conda install -c conda-forge gdal rasterio`).
 
-* Population
-* Irrigation Withdrawal
-* Public Supply Withdrawal
-* Reservoir Operations
-* Urbanization
-* USDM DSCI
+The study area, bounding box, and date range are defined once in
+[scripts/phase1/region.py](scripts/phase1/region.py) and mirrored in
+[config/phase1.example.json](config/phase1.example.json). Every Phase 1 script imports
+from `region.py`, so there is a single source of truth for the boundary.
 
-### Environmental Response Panel
+---
 
-The system displays predicted outcomes across multiple environmental domains.
+## Phase 1 — Data processing (`scripts/phase1/`)
 
-**Vegetation Health**
+Each script reads raw source data from `data/raw/<source>/`, clips it to the
+eight-county region, aggregates to a consistent grain (monthly or annual), and writes
+one clean CSV to `data/Final/`. Every script exposes a `main()` and can be run on its
+own as a module, or all of them can be run together.
 
-NDVI indicators show expected changes in vegetation productivity.
+### Run everything
 
-**Groundwater Conditions**
+```bash
+python scripts/phase1/run_phase1.py
+```
 
-Groundwater anomaly and well-level visualizations display subsurface water conditions.
+This imports and runs `main()` for every script in `scripts/phase1/` (skipping
+`region.py` and `run_phase1.py`) and prints a completion line per file.
 
-**Surface Water Conditions**
+### Run one variable at a time
 
-Water-level indicators summarize predicted surface-water response.
+```bash
+python -m scripts.phase1.ndvi
+python -m scripts.phase1.precipitation
+python -m scripts.phase1.wildfire_monthly
+# ...etc
+```
 
-**Wildfire Risk**
+### Scripts and their outputs
 
-A wildfire-risk indicator displays projected fire pressure under the selected scenario.
+| Script | Raw input (under `data/raw/`) | Output in `data/Final/` |
+|--------|-------------------------------|-------------------------|
+| `population.py` | Census PEP API / CSVs | `azpop_monthly.csv` |
+| `irrigation.py` | HUC12 withdrawal CSV | `irrigation_monthly.csv` |
+| `public_supply.py` | NWAA HUC12 CSV | `public_supply_monthly.csv` |
+| `lake_mead.py` | Reclamation HydroData CSVs | `lake_mead_monthly.csv` |
+| `urbanization.py` | NLCD impervious TIFs (`NLCD/`) | `urbanization_monthly.csv` |
+| `water_stress.py` | USDM DSCI API | `water_stress_monthly.csv` |
+| `temperature.py` | MERRA-2 `.nc4` (`merra_temperature_2m/`) | `temperature_monthly.csv` |
+| `precipitation.py` | MERRA-2 `.nc4` (`merra_precipitation/`) | `precipitation_monthly.csv` |
+| `grace_groundwater.py` | GRACE `.nc4` (`grace_groundwater_anomaly/`) | `grace_monthly.csv` |
+| `ndvi.py` | MODIS MOD13A3 `.hdf` (`modis_ndvi/`) | `ndvi_monthly.csv` |
+| `groundwater_levels.py` | Well depth records | `groundwater_levels_monthly.csv` |
+| `water_surface.py` | Stream discharge records | `water_surface_monthly.csv` |
+| `wildfire_monthly.py` | InterAgency fire perimeter CSV (`wildfire/`) | `wildfire_monthly.csv` |
+| `wildfire.py` | Same source, annual grain | `wildfire_annual.csv` |
+| `wildlife.py` | BBS routes + counts (`bbs/`) | `wildlife_annual.csv` |
+| `region.py` | — (shared boundary helpers, not runnable) | — |
 
-**Wildlife Abundance**
+> The scripts assume the raw files already exist in `data/raw/`. Several sources
+> require network access or credentials (NASA Earthdata via `earthaccess` for
+> MODIS/MERRA-2/GRACE; the Census and USDM APIs; ScienceBase for BBS). See
+> [PHASE1_SETUP.md](PHASE1_SETUP.md) and [data/Final/DATA.md](data/Final/DATA.md)
+> for endpoints and re-pull instructions.
 
-Ecological indicators display predicted changes in regional wildlife populations.
+---
 
-**Historical Context**
+## Phase 2 — Modeling (`scripts/phase2/`)
 
-Time-series visualizations compare predicted outcomes with historical observations.
+Phase 2 merges the `data/Final/` CSVs into panels, engineers lag/rolling/anomaly/
+seasonal features, computes persistence baselines, trains one model per response, and
+exports each to ONNX with JSON sidecars. The full pipeline runs in ~60 seconds.
 
-## Datasets Already Available
+### Run the full pipeline
 
-These were collected for an earlier, differently-scoped project and exist as files already, though several need to be re-aggregated to fit the new eight-county boundary.
+```bash
+python -m scripts.phase2.run_phase2
+```
 
-**Irrigation total withdrawal.** A pre-aggregated statewide monthly file exists (`irrigation_huc12_monthly_az_2000_2020.csv`), built from an underlying HUC12-level source matrix that is also still available. Since the statewide file can't be un-aggregated, the HUC12-level source needs to be re-filtered to only the eight counties and re-summed.
+Stages, in order:
 
-**Public supply groundwater withdrawal.** Same situation as irrigation: a statewide pre-aggregated file exists (`nwaa_public_supply_az_monthly.csv`), and the underlying HUC12-level shards are also available for re-filtering and re-aggregation to the eight counties.
+1. **merge.py** — builds `data/processed/monthly_panel.csv` (288×) and
+   `data/processed/annual_panel.csv` from `data/Final/`.
+2. **features.py** — engineers per-model feature matrices.
+3. **baselines.py** — computes lag-1 persistence baselines for comparison →
+   `model/baselines.json`.
+4. **model_*.py** — trains, evaluates (TimeSeriesSplit / LOO), and exports each model.
+5. **export.py** — writes the side-by-side `model/model_comparison.json` and prints
+   the leaderboard.
 
-**GRACE groundwater anomaly.** A statewide monthly file exists (`grace_groundwater_anomaly.csv`), derived from raw satellite `.nc4` files that are also still available. Because GRACE is a coarse-resolution satellite product (roughly 100km grid cells), it was never truly statewide-precise to begin with, so re-extracting it with a bounding box around the eight counties from the raw files is straightforward.
+### Useful flags
 
-**MODIS NDVI.** A statewide monthly file exists (`modis_ndvi.csv`). This is the vegetation output target. It can likely be re-clipped to the eight counties if the original raw MODIS pull is still available, or re-pulled fresh from Earthdata scoped to the new region otherwise.
+```bash
+# Train only specific models
+python -m scripts.phase2.run_phase2 --models ndvi grace
 
-**Population.** A statewide monthly file exists (`azpop_monthly.csv`), interpolated from annual Census figures. This needs to be replaced rather than re-aggregated, since the original interpolation was done at the state level with no county breakdown retained.
+# Run merge/features/baselines/export but skip model training
+python -m scripts.phase2.run_phase2 --skip-models
+```
 
-## Datasets That Need To Be Created
+Valid `--models` values: `ndvi`, `grace`, `groundwater`, `surface_water`,
+`wildfire_monthly`, `wildlife`.
 
-These don't exist yet in any form and require pulling new source data.
+### Exported artifacts (per model, written to `model/`)
 
-**Population, county-level.** U.S. Census Bureau county population estimates for the eight counties, summed to a regional annual total, then interpolated to monthly using the same method as the original statewide interpolation.
+- `{id}.onnx` — deployable model
+- `{id}_feature_names.json` — ordered feature list (maps to ONNX input positions)
+- `{id}_feature_stats.json` — per-feature mean/std for normalization
+- `{id}_feature_importance.json` — importance / coefficients
+- `{id}_cv_results.json` — CV scores, best params, fold details
+- `historical_{id}.csv` — actual vs. predicted over the training window
 
-**Lake Mead water management data.** Pulled from the Bureau of Reclamation's HydroData Navigator, reservoir ID 921. Four confirmed CSV endpoints, all daily and starting in 1935:
+Plus `model/model_comparison.json` and `model/baselines.json` summaries. The model IDs
+and their results are documented in [PHASE2_REPORT.md](PHASE2_REPORT.md).
 
-- Pool elevation: `https://www.usbr.gov/uc/water/hydrodata/reservoir_data/921/csv/49.csv`
-- Storage: `https://www.usbr.gov/uc/water/hydrodata/reservoir_data/921/csv/17.csv`
-- Total release: `https://www.usbr.gov/uc/water/hydrodata/reservoir_data/921/csv/42.csv`
-- Release volume: `https://www.usbr.gov/uc/water/hydrodata/reservoir_data/921/csv/43.csv`
+---
 
-Each needs filtering to the model's date range and aggregation from daily to monthly.
+## Phase 3 — Stats + Frontend
 
-**Urbanization.** USGS Annual NLCD (1985-2023), Fractional Impervious Surface product, pulled from the public cloud bucket (`s3://usgs-landcover/annual-nlcd/c1/v0/cu/mosaic/`). This is raster data covering the whole continental US, not pre-aggregated to any region, so it needs to be downloaded year by year, clipped to the eight-county boundary using a county shapefile, and averaged into a single impervious-surface percentage per year. The result is annual and needs interpolation to monthly.
+### Step 1: Generate slider/output ranges
 
-New private housing permit data from FRED was considered as an alternative urbanization signal and rejected. Permits measure new construction activity rather than the existing built footprint, and only the Tucson metro area has county-level coverage in FRED, leaving seven of the eight counties unrepresented.
+The frontend needs the realistic range (5th/50th/95th percentiles) of every input and
+output to set slider bounds and output baselines. Regenerate it whenever the
+`data/Final/` CSVs change:
 
-**Water stress (USDM-derived score).** The original statewide USDM-based sustainability score (`100 - usdm_dsci / 5`) needs to be re-derived or re-extracted for the eight-county region specifically, since the existing file is statewide.
+```bash
+python scripts/phase3/generate_stats.py
+```
 
-**Wildfire event data, regionally filtered.** The user already holds a wildfire CSV (`OBJECTID, FIRE_NAME, FIRE_Number, FireID, Acres, FIRE_YEAR, Z, KM2, Source1, Source2, Shape__Area, Shape__Length`). This needs to be filtered to fires located within the eight counties, then converted into an annual wildfire risk index combining fire count and log-transformed total acreage, since the raw file is annual-grain with no monthly date field and the acreage distribution is heavily skewed by a small number of large fires.
+This reads `data/Final/` and writes `frontend/computed_stats.json` (`SLIDER_STATS` and
+`OUTPUT_STATS`), which `state.js` imports directly.
 
-**Wildlife abundance.** North American Breeding Bird Survey (BBS), USGS, hosted on ScienceBase, the 2025 release covering 1966 through 2024. Routes are fixed physical roadside survey lines, each with a stable latitude and longitude, sampled annually during June. Route metadata (route ID, name, latitude, longitude, state, stratum, active status) and yearly species-level counts are separate tables joined by route ID and year. Data must be filtered to routes whose coordinates fall inside the eight counties, then aggregated to a single annual abundance index per year (pooled count across species, or a species richness count, still to be decided). No data exists for 2020, since BBS field activity was cancelled that year. Access is through the `sciencebasepy` Python package, which calls the ScienceBase REST API directly. The host `sciencebase.gov` is not reachable from this sandbox's network, so this dataset must be pulled from an environment with open internet access rather than from inside the current pipeline tooling.
+### Step 2: Serve the frontend
 
+The frontend is a static, dependency-free web app. It loads the ONNX models in the
+browser via `onnxruntime-web` (from a CDN, declared in the importmap in
+[frontend/index.html](frontend/index.html)) and runs inference client-side — no backend.
+
+It fetches models from the absolute path `/model/<id>.onnx`, so the server root must be
+the **repository root** (not the `frontend/` directory):
+
+```bash
+# from the repo root
+python -m http.server 8000
+```
+
+Then open <http://localhost:8000/frontend/index.html>.
+
+### How it fits together
+
+- `index.html` builds three panels (human inputs, climate inputs, model outputs) and
+  boots `ui.js`.
+- `state.js` defines the sliders/outputs and loads ranges from `computed_stats.json`.
+- `models.js` loads the six ONNX models from `/model/` along with their
+  `_feature_names`/`_feature_stats` sidecars, then runs inference whenever a slider
+  moves. Residual models (NDVI, GRACE, groundwater, surface water) predict the change
+  from the previous month and reconstruct the level; surface water additionally uses a
+  `log1p` target transform.
+- `ui.js` renders the controls and updates the output cards.
+
+Because the models are loaded straight from the Phase 2 `model/` directory, re-running
+Phase 2 and refreshing the browser is all that's needed to deploy updated models.
+
+---
+
+## End-to-end, from scratch
+
+```bash
+# 0. setup
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+# 1. build clean CSVs from raw sources (requires data/raw/ to be populated)
+python scripts/phase1/run_phase1.py
+
+# 2. train and export all models
+python -m scripts.phase2.run_phase2
+
+# 3. compute frontend ranges, then serve
+python scripts/phase3/generate_stats.py
+python -m http.server 8000
+#    → open http://localhost:8000/frontend/index.html
+```

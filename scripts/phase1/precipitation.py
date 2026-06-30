@@ -36,17 +36,11 @@ from pathlib import Path
 import pandas as pd
 import xarray as xr
 
-# ---------------------------------------------------------------------------
-# Path setup
-# ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from phase1.region import BBOX
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(message)s",
@@ -54,21 +48,15 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
 RAW_DIR = ROOT / "data" / "raw" / "merra_precipitation"
 PROCESSED_DIR = ROOT / "data" / "Final"
 OUTPUT_FILE = PROCESSED_DIR / "precipitation_monthly.csv"
 
-# ---------------------------------------------------------------------------
-# Config from phase1.example.json [3]
-# ---------------------------------------------------------------------------
 START_DATE = "2000-01"
 END_DATE = "2023-12"
 VARIABLE_NAME = "PRECTOT"
 
-# Unit conversion: kg/m²/s → mm/day [3]
+# Unit conversion: kg/m²/s → mm/day
 # 1 kg/m²/s = 1 mm/s × 86400 s/day = 86400 mm/day
 # MERRA-2 monthly PRECTOT is a time-averaged rate in kg/m²/s
 SECONDS_PER_DAY = 86400.0
@@ -90,11 +78,6 @@ VARIABLE_CANDIDATES = [
 LAT_CANDIDATES = ["lat", "latitude", "Latitude", "LAT"]
 LON_CANDIDATES = ["lon", "longitude", "Longitude", "LON"]
 TIME_CANDIDATES = ["time", "Time", "TIME", "t"]
-
-
-# ---------------------------------------------------------------------------
-# File discovery
-# ---------------------------------------------------------------------------
 
 
 def _discover_nc4_files(raw_dir: Path) -> list[Path]:
@@ -125,11 +108,6 @@ def _discover_nc4_files(raw_dir: Path) -> list[Path]:
 
     log.info("Found %d NetCDF files in %s", len(all_files), raw_dir)
     return all_files
-
-
-# ---------------------------------------------------------------------------
-# NetCDF processing
-# ---------------------------------------------------------------------------
 
 
 def _find_variable(ds: xr.Dataset) -> str:
@@ -325,11 +303,6 @@ def _extract_date_from_filename(filepath: Path) -> str | None:
     return None
 
 
-# ---------------------------------------------------------------------------
-# Process all files
-# ---------------------------------------------------------------------------
-
-
 def _process_all_nc_files(nc_files: list[Path]) -> pd.DataFrame:
     """
     Process all NetCDF files and build a year_month → precipitation table.
@@ -388,11 +361,6 @@ def _process_all_nc_files(nc_files: list[Path]) -> pd.DataFrame:
     return df
 
 
-# ---------------------------------------------------------------------------
-# Gap filling
-# ---------------------------------------------------------------------------
-
-
 def _check_and_fill_gaps(df: pd.DataFrame) -> pd.DataFrame:
     """
     Check for missing months and fill small gaps via interpolation.
@@ -438,11 +406,6 @@ def _check_and_fill_gaps(df: pd.DataFrame) -> pd.DataFrame:
         log.warning("%d months still NaN after interpolation.", remaining)
 
     return merged.reset_index(drop=True)
-
-
-# ---------------------------------------------------------------------------
-# Sanity checks
-# ---------------------------------------------------------------------------
 
 
 def _sanity_checks(df: pd.DataFrame) -> None:
@@ -515,84 +478,23 @@ def _sanity_checks(df: pd.DataFrame) -> None:
         )
 
 
-# ---------------------------------------------------------------------------
-# Main pipeline
-# ---------------------------------------------------------------------------
-
-
-def run(
-    raw_dir: Path = RAW_DIR,
-    output_file: Path = OUTPUT_FILE,
-) -> pd.DataFrame:
-    """
-    Full precipitation pipeline:
-        discover .nc4 files → extract PRECTOT for bbox →
-        convert kg/m²/s to mm/day → compute monthly spatial mean →
-        fill gaps → sanity checks → write CSV.
-
-    Parameters
-    ----------
-    raw_dir : Path
-        Directory containing MERRA-2 .nc4 files.
-        Defaults to data/raw/merra_precipitation/.
-    output_file : Path
-        Path for output CSV.
-        Defaults to data/processed/precipitation_monthly.csv.
-
-    Returns
-    -------
-    DataFrame
-        Final monthly precipitation table, also written to output_file.
-    """
+def main() -> None:
     log.info("=== precipitation.py start ===")
 
-    # 1. Discover NetCDF files
-    nc_files = _discover_nc4_files(raw_dir)
+    nc_files = _discover_nc4_files(RAW_DIR)
 
-    # 2. Process all files
     monthly = _process_all_nc_files(nc_files)
 
-    # 3. Check for gaps and fill
     monthly = _check_and_fill_gaps(monthly)
 
-    # 4. Sanity checks
     _sanity_checks(monthly)
 
-    # 5. Write output
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    monthly.to_csv(output_file, index=False)
-    log.info("Wrote %d rows to %s", len(monthly), output_file)
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    monthly.to_csv(OUTPUT_FILE, index=False)
+    log.info("Wrote %d rows to %s", len(monthly), OUTPUT_FILE)
 
     log.info("=== precipitation.py complete ===")
-    return monthly
 
-
-# ---------------------------------------------------------------------------
-# CLI entry point
-# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description="Build monthly precipitation for the eight-county "
-        "southern Arizona study area from MERRA-2 NetCDF files."
-    )
-    parser.add_argument(
-        "--raw-dir",
-        type=Path,
-        default=RAW_DIR,
-        help=f"Directory with .nc4 files (default: {RAW_DIR})",
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=OUTPUT_FILE,
-        help=f"Path for output CSV (default: {OUTPUT_FILE})",
-    )
-    args = parser.parse_args()
-
-    result = run(raw_dir=args.raw_dir, output_file=args.output)
-    print(result.head(12).to_string(index=False))
-    print("...")
-    print(result.tail(12).to_string(index=False))
+    main()

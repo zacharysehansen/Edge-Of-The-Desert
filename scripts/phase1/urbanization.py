@@ -39,17 +39,11 @@ from rasterio.warp import transform_bounds
 from rasterio.windows import from_bounds
 from scipy.interpolate import CubicSpline
 
-# ---------------------------------------------------------------------------
-# Path setup
-# ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from phase1.region import BBOX
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(message)s",
@@ -57,15 +51,9 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
 RAW_DIR = ROOT / "data" / "raw" / "NLCD"
 OUTPUT_FILE = ROOT / "data" / "Final" / "urbanization_monthly.csv"
 
-# ---------------------------------------------------------------------------
-# Config
-# ---------------------------------------------------------------------------
 START_YEAR = 2000
 END_YEAR = 2023
 
@@ -77,10 +65,6 @@ BUNDLE_DIRS = [
     RAW_DIR / "Annual_NLCD_FctImp_2015-2024_CU_C1V1",
 ]
 
-
-# ---------------------------------------------------------------------------
-# Raster discovery
-# ---------------------------------------------------------------------------
 
 def _discover_rasters() -> dict[int, Path]:
     """
@@ -99,15 +83,14 @@ def _discover_rasters() -> dict[int, Path]:
                     year_to_path[year] = tif
                     break
 
-    log.info("Discovered %d TIF rasters across %d bundle directories.",
-             len(year_to_path), len(BUNDLE_DIRS))
+    log.info(
+        "Discovered %d TIF rasters across %d bundle directories.",
+        len(year_to_path),
+        len(BUNDLE_DIRS),
+    )
 
     return year_to_path
 
-
-# ---------------------------------------------------------------------------
-# Raster processing
-# ---------------------------------------------------------------------------
 
 def _compute_mean_impervious(tif_path: Path, year: int) -> float:
     """
@@ -116,10 +99,14 @@ def _compute_mean_impervious(tif_path: Path, year: int) -> float:
     """
     with rasterio.open(tif_path) as src:
         raster_crs = src.crs
-        if raster_crs and raster_crs.to_epsg() != 4326:
+        if raster_crs and raster_crs.to_epsg() != 4326:  # noqa: PLR2004
             left, bottom, right, top = transform_bounds(
-                "EPSG:4326", raster_crs,
-                MIN_LON, MIN_LAT, MAX_LON, MAX_LAT,
+                "EPSG:4326",
+                raster_crs,
+                MIN_LON,
+                MIN_LAT,
+                MAX_LON,
+                MAX_LAT,
             )
         else:
             left, bottom, right, top = MIN_LON, MIN_LAT, MAX_LON, MAX_LAT
@@ -136,7 +123,10 @@ def _compute_mean_impervious(tif_path: Path, year: int) -> float:
         if nodata is None:
             nodata = 250
 
-        valid_mask = (data >= 0) & (data <= 100) & (data != nodata)
+        data_range = [0, 100]
+        valid_mask = (
+            (data >= data_range[0]) & (data <= data_range[1]) & (data != nodata)
+        )
         valid_data = data[valid_mask]
 
         if len(valid_data) == 0:
@@ -144,15 +134,16 @@ def _compute_mean_impervious(tif_path: Path, year: int) -> float:
             return np.nan
 
         mean_pct = float(np.mean(valid_data))
-        log.info("  Year %d: window shape=%s, valid pixels=%d, mean impervious=%.4f%%",
-                 year, data.shape, len(valid_data), mean_pct)
+        log.info(
+            "  Year %d: window shape=%s, valid pixels=%d, mean impervious=%.4f%%",
+            year,
+            data.shape,
+            len(valid_data),
+            mean_pct,
+        )
 
         return round(mean_pct, 4)
 
-
-# ---------------------------------------------------------------------------
-# Annual processing
-# ---------------------------------------------------------------------------
 
 def _build_annual_impervious() -> pd.DataFrame:
     """
@@ -185,16 +176,15 @@ def _build_annual_impervious() -> pd.DataFrame:
 
     log.info(
         "Annual impervious summary: %d years (%d–%d), min=%.4f%%, max=%.4f%%.",
-        len(annual), annual["year"].min(), annual["year"].max(),
-        annual["impervious_pct"].min(), annual["impervious_pct"].max(),
+        len(annual),
+        annual["year"].min(),
+        annual["year"].max(),
+        annual["impervious_pct"].min(),
+        annual["impervious_pct"].max(),
     )
 
     return annual
 
-
-# ---------------------------------------------------------------------------
-# Monthly interpolation
-# ---------------------------------------------------------------------------
 
 def _interpolate_to_monthly(annual: pd.DataFrame) -> pd.DataFrame:
     """
@@ -217,30 +207,26 @@ def _interpolate_to_monthly(annual: pd.DataFrame) -> pd.DataFrame:
 
     monthly_pct = np.clip(monthly_pct, 0, 100)
 
-    result = pd.DataFrame({
-        "year_month": months.strftime("%Y-%m"),
-        "impervious_pct": np.round(monthly_pct, 4),
-    })
+    result = pd.DataFrame(
+        {
+            "year_month": months.strftime("%Y-%m"),
+            "impervious_pct": np.round(monthly_pct, 4),
+        }
+    )
 
     log.info(
         "Monthly interpolation: %d rows (%s to %s), min=%.4f%%, max=%.4f%%.",
-        len(result), result["year_month"].iloc[0], result["year_month"].iloc[-1],
-        result["impervious_pct"].min(), result["impervious_pct"].max(),
+        len(result),
+        result["year_month"].iloc[0],
+        result["year_month"].iloc[-1],
+        result["impervious_pct"].min(),
+        result["impervious_pct"].max(),
     )
 
     return result
 
 
-# ---------------------------------------------------------------------------
-# Main pipeline
-# ---------------------------------------------------------------------------
-
-def run(output_file: Path = OUTPUT_FILE) -> pd.DataFrame:
-    """
-    Full urbanization pipeline:
-        scan TIFs → windowed read → compute annual mean →
-        interpolate monthly → write CSV.
-    """
+def main() -> None:
     log.info("=== urbanization.py start ===")
 
     annual = _build_annual_impervious()
@@ -249,29 +235,20 @@ def run(output_file: Path = OUTPUT_FILE) -> pd.DataFrame:
     years_expected = set(range(START_YEAR, END_YEAR + 1))
     years_missing = years_expected - years_present
     if years_missing:
-        log.warning("Missing data for %d years: %s.", len(years_missing), sorted(years_missing))
+        log.warning(
+            "Missing data for %d years: %s.", len(years_missing), sorted(years_missing)
+        )
     else:
         log.info("Full year coverage: %d–%d.", START_YEAR, END_YEAR)
 
     monthly = _interpolate_to_monthly(annual)
 
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    monthly.to_csv(output_file, index=False)
-    log.info("Wrote %d rows to %s", len(monthly), output_file)
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    monthly.to_csv(OUTPUT_FILE, index=False)
+    log.info("Wrote %d rows to %s", len(monthly), OUTPUT_FILE)
 
     log.info("=== urbanization.py complete ===")
-    return monthly
 
-
-# ---------------------------------------------------------------------------
-# CLI entry point
-# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    result = run()
-    print(f"\nOutput: {OUTPUT_FILE}")
-    print(f"Rows: {len(result)}")
-    print(f"\nSample (first 12 months):")
-    print(result.head(12).to_string(index=False))
-    print("...")
-    print(result.tail(12).to_string(index=False))
+    main()

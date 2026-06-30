@@ -15,11 +15,6 @@ dict mapping model_id -> (X: pd.DataFrame, y: pd.Series)
   "wildfire"      - Model 5: Wildfire risk index, annual
   "wildlife"      - Model 6: Wildlife abundance index, annual
 
-Usage
------
-    from scripts.phase2.features import build_all
-    datasets = build_all()
-    X, y = datasets["ndvi"]
 """
 
 from __future__ import annotations
@@ -36,13 +31,6 @@ from scripts.phase2.merge import (
     build_monthly_panel,
 )
 
-# ---------------------------------------------------------------------------
-# Monthly feature engineering
-# ---------------------------------------------------------------------------
-
-# Base columns present in the monthly panel that are input features.
-# Excluded from Model 2 (GRACE): grace_groundwater_anomaly, grace_available
-# (they are the target and its flag).
 _MONTHLY_BASE_INPUTS = [
     "population",
     "irrigation_total_withdrawal_mgd",
@@ -109,10 +97,10 @@ def _add_seasonal_encoding(df: pd.DataFrame) -> pd.DataFrame:
 def _add_interaction_features(df: pd.DataFrame) -> pd.DataFrame:
     """Add physically motivated interaction terms."""
     df = df.copy()
-    # Precipitation × impervious = runoff proxy (dominant discharge in urban desert)
+    # Precipitation x impervious = runoff proxy (dominant discharge in urban desert)
     if "precipitation_mm_day" in df.columns and "impervious_pct" in df.columns:
         df["precip_x_impervious"] = df["precipitation_mm_day"] * df["impervious_pct"]
-    # Precipitation × temperature = evapotranspiration proxy
+    # Precipitation x temperature = evapotranspiration proxy
     if "precipitation_mm_day" in df.columns and "temperature_2m_c" in df.columns:
         df["precip_x_temperature"] = df["precipitation_mm_day"] * df["temperature_2m_c"]
     return df
@@ -126,11 +114,6 @@ def _engineer_monthly(monthly_raw: pd.DataFrame) -> pd.DataFrame:
     df = _add_seasonal_encoding(df)
     df = _add_interaction_features(df)
     return df
-
-
-# ---------------------------------------------------------------------------
-# Explicit feature lists for each monthly model
-# ---------------------------------------------------------------------------
 
 
 def _monthly_feature_cols(exclude_target_base: list[str]) -> list[str]:
@@ -185,26 +168,26 @@ def _monthly_feature_cols(exclude_target_base: list[str]) -> list[str]:
         "precipitation_mm_day_anomaly_roll3",
         "impervious_pct_lag1",
         "impervious_pct_roll12",
-        # GRACE features (excluded in Model 2)
+        # GRACE features
         "grace_groundwater_anomaly",
         "grace_groundwater_anomaly_lag1",
         "grace_groundwater_anomaly_lag3",
         "grace_groundwater_anomaly_roll3",
         "grace_groundwater_anomaly_roll6",
         "grace_available",
-        # NDVI features (excluded in Model 1 — it's the target)
+        # NDVI features
         "ndvi",
         "ndvi_lag1",
         "ndvi_lag3",
         "ndvi_roll3",
         "ndvi_roll6",
-        # Groundwater well level (excluded in Model 3 — it's the target)
+        # Groundwater well level
         "depth_to_water_ft_mean",
         "depth_to_water_ft_mean_lag1",
         "depth_to_water_ft_mean_lag3",
         "depth_to_water_ft_mean_roll3",
         "depth_to_water_ft_mean_roll6",
-        # Surface water discharge (excluded in Model 4 — it's the target)
+        # Surface water discharge
         "discharge_cfs_mean",
         "discharge_cfs_mean_lag1",
         "discharge_cfs_mean_lag3",
@@ -230,11 +213,6 @@ def _monthly_feature_cols(exclude_target_base: list[str]) -> list[str]:
             filtered.append(feat)
 
     return filtered
-
-
-# ---------------------------------------------------------------------------
-# Annual feature engineering
-# ---------------------------------------------------------------------------
 
 
 def _add_annual_lag_roll(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
@@ -290,26 +268,22 @@ def _add_fire_ecology_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     df = df.copy()
 
-    # Prior year precipitation (already exists as lag1, but make explicit 2-year sum)
+    # Prior year precipitation
     if "precipitation_mm_day_annual_sum" in df.columns:
         precip = df["precipitation_mm_day_annual_sum"]
         df["precip_prior_2yr_sum"] = precip.shift(1) + precip.shift(2)
         df["precip_prior_1yr"] = precip.shift(1)
 
-    # Wet-then-dry interaction: high prior precip × high current summer temp
-    # (wet year grows fuel → hot dry year ignites it)
     if (
         "precipitation_mm_day_annual_sum" in df.columns
         and "temperature_2m_c_jja_mean" in df.columns
     ):
         df["wet_then_dry"] = df["precip_prior_1yr"] * df["temperature_2m_c_jja_mean"]
 
-    # Consecutive dry year count: years where annual precip is below median
     if "precipitation_mm_day_annual_sum" in df.columns:
         precip = df["precipitation_mm_day_annual_sum"]
         median_precip = precip.median()
         is_dry = (precip < median_precip).astype(int)
-        # Count consecutive dry years ending at each row
         dry_count = []
         count = 0
         for val in is_dry:
@@ -325,7 +299,7 @@ def _add_fire_ecology_features(df: pd.DataFrame) -> pd.DataFrame:
         jja = df["temperature_2m_c_jja_mean"]
         df["jja_temp_anomaly"] = jja - jja.expanding(min_periods=3).mean()
 
-    # USDM drought persistence: max drought severity in prior 2 years
+    # USDM drought persistence (max drought severity in prior 2 years)
     if "usdm_dsci_jja_mean" in df.columns:
         dsci = df["usdm_dsci_jja_mean"]
         df["dsci_max_prior_2yr"] = pd.concat(
@@ -398,12 +372,11 @@ def build_all(  # noqa: PLR0915
     # -----------------------------------------------------------------------
     monthly = _engineer_monthly(monthly_raw)
 
-    # Clip to modeling window
     window_start = pd.Period(MONTHLY_WINDOW_START, freq="M")
     window_end = pd.Period(MONTHLY_WINDOW_END, freq="M")
     monthly_w = monthly.loc[window_start:window_end].copy()
 
-    # Model 1 — NDVI
+    # Model 1 - NDVI
     ndvi_features = _monthly_feature_cols(exclude_target_base=["ndvi"])
     ndvi_features = [f for f in ndvi_features if f in monthly_w.columns]
     x_ndvi = monthly_w[ndvi_features + ["ndvi_lag1"]].copy()  # lag1 kept for residual
@@ -411,7 +384,7 @@ def build_all(  # noqa: PLR0915
     mask = x_ndvi.notna().all(axis=1) & y_ndvi.notna()
     datasets["ndvi"] = (x_ndvi[mask], y_ndvi[mask])
 
-    # Model 2 — GRACE
+    # Model 2 - GRACE
     grace_features = _monthly_feature_cols(
         exclude_target_base=["grace_groundwater_anomaly"]
     )
@@ -421,7 +394,7 @@ def build_all(  # noqa: PLR0915
     mask = x_grace.notna().all(axis=1) & y_grace.notna()
     datasets["grace"] = (x_grace[mask], y_grace[mask])
 
-    # Model 3 — Groundwater Well Levels
+    # Model 3 - Groundwater Well Levels
     if "depth_to_water_ft_mean" in monthly_w.columns:
         gw_features = _monthly_feature_cols(
             exclude_target_base=["depth_to_water_ft_mean"]
@@ -432,7 +405,7 @@ def build_all(  # noqa: PLR0915
         mask = x_gw.notna().all(axis=1) & y_gw.notna()
         datasets["groundwater"] = (x_gw[mask], y_gw[mask])
 
-    # Model 4 — Surface Water Conditions (discharge only; gage_height has gaps)
+    # Model 4 - Surface Water Conditions (discharge only; gage_height has gaps)
     if "discharge_cfs_mean" in monthly_w.columns:
         sw_features = _monthly_feature_cols(
             exclude_target_base=["discharge_cfs_mean", "gage_height_ft_mean"]
@@ -443,7 +416,7 @@ def build_all(  # noqa: PLR0915
         mask = x_sw.notna().all(axis=1) & y_sw.notna()
         datasets["surface_water"] = (x_sw[mask], y_sw[mask])
 
-    # Model 5 (monthly) — Wildfire Risk Index
+    # Model 5 - Wildfire Risk Index
     if "wildfire_risk_index" in monthly_w.columns:
         wf_monthly_features = _monthly_feature_cols(
             exclude_target_base=[
@@ -461,9 +434,7 @@ def build_all(  # noqa: PLR0915
         mask = x_wf_monthly.notna().all(axis=1) & y_wf_monthly.notna()
         datasets["wildfire_monthly"] = (x_wf_monthly[mask], y_wf_monthly[mask])
 
-    # -----------------------------------------------------------------------
-    # Annual models (Model 6: Wildlife)
-    # -----------------------------------------------------------------------
+    # Model 6 - Wildlife
     annual = _engineer_annual(annual_raw)
     annual_w = annual.loc[ANNUAL_WINDOW_START:ANNUAL_WINDOW_END].copy()
 

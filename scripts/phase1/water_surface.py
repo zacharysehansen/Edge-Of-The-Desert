@@ -16,31 +16,21 @@ import pandas as pd
 import requests
 from region import COUNTY_FIPS
 
-# -------------------------------------------------------------------
-# Configuration
-# -------------------------------------------------------------------
-
 # USGS parameter codes
 # 00060 = Discharge (cubic feet per second)
 # 00065 = Gage height (feet)
 PARAMETER_CODES = ["00060", "00065"]
 
-# Date range
 YEAR_START = 2000
 YEAR_END = 2020
 
-# Output files
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT_DIR = ROOT / "data" / "Final"
 OUTPUT_DAILY = OUTPUT_DIR / "water_surface_daily_8county_2000_2020.csv"
 OUTPUT_MONTHLY = OUTPUT_DIR / "water_surface_monthly.csv"
 
-# Seconds between API requests
 REQUEST_DELAY = 0.5
 
-# -------------------------------------------------------------------
-# NWIS Daily Values endpoint
-# -------------------------------------------------------------------
 
 BASE_URL = "https://waterservices.usgs.gov/nwis/dv/"
 

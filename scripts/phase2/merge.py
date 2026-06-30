@@ -15,10 +15,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FINAL = REPO_ROOT / "data" / "Final"
 PROCESSED = REPO_ROOT / "data" / "processed"
@@ -54,15 +50,10 @@ MONTHLY_TO_ANNUAL_RULES = {
     "temperature_2m_c": ["mean", "jja"],
     "precipitation_mm_day": ["mean", "sum", "jja"],
     "grace_groundwater_anomaly": ["mean"],
-    "grace_available": ["mean"],  # fraction of year with real GRACE
+    "grace_available": ["mean"],
     "ndvi": ["mean", "jja"],
     "impervious_pct": ["mean"],
 }
-
-
-# ---------------------------------------------------------------------------
-# Loaders
-# ---------------------------------------------------------------------------
 
 
 def _read_monthly(filename: str, rename: dict | None = None) -> pd.DataFrame:
@@ -86,11 +77,6 @@ def _read_annual(filename: str) -> pd.DataFrame:
     return df
 
 
-# ---------------------------------------------------------------------------
-# Build monthly panel
-# ---------------------------------------------------------------------------
-
-
 def build_monthly_panel() -> pd.DataFrame:
     """
     Join all monthly CSVs on a complete 2000-01 to 2023-12 PeriodIndex.
@@ -98,7 +84,6 @@ def build_monthly_panel() -> pd.DataFrame:
     Columns missing for a sub-range (irrigation ends 2020-12) are NaN
     outside their coverage window — this is intentional and reported.
     """
-    # Full target index
     full_index = pd.period_range("2000-01", "2023-12", freq="M")
 
     frames = [
@@ -124,7 +109,6 @@ def build_monthly_panel() -> pd.DataFrame:
         for col in df.columns:
             panel[col] = df[col]
 
-    # Derived convenience column: calendar month (1-12)
     panel["month"] = panel.index.month.astype(int)
 
     return panel
@@ -184,16 +168,14 @@ def build_annual_panel(monthly: pd.DataFrame) -> pd.DataFrame:
             annual["precipitation_mm_day_annual_sum"]
         )
 
-    # Linear year index (long-term trend feature)
+    # Linear year index
     annual["year_linear"] = annual.index - ANNUAL_WINDOW_START
 
     # Join wildfire targets
     wildfire = _read_annual("wildfire_annual.csv")
     annual = annual.join(wildfire, how="left")
 
-    # Join wildlife targets
     wildlife = _read_annual("wildlife_annual.csv")
-    # Rename to avoid column clashes
     wildlife = wildlife.rename(
         columns={
             "route_count": "bbs_route_count",
@@ -205,11 +187,6 @@ def build_annual_panel(monthly: pd.DataFrame) -> pd.DataFrame:
     annual = annual.join(wildlife, how="left")
 
     return annual
-
-
-# ---------------------------------------------------------------------------
-# Coverage report
-# ---------------------------------------------------------------------------
 
 
 def _coverage_report(panel: pd.DataFrame, name: str) -> None:
@@ -230,11 +207,6 @@ def _coverage_report(panel: pd.DataFrame, name: str) -> None:
         print(f"  {col:<45} {status}")
 
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
-
-
 def run() -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Build both panels, write to processed/, and return (monthly, annual).
@@ -251,9 +223,13 @@ def run() -> tuple[pd.DataFrame, pd.DataFrame]:
     return monthly, annual
 
 
-if __name__ == "__main__":
+def main() -> None:
     monthly, annual = run()
     _coverage_report(monthly, "Monthly Panel  →  data/processed/monthly_panel.csv")
     _coverage_report(annual, "Annual Panel   →  data/processed/annual_panel.csv")
     print(f"\nMonthly panel  : {MONTHLY_PANEL_PATH}")
     print(f"Annual panel   : {ANNUAL_PANEL_PATH}")
+
+
+if __name__ == "__main__":
+    main()

@@ -50,9 +50,6 @@ import numpy as np
 import pandas as pd
 from shapely.geometry import Point
 
-# ---------------------------------------------------------------------------
-# Path setup
-# ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
@@ -60,9 +57,6 @@ from phase1.region import (
     filter_points,
 )
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(message)s",
@@ -70,18 +64,12 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
 RAW_DIR = ROOT / "data" / "raw" / "bbs"
 PROCESSED_DIR = ROOT / "data" / "Final"
 ROUTES_FILE = RAW_DIR / "Routes.csv"
 COUNTS_FILE = RAW_DIR / "Arizona.csv"
 OUTPUT_FILE = PROCESSED_DIR / "wildlife_annual.csv"
 
-# ---------------------------------------------------------------------------
-# Config [3]
-# ---------------------------------------------------------------------------
 START_YEAR = 2000
 END_YEAR = 2024
 BBS_CANCELLED_YEARS = [2020]
@@ -94,10 +82,6 @@ STATE_COL = "StateNum"
 ROUTE_COL = "Route"
 LAT_COL = "Latitude"
 LON_COL = "Longitude"
-
-# ---------------------------------------------------------------------------
-# Loaders
-# ---------------------------------------------------------------------------
 
 
 def _load_routes(path: Path) -> pd.DataFrame:
@@ -168,11 +152,6 @@ def _load_counts(path: Path) -> pd.DataFrame:
     return df
 
 
-# ---------------------------------------------------------------------------
-# Spatial filter
-# ---------------------------------------------------------------------------
-
-
 def _filter_routes_to_region(routes_df: pd.DataFrame) -> pd.DataFrame:
     """
     Filter BBS routes to those whose coordinates fall inside the
@@ -229,11 +208,6 @@ def _filter_routes_to_region(routes_df: pd.DataFrame) -> pd.DataFrame:
         )
 
     return filtered.drop(columns=["geometry"]).reset_index(drop=True)
-
-
-# ---------------------------------------------------------------------------
-# Annual aggregation
-# ---------------------------------------------------------------------------
 
 
 def _aggregate_to_annual(
@@ -350,11 +324,6 @@ def _aggregate_to_annual(
     return annual
 
 
-# ---------------------------------------------------------------------------
-# Abundance index
-# ---------------------------------------------------------------------------
-
-
 def _build_abundance_index(annual: pd.DataFrame) -> pd.DataFrame:
     """
     Build the abundance index from log1p(total_abundance),
@@ -378,11 +347,6 @@ def _build_abundance_index(annual: pd.DataFrame) -> pd.DataFrame:
         df["abundance_index"] = ((log_abundance - lo) / (hi - lo)).round(6)
 
     return df
-
-
-# ---------------------------------------------------------------------------
-# Row count check
-# ---------------------------------------------------------------------------
 
 
 def _row_count_check(df: pd.DataFrame) -> None:
@@ -411,55 +375,20 @@ def _row_count_check(df: pd.DataFrame) -> None:
         log.info("Row count acceptable for modeling: %d annual rows.", n)
 
 
-# ---------------------------------------------------------------------------
-# Main pipeline
-# ---------------------------------------------------------------------------
-
-
-def run(
-    routes_file: Path = ROUTES_FILE,
-    counts_file: Path = COUNTS_FILE,
-    output_file: Path = OUTPUT_FILE,
-) -> pd.DataFrame:
-    """
-    Full BBS wildlife pipeline:
-        load routes → spatial filter → load counts →
-        aggregate → abundance index → write CSV.
-
-    Parameters
-    ----------
-    routes_file : Path
-        Path to Routes.csv. Defaults to data/raw/bbs/Routes.csv.
-    counts_file : Path
-        Path to Arizona.csv. Defaults to data/raw/bbs/Arizona.csv.
-    output_file : Path
-        Path for output CSV. Defaults to
-        data/processed/wildlife_annual.csv.
-
-    Returns
-    -------
-    DataFrame
-        Final annual wildlife table, also written to output_file.
-    """
+def main() -> None:
     log.info("=== wildlife_bbs.py start ===")
 
-    # 1. Load routes and filter to region
-    routes_raw = _load_routes(routes_file)
+    routes_raw = _load_routes(ROUTES_FILE)
     regional_routes = _filter_routes_to_region(routes_raw)
 
-    # 2. Load counts
-    counts_raw = _load_counts(counts_file)
+    counts_raw = _load_counts(COUNTS_FILE)
 
-    # 3. Aggregate to annual
     annual = _aggregate_to_annual(counts_raw, regional_routes)
 
-    # 4. Row count check [1]
     _row_count_check(annual)
 
-    # 5. Build abundance index
     annual = _build_abundance_index(annual)
 
-    # 6. Select and order output columns
     output = annual[
         [
             "year",
@@ -470,55 +399,16 @@ def run(
         ]
     ].copy()
 
-    # 7. Final check — 2020 must not appear in output [2]
     if BBS_CANCELLED_YEARS[0] in output["year"].values:
         log.warning("2020 found in output despite cancellation filter. Removing now.")
         output = output[output["year"] != BBS_CANCELLED_YEARS[0]].reset_index(drop=True)
 
-    # 8. Write output
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    output.to_csv(output_file, index=False)
-    log.info("Wrote %d rows to %s", len(output), output_file)
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    output.to_csv(OUTPUT_FILE, index=False)
+    log.info("Wrote %d rows to %s", len(output), OUTPUT_FILE)
 
     log.info("=== wildlife_bbs.py complete ===")
-    return output
 
-
-# ---------------------------------------------------------------------------
-# CLI entry point
-# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description="Build annual wildlife abundance index for the "
-        "eight-county southern Arizona study area using "
-        "USGS North American Breeding Bird Survey data."
-    )
-    parser.add_argument(
-        "--routes",
-        type=Path,
-        default=ROUTES_FILE,
-        help=f"Path to Routes.csv (default: {ROUTES_FILE})",
-    )
-    parser.add_argument(
-        "--counts",
-        type=Path,
-        default=COUNTS_FILE,
-        help=f"Path to Arizona.csv (default: {COUNTS_FILE})",
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=OUTPUT_FILE,
-        help=f"Path for output CSV (default: {OUTPUT_FILE})",
-    )
-    args = parser.parse_args()
-
-    result = run(
-        routes_file=args.routes,
-        counts_file=args.counts,
-        output_file=args.output,
-    )
-    print(result.to_string(index=False))
+    main()

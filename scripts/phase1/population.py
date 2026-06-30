@@ -13,7 +13,6 @@ confirmed working. The 2010-2020 and 2020-2023 vintages use direct
 CSV downloads because the Census PEP API endpoints for those periods
 return 404 errors. [1]
 
-Output : data/processed/population_monthly.csv
 
 Columns in output:
     year_month    - str, format YYYY-MM
@@ -25,15 +24,6 @@ Interpolation method:
     between July 1 anchor points, which preserves the smooth growth
     curve expected from demographic change. [1]
 
-County FIPS codes used [3]:
-    04019 Pima
-    04021 Pinal
-    04023 Santa Cruz
-    04003 Cochise
-    04013 Graham
-    04011 Greenlee
-    04027 Yuma
-    04007 La Paz
 
 Date range: 2000-01 to 2023-12 [3]
 """
@@ -50,17 +40,11 @@ import pandas as pd
 import requests
 from scipy.interpolate import CubicSpline
 
-# ---------------------------------------------------------------------------
-# Path setup
-# ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from phase1.region import COUNTIES, COUNTY_FIPS, STATE_FIPS
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(message)s",
@@ -68,28 +52,20 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
 PROCESSED_DIR = ROOT / "data" / "Final"
 OUTPUT_FILE = PROCESSED_DIR / "azpop_monthly.csv"
 
-# ---------------------------------------------------------------------------
-# Config [3]
-# ---------------------------------------------------------------------------
 START_YEAR = 2000
 END_YEAR = 2023
 
-# Census API key — set via environment variable or fallback
 CENSUS_API_KEY = os.environ.get("CENSUS_API_KEY", None)
 
 # Three-digit county codes (Census API uses county without state prefix)
 COUNTY_CODES = [fips[2:] for fips in COUNTY_FIPS]
 
-# Census API endpoint for 2000-2010 intercensal (confirmed working)
 API_2000_2010_URL = "https://api.census.gov/data/2000/pep/int_population"
 
-# Direct CSV download URLs for 2010-2020 and 2020-2023 (confirmed working)
+# Direct CSV download URLs for 2010-2020 and 2020-2023
 CSV_2010_2020_URL = (
     "https://www2.census.gov/programs-surveys/popest/datasets/"
     "2010-2020/counties/totals/co-est2020-alldata.csv"
@@ -100,26 +76,12 @@ CSV_2020_2023_URL = (
 )
 
 
-# ---------------------------------------------------------------------------
-# Source 1: Census API 2000-2010
-# ---------------------------------------------------------------------------
-
-
 def _fetch_api_2000_2010(retries: int = 3) -> pd.DataFrame:
     """
     Fetch 2000-2010 intercensal population estimates from the Census API.
 
     The API returns rows with a DATE_DESC column containing strings like
     "7/1/2005 population estimate". The year is extracted from that string.
-
-    Returns
-    -------
-    DataFrame with columns: year, county_fips, population.
-
-    Raises
-    ------
-    RuntimeError
-        If all retry attempts fail.
     """
     params = {
         "get": "POP,DATE_DESC",
@@ -154,40 +116,25 @@ def _fetch_api_2000_2010(retries: int = 3) -> pd.DataFrame:
 
     df = pd.DataFrame(rows, columns=headers)
 
-    # Build five-digit FIPS
     df["county_fips"] = df["state"] + df["county"]
     df = df[df["county_fips"].isin(COUNTY_FIPS)].copy()
 
-    # Extract year from DATE_DESC (e.g. "7/1/2005 population estimate")
     df["year"] = df["DATE_DESC"].str.extract(r"(\d{4})")[0].astype(float)
 
-    # Coerce population
     df["POP"] = pd.to_numeric(df["POP"], errors="coerce")
     df = df.dropna(subset=["year", "POP"])
     df["year"] = df["year"].astype(int)
     df["population"] = df["POP"].astype(int)
 
-    # Filter to July 1 estimates only (exclude census day counts, base pops)
-    # DATE_DESC for July 1 estimates contains "7/1/"
+    # Filter to July 1 estimates only
     july_mask = df["DATE_DESC"].str.contains("7/1/", na=False)
     df = df[july_mask].copy()
 
     # Keep only 2000-2009 from this source (2010 comes from the next source)
-    df = df[(df["year"] >= 2000) & (df["year"] <= 2009)]  # noqa: PLR2004
-
-    log.info(
-        "API 2000-2010: %d county-year rows, years %d–%d.",
-        len(df),
-        df["year"].min(),
-        df["year"].max(),
-    )
+    source_range = [2000, 2009]
+    df = df[(df["year"] >= source_range[0]) & (df["year"] <= source_range[1])]
 
     return df[["year", "county_fips", "population"]].reset_index(drop=True)
-
-
-# ---------------------------------------------------------------------------
-# Source 2: Direct CSV 2010-2020
-# ---------------------------------------------------------------------------
 
 
 def _fetch_csv_2010_2020() -> pd.DataFrame:
@@ -252,11 +199,6 @@ def _fetch_csv_2010_2020() -> pd.DataFrame:
     return melted[["year", "county_fips", "population"]].reset_index(drop=True)
 
 
-# ---------------------------------------------------------------------------
-# Source 3: Direct CSV 2020-2023
-# ---------------------------------------------------------------------------
-
-
 def _fetch_csv_2020_2023() -> pd.DataFrame:
     """
     Download and parse the 2020-2023 postcensal population estimates
@@ -314,11 +256,6 @@ def _fetch_csv_2020_2023() -> pd.DataFrame:
     )
 
     return melted[["year", "county_fips", "population"]].reset_index(drop=True)
-
-
-# ---------------------------------------------------------------------------
-# Combine all vintages
-# ---------------------------------------------------------------------------
 
 
 def _pull_all_vintages() -> pd.DataFrame:
@@ -393,11 +330,6 @@ def _pull_all_vintages() -> pd.DataFrame:
     return combined
 
 
-# ---------------------------------------------------------------------------
-# Regional sum
-# ---------------------------------------------------------------------------
-
-
 def _sum_to_regional(county_annual: pd.DataFrame) -> pd.DataFrame:
     """
     Sum the eight county populations to a single regional annual total.
@@ -429,11 +361,6 @@ def _sum_to_regional(county_annual: pd.DataFrame) -> pd.DataFrame:
     )
 
     return regional
-
-
-# ---------------------------------------------------------------------------
-# Monthly interpolation
-# ---------------------------------------------------------------------------
 
 
 def _interpolate_to_monthly(annual: pd.DataFrame) -> pd.DataFrame:
@@ -497,11 +424,6 @@ def _interpolate_to_monthly(annual: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
-# ---------------------------------------------------------------------------
-# Sanity checks
-# ---------------------------------------------------------------------------
-
-
 def _sanity_checks(monthly: pd.DataFrame) -> None:
     """
     Run basic sanity checks on the interpolated output.
@@ -545,37 +467,13 @@ def _sanity_checks(monthly: pd.DataFrame) -> None:
         )
 
 
-# ---------------------------------------------------------------------------
-# Main pipeline
-# ---------------------------------------------------------------------------
-
-
-def run(output_file: Path = OUTPUT_FILE) -> pd.DataFrame:
-    """
-    Full population pipeline:
-        pull three vintages → combine → sum to regional →
-        interpolate monthly → sanity checks → write CSV.
-
-    Parameters
-    ----------
-    output_file : Path
-        Path for output CSV.
-        Defaults to data/processed/population_monthly.csv.
-
-    Returns
-    -------
-    DataFrame
-        Final monthly population table, also written to output_file.
-    """
+def main() -> None:
     log.info("=== population.py start ===")
 
-    # 1. Pull all three sources
     county_annual = _pull_all_vintages()
 
-    # 2. Sum to regional annual total
     regional_annual = _sum_to_regional(county_annual)
 
-    # 3. Check year coverage
     years_present = set(regional_annual["year"].tolist())
     years_expected = set(range(START_YEAR, END_YEAR + 1))
     years_missing = years_expected - years_present
@@ -588,41 +486,14 @@ def run(output_file: Path = OUTPUT_FILE) -> pd.DataFrame:
     else:
         log.info("Full year coverage confirmed: %d–%d.", START_YEAR, END_YEAR)
 
-    # 4. Interpolate to monthly
     monthly = _interpolate_to_monthly(regional_annual)
 
-    # 5. Sanity checks
     _sanity_checks(monthly)
 
-    # 6. Write output
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    monthly.to_csv(output_file, index=False)
-    log.info("Wrote %d rows to %s", len(monthly), output_file)
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    monthly.to_csv(OUTPUT_FILE, index=False)
+    log.info("Wrote %d rows to %s", len(monthly), OUTPUT_FILE)
 
-    log.info("=== population.py complete ===")
-    return monthly
-
-
-# ---------------------------------------------------------------------------
-# CLI entry point
-# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description="Build monthly regional population estimates for the "
-        "eight-county southern Arizona study area."
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=OUTPUT_FILE,
-        help=f"Path for output CSV (default: {OUTPUT_FILE})",
-    )
-    args = parser.parse_args()
-
-    result = run(output_file=args.output)
-    print(result.head(12).to_string(index=False))
-    print("...")
-    print(result.tail(12).to_string(index=False))
+    main()

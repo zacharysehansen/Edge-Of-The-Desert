@@ -21,17 +21,11 @@ Source: MODIS MOD13A3 v061, 1km monthly NDVI [3]
 
 The raw HDF files are assumed to already exist in data/raw/modis_ndvi/.
 If they need to be re-pulled, use earthaccess with the config bbox and
-date range. This script only processes what is already on disk. [2]
-
-Spatial filter:
-    Each HDF granule covers a MODIS sinusoidal tile. The NDVI array is
-    reprojected/clipped to the eight-county bounding box before computing
-    the regional mean.
+date range. This script only processes what is already on disk.
 
 Date range: 2000-01 to 2023-12 [3]
 """
 
-import argparse
 import logging
 import re
 import sys
@@ -43,17 +37,11 @@ import rasterio
 from rasterio.warp import transform_bounds
 from rasterio.windows import from_bounds
 
-# ---------------------------------------------------------------------------
-# Path setup
-# ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from phase1.region import BBOX
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(message)s",
@@ -61,48 +49,26 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
 RAW_DIR = ROOT / "data" / "raw" / "modis_ndvi"
 PROCESSED_DIR = ROOT / "data" / "Final"
 OUTPUT_FILE = PROCESSED_DIR / "ndvi_monthly.csv"
 
-# ---------------------------------------------------------------------------
-# Config from phase1.example.json [3]
-# ---------------------------------------------------------------------------
 START_DATE = "2000-01"
 END_DATE = "2023-12"
 SCALE_FACTOR = 10000.0
-INVALID_BELOW = -2000  # Raw integer values below this are invalid [3]
+INVALID_BELOW = -2000
 SUBDATASET_KEY = "1 km monthly NDVI"
 
-# Bounding box [3]
 MIN_LON, MIN_LAT, MAX_LON, MAX_LAT = BBOX
-
-
-# ---------------------------------------------------------------------------
-# HDF file discovery
-# ---------------------------------------------------------------------------
 
 
 def _discover_hdf_files(raw_dir: Path) -> list[Path]:
     """
     Find all HDF files in the raw MODIS directory.
-
-    Returns
-    -------
-    Sorted list of Path objects for .hdf files.
-
-    Raises
-    ------
-    FileNotFoundError
-        If no HDF files are found.
     """
     hdf_files = sorted(raw_dir.glob("*.hdf"))
 
     if not hdf_files:
-        # Also check for .HDF (case insensitive)
         hdf_files = sorted(raw_dir.glob("*.HDF"))
 
     if not hdf_files:
@@ -123,24 +89,17 @@ def _extract_date_from_filename(filepath: Path) -> str | None:
     MOD13A3 filenames follow the pattern:
         MOD13A3.AYYYYDDD.hXXvYY.VVV.TIMESTAMP.hdf
     where YYYY = year, DDD = day of year.
-
-    Returns
-    -------
-    str in YYYY-MM format, or None if parsing fails.
     """
     name = filepath.name
 
-    # Pattern: AYYYYDDD in the filename
     match = re.search(r"A(\d{4})(\d{3})", name)
     if match:
         year = int(match.group(1))
         doy = int(match.group(2))
 
-        # Convert day-of-year to month
         date = pd.Timestamp(year=year, month=1, day=1) + pd.Timedelta(days=doy - 1)
         return date.strftime("%Y-%m")
 
-    # Alternative: try to find YYYY.MM pattern
     match = re.search(r"(\d{4})\.(\d{2})", name)
     if match:
         return f"{match.group(1)}-{match.group(2)}"
@@ -149,28 +108,12 @@ def _extract_date_from_filename(filepath: Path) -> str | None:
     return None
 
 
-# ---------------------------------------------------------------------------
-# HDF processing
-# ---------------------------------------------------------------------------
-
-
 def _open_ndvi_subdataset(hdf_path: Path) -> rasterio:
     """
     Open the NDVI subdataset from a MOD13A3 HDF4 file.
 
     Uses rasterio with the HDF4 driver to access subdatasets.
-
-    Parameters
-    ----------
-    hdf_path : Path
-        Path to the .hdf file.
-
-    Returns
-    -------
-    rasterio dataset reader for the NDVI subdataset, or None if
-    the subdataset cannot be found.
     """
-    # List subdatasets
     with rasterio.open(hdf_path) as src:
         subdatasets = src.subdatasets
 
@@ -178,14 +121,12 @@ def _open_ndvi_subdataset(hdf_path: Path) -> rasterio:
         log.warning("No subdatasets found in %s", hdf_path.name)
         return None
 
-    # Find the NDVI subdataset
     ndvi_ds = None
     for sd in subdatasets:
         if SUBDATASET_KEY.lower() in sd.lower() or "ndvi" in sd.lower():
             ndvi_ds = sd
             break
 
-    # Fallback: take the first subdataset (MOD13A3 typically has NDVI first)
     if ndvi_ds is None:
         ndvi_ds = subdatasets[0]
         log.info(
@@ -202,15 +143,6 @@ def _compute_mean_ndvi_from_hdf(hdf_path: Path) -> float | None:
     Open an HDF file, extract the NDVI subdataset, clip/window to the
     bounding box, apply scale factor and validity mask, and compute
     the regional mean NDVI.
-
-    Parameters
-    ----------
-    hdf_path : Path
-        Path to the MOD13A3 .hdf file.
-
-    Returns
-    -------
-    float (mean NDVI in [-1, 1] range) or None if processing fails.
     """
 
     try:
@@ -219,8 +151,6 @@ def _compute_mean_ndvi_from_hdf(hdf_path: Path) -> float | None:
             return None
 
         with src:
-            # Transform bounding box from WGS84 to the raster's CRS
-            # MODIS uses sinusoidal projection
             raster_crs = src.crs
             if raster_crs is not None:
                 try:
@@ -233,34 +163,27 @@ def _compute_mean_ndvi_from_hdf(hdf_path: Path) -> float | None:
                         MAX_LAT,
                     )
                 except Exception:
-                    # If CRS transform fails, try reading the full array
                     left, bottom, right, top = src.bounds
             else:
                 left, bottom, right, top = src.bounds
 
-            # Compute window for the bounding box
             try:
                 window = from_bounds(left, bottom, right, top, src.transform)
-                # Clamp window to valid raster bounds
                 window = window.intersection(
                     rasterio.windows.Window(0, 0, src.width, src.height)
                 )
             except Exception:
-                # If windowing fails, read the full raster
                 window = None
 
-            # Read data
             if window is not None and window.width > 0 and window.height > 0:
                 data = src.read(1, window=window).astype(float)
             else:
                 data = src.read(1).astype(float)
 
-            # Apply validity mask [3]
-            # Invalid: values below INVALID_BELOW (before scaling)
             valid_mask = data >= INVALID_BELOW
 
-            # Also mask fill values (common MODIS fill = -3000, 32767, etc.)
-            valid_mask &= data <= 10000  # Max valid NDVI raw = 10000  # noqa: PLR2004
+            max_valid_nvdi = 10000
+            valid_mask &= data <= max_valid_nvdi
 
             valid_data = data[valid_mask]
 
@@ -268,10 +191,8 @@ def _compute_mean_ndvi_from_hdf(hdf_path: Path) -> float | None:
                 log.warning("  No valid NDVI pixels in %s", hdf_path.name)
                 return None
 
-            # Apply scale factor [3]
             ndvi_scaled = valid_data / SCALE_FACTOR
 
-            # Final validity check: NDVI should be in [-1, 1]
             ndvi_final = ndvi_scaled[(ndvi_scaled >= -1) & (ndvi_scaled <= 1)]
 
             if len(ndvi_final) == 0:
@@ -289,41 +210,24 @@ def _compute_mean_ndvi_from_hdf(hdf_path: Path) -> float | None:
         return None
 
 
-# ---------------------------------------------------------------------------
-# Process all files
-# ---------------------------------------------------------------------------
-
-
 def _process_all_hdf_files(hdf_files: list[Path]) -> pd.DataFrame:
     """
-    Process all HDF files and build a year_month → mean NDVI table.
-
-    Parameters
-    ----------
-    hdf_files : list of Path
-        Sorted list of HDF file paths.
-
-    Returns
-    -------
-    DataFrame with columns: year_month, ndvi.
+    Process all HDF files and build a year_month mean NDVI table.
     """
     results = []
 
     for i, hdf_path in enumerate(hdf_files, 1):
         log.info("Processing file %d/%d: %s", i, len(hdf_files), hdf_path.name)
 
-        # Extract date from filename
         year_month = _extract_date_from_filename(hdf_path)
         if year_month is None:
             log.warning("  Skipping — could not extract date.")
             continue
 
-        # Filter to project date range [3]
         if year_month < START_DATE or year_month > END_DATE:
             log.info("  Skipping — outside project date range.")
             continue
 
-        # Compute mean NDVI
         mean_ndvi = _compute_mean_ndvi_from_hdf(hdf_path)
 
         if mean_ndvi is not None:
@@ -342,9 +246,6 @@ def _process_all_hdf_files(hdf_files: list[Path]) -> pd.DataFrame:
         )
 
     df = pd.DataFrame(results)
-
-    # Handle duplicate months (multiple tiles for same month)
-    # Average across tiles for the same month
     if df["year_month"].duplicated().any():
         n_dupes = df["year_month"].duplicated().sum()
         log.info(
@@ -369,11 +270,6 @@ def _process_all_hdf_files(hdf_files: list[Path]) -> pd.DataFrame:
     )
 
     return df
-
-
-# ---------------------------------------------------------------------------
-# Gap filling
-# ---------------------------------------------------------------------------
 
 
 def _check_and_fill_gaps(df: pd.DataFrame) -> pd.DataFrame:
@@ -440,149 +336,31 @@ def _check_and_fill_gaps(df: pd.DataFrame) -> pd.DataFrame:
     return merged.reset_index(drop=True)
 
 
-# ---------------------------------------------------------------------------
-# Sanity checks
-# ---------------------------------------------------------------------------
-
-
 def _sanity_checks(df: pd.DataFrame) -> None:
     """Run basic sanity checks on the NDVI output."""
 
-    # Row count
     expected = 288  # 24 years × 12 months
     if len(df) != expected:
         log.warning("Expected %d monthly rows but got %d.", expected, len(df))
     else:
         log.info("Row count correct: %d monthly rows.", len(df))
 
-    # Null check
     nulls = df["ndvi"].isna().sum()
     if nulls:
         log.warning("%d null NDVI values in output.", nulls)
 
-    # Range check — NDVI should be in [-1, 1], desert regions typically 0.1-0.4
-    valid = df["ndvi"].dropna()
-    if valid.min() < -1 or valid.max() > 1:
-        log.warning(
-            "NDVI values outside [-1, 1] range: [%.4f, %.4f]. "
-            "Check scale factor application.",
-            valid.min(),
-            valid.max(),
-        )
 
-    # Magnitude check — southern Arizona desert should be 0.1-0.4 mean
-    mean_ndvi = valid.mean()
-    if mean_ndvi < 0.05:  # noqa: PLR2004
-        log.warning(
-            "Mean NDVI (%.4f) is very low. " "Check validity masking and scale factor.",
-            mean_ndvi,
-        )
-    elif mean_ndvi > 0.6:  # noqa: PLR2004
-        log.warning(
-            "Mean NDVI (%.4f) is high for a desert region. "
-            "Check that the bounding box clip is correct.",
-            mean_ndvi,
-        )
-    else:
-        log.info("Magnitude check passed: mean NDVI=%.4f.", mean_ndvi)
+def main() -> None:
 
-    # Seasonal pattern check — NDVI should peak in monsoon season (Jul-Sep)
-    df_check = df.copy()
-    df_check["month"] = df_check["year_month"].str[5:7].astype(int)
-    monsoon = df_check[df_check["month"].isin([7, 8, 9])]["ndvi"].mean()
-    dry = df_check[df_check["month"].isin([4, 5, 6])]["ndvi"].mean()
-
-    if monsoon > dry:
-        log.info(
-            "Seasonal check passed: monsoon mean=%.4f > dry season mean=%.4f.",
-            monsoon,
-            dry,
-        )
-    else:
-        log.warning(
-            "Monsoon NDVI (%.4f) is NOT higher than dry season (%.4f). "
-            "Arizona vegetation typically greens up during summer monsoon.",
-            monsoon,
-            dry,
-        )
-
-
-# ---------------------------------------------------------------------------
-# Main pipeline
-# ---------------------------------------------------------------------------
-
-
-def run(
-    raw_dir: Path = RAW_DIR,
-    output_file: Path = OUTPUT_FILE,
-) -> pd.DataFrame:
-    """
-    Full NDVI pipeline:
-        discover HDF files → extract NDVI → clip to bbox →
-        compute monthly mean → fill gaps → sanity checks → write CSV.
-
-    Parameters
-    ----------
-    raw_dir : Path
-        Directory containing MOD13A3 .hdf files.
-        Defaults to data/raw/modis_ndvi/.
-    output_file : Path
-        Path for output CSV.
-        Defaults to data/processed/ndvi_monthly.csv.
-
-    Returns
-    -------
-    DataFrame
-        Final monthly NDVI table, also written to output_file.
-    """
-    log.info("=== ndvi.py start ===")
-
-    # 1. Discover HDF files
-    hdf_files = _discover_hdf_files(raw_dir)
-
-    # 2. Process all files
+    hdf_files = _discover_hdf_files(RAW_DIR)
     monthly = _process_all_hdf_files(hdf_files)
-
-    # 3. Check for gaps and fill small ones
     monthly = _check_and_fill_gaps(monthly)
 
-    # 4. Sanity checks
     _sanity_checks(monthly)
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    monthly.to_csv(OUTPUT_FILE, index=False)
+    log.info("Wrote %d rows to %s", len(monthly), OUTPUT_FILE)
 
-    # 5. Write output
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    monthly.to_csv(output_file, index=False)
-    log.info("Wrote %d rows to %s", len(monthly), output_file)
-
-    log.info("=== ndvi.py complete ===")
-    return monthly
-
-
-# ---------------------------------------------------------------------------
-# CLI entry point
-# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser(
-        description="Build monthly NDVI for the eight-county southern "
-        "Arizona study area from existing MOD13A3 HDF files."
-    )
-    parser.add_argument(
-        "--raw-dir",
-        type=Path,
-        default=RAW_DIR,
-        help=f"Directory with .hdf files (default: {RAW_DIR})",
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=OUTPUT_FILE,
-        help=f"Path for output CSV (default: {OUTPUT_FILE})",
-    )
-    args = parser.parse_args()
-
-    result = run(raw_dir=args.raw_dir, output_file=args.output)
-    print(result.head(12).to_string(index=False))
-    print("...")
-    print(result.tail(12).to_string(index=False))
+    main()

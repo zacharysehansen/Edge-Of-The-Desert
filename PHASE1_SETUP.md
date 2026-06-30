@@ -1,111 +1,156 @@
-# Phase 1 Setup
+# Southern Arizona Water and Land Model: Dataset Inventory
 
-This repo now includes an API-first phase 1 pipeline at `scripts/phase1`, plus Arizona-focused endpoint/source CSVs in [`data/Final`](/home/zacharyhansen/Documents/GitHub/Edge-Of-The-Desert/data/Final).
+## End Goal
 
-## Quick start
+Build a set of regression models for an eight-county southern Arizona region (Pima, Pinal, Santa Cruz, Cochise, Graham, Greenlee, Yuma, La Paz) that take in human and environmental pressure variables and predict three separate environmental outcomes. This is a planning-stage tool, meant to let someone adjust inputs like population growth, irrigation demand, or urbanization and see how vegetation health, water levels, and wildfire risk would likely respond.
 
-1. Install dependencies from `requirements.txt`.
-2. Make sure your NASA Earthdata credentials are available to `earthaccess`.
-3. Copy `config/phase1.example.json` to your own config file if you want to change the study area, site IDs, or source behavior.
-4. Run:
+Inputs: population, irrigation withdrawal, water management (reservoir behavior), urbanization, and water stress.
 
-`# Southern Arizona Pipeline: File Plan
+Outputs: vegetation index (NDVI), ground and surface water levels, wildfire risk, and wildlife abundance.
 
-## Structure
+Each output gets its own separate XGBoost regression model trained on the same shared input set, rather than one combined model or a single bottleneck variable that all inputs route through first.
 
-One Python file per dataset. Each file is responsible for one source only: pulling or loading raw data, filtering to the eight-county region, aggregating to the model's time grain, and writing a single clean endpoint CSV. No file depends on another file's output except the join script at the end.
 
-Shared region boundary logic (the county list, the shapefile load, the point-in-polygon helper) lives in one common module so it is not duplicated eight times.
+## Research Question
 
-```
-phase1/
-    region.py
-    population.py
-    irrigation.py
-    public_supply.py
-    lake_mead.py
-    urbanization.py
-    water_stress.py
-    ndvi.py
-    grace_groundwater.py
-    wildfire.py
-    wildlife_bbs.py
-```
+How do population growth, agricultural water demand, urban development, reservoir management decisions, and drought conditions influence vegetation health, water availability, wildfire risk, and wildlife abundance in Southern Arizona?
 
-## region.py
+Version 2 is designed around a simple conceptual framework:
 
-Holds the eight-county definition (Pima, Pinal, Santa Cruz, Cochise, Graham, Greenlee, Yuma, La Paz) and loads the county boundary shapefile (Census TIGER/Line). Exposes a function that takes a list of latitude/longitude points or a raster and returns only what falls inside the boundary. Every other file that needs spatial filtering imports from here instead of repeating the boundary logic.
+**Human Pressures and Environmental Conditions → Environmental Responses**
 
-## population.py
+Rather than combining all variables into a single sustainability metric, the project models several environmental systems independently so that users can observe how each responds to the same set of pressures.
 
-Pulls Census Bureau county population estimates for the eight counties, sums to a regional annual total, interpolates to monthly. Replaces the old statewide `azpop_monthly.csv` rather than re-aggregating it, since the original interpolation kept no county breakdown.
+---
 
-Output: `population_monthly.csv` with `year_month, population`.
+## Input Variables
 
-## irrigation.py
+The model inputs represent human pressures, land-use change, water management decisions, and regional drought conditions.
 
-Loads the existing HUC12-level irrigation source matrix, filters to HUC12s within the eight counties using `region.py`, re-aggregates to a monthly regional total the same way the original statewide file was built.
+| Input Variable           | Description                                                        | Source                             |
+| ------------------------ | ------------------------------------------------------------------ | ---------------------------------- |
+| Population               | Regional population pressure                                       | U.S. Census Bureau                 |
+| Irrigation Withdrawal    | Agricultural water demand                                          | HUC12 irrigation datasets          |
+| Public Supply Withdrawal | Municipal groundwater demand                                       | NWAA groundwater datasets          |
+| Reservoir Operations     | Water management behavior represented through Lake Mead operations | Bureau of Reclamation              |
+| Urbanization             | Impervious surface coverage and land development                   | NLCD Fractional Impervious Surface |
+| USDM DSCI                | Regional drought severity and coverage index                       | U.S. Drought Monitor               |
 
-Output: `irrigation_monthly.csv` with `year_month, irrigation_total_withdrawal_mgd`.
+These variables form the shared input set used by every model in the system.
 
-## public_supply.py
+---
 
-Same pattern as `irrigation.py`, loading the NWAA HUC12 shards instead.
+## Output Variables
 
-Output: `public_supply_monthly.csv` with `year_month, public_supply_groundwater_mgd`.
+The model predicts ecological and hydrological responses to the selected input conditions.
 
-## lake_mead.py
+| Output Variable             | Source                              | Temporal Resolution |
+| --------------------------- | ----------------------------------- | ------------------- |
+| Vegetation Health (NDVI)    | MODIS                               | Monthly             |
+| Groundwater Storage Anomaly | GRACE / GRACE-FO                    | Monthly             |
+| Surface Water Conditions    | Regional water-level indicators     | Monthly             |
+| Wildfire Risk               | Regional fire event database        | Annual              |
+| Wildlife Abundance          | North American Breeding Bird Survey | Annual              |
 
-Pulls the four Lake Mead CSV endpoints from the Bureau of Reclamation HydroData Navigator (reservoir ID 921: pool elevation, storage, total release, release volume), filters each to the model's date range, aggregates daily to monthly, merges into one table.
+Together, these outputs provide a multi-dimensional picture of environmental health across Southern Arizona.
 
-Output: `lake_mead_monthly.csv` with `year_month, mead_pool_elevation, mead_storage, mead_total_release, mead_release_volume`.
+---
 
-## urbanization.py
+## Modeling Framework
 
-Downloads the relevant year's NLCD Fractional Impervious Surface raster from the S3 bucket, clips to the eight-county boundary using `region.py`, computes mean impervious percentage per year, interpolates to monthly.
+Version 2 uses multiple independent machine learning models rather than a single composite environmental index.
 
-Output: `urbanization_monthly.csv` with `year_month, impervious_pct`.
+Each model receives the same set of input variables and predicts one environmental outcome.
 
-## water_stress.py
+| Model   | Prediction Target           |
+| ------- | --------------------------- |
+| Model 1 | NDVI                        |
+| Model 2 | Groundwater Storage Anomaly |
+| Model 4 | Surface Water Conditions    |
+| Model 5 | Wildfire Risk               |
+| Model 6 | Wildlife Abundance          |
 
-Derives or re-extracts the USDM score for the eight-county region, 
+This approach improves interpretability and allows users to examine how different environmental systems respond to the same set of human and environmental pressures.
 
-Output: `water_stress_monthly.csv` with `year_month, usdm_dsci,.
+---
 
-## ndvi.py
+## Visualization
 
-Loads or re-pulls MODIS NDVI, clips to the eight-county boundary.
+### Control Panel
 
-Output: `ndvi_monthly.csv` with `year_month, ndvi`.
+Users manipulate the major drivers of environmental change:
 
-## grace_groundwater.py
+* Population
+* Irrigation Withdrawal
+* Public Supply Withdrawal
+* Reservoir Operations
+* Urbanization
+* USDM DSCI
 
-Re-extracts GRACE groundwater anomaly from the raw `.nc4` files using a bounding box around the eight counties, applies the same `grace_available` flag and pre-2002-04 neutral fill as the original pipeline.
+### Environmental Response Panel
 
-Output: `grace_monthly.csv` with `year_month, grace_groundwater_anomaly, grace_available`.
+The system displays predicted outcomes across multiple environmental domains.
 
-## groundwater_wells.py
+**Vegetation Health**
 
-Pulls USGS groundwater well levels via the USGS Water Data API, filtered to wells in the Tucson and Santa Cruz Active Management Areas and any other AMA inside the eight counties, aggregates to a monthly regional mean or median water level.
+NDVI indicators show expected changes in vegetation productivity.
 
-Output: `groundwater_wells_monthly.csv` with `year_month, well_level_ft`.
+**Groundwater Conditions**
 
-## wildfire.py
+Groundwater anomaly and well-level visualizations display subsurface water conditions.
 
-Loads the user-provided fire-event CSV, filters to fires located within the eight counties, builds the annual risk index from fire count and log-transformed total acres.
+**Surface Water Conditions**
 
-Output: `wildfire_annual.csv` with `year, fire_count, log_acres_total, wildfire_risk_index`.
+Water-level indicators summarize predicted surface-water response.
 
-## wildlife_bbs.py
+**Wildfire Risk**
 
-Uses `sciencebasepy` to pull the BBS route metadata table and the yearly count table from the 2025 release, filters routes to those falling inside the eight counties using `region.py`, aggregates to an annual regional abundance index (pooled count or species richness, decided before writing this file). Must be run from an environment with access to `sciencebase.gov`, since that host is not reachable from this sandbox.
+A wildfire-risk indicator displays projected fire pressure under the selected scenario.
 
-Output: `wildlife_annual.csv` with `year, route_count, total_abundance` or `year, route_count, species_richness`, depending on which index is chosen.
+**Wildlife Abundance**
 
-## Notes
+Ecological indicators display predicted changes in regional wildlife populations.
 
-`region.py` is the only file every other script depends on. Get the county shapefile and boundary logic right first, since a mistake there silently changes every other file's regional filter.
+**Historical Context**
 
-`wildfire.py` and `wildlife_bbs.py` are the only two files producing annual rather than monthly output, and both need their own row-count check before any cross-validation split is chosen, since the eight-county filter will shrink both datasets and the annual grain already means far fewer rows than the monthly files.
+Time-series visualizations compare predicted outcomes with historical observations.
 
-`lake_mead.py` and `urbanization.py` are the only two files that depend on an external resource not yet test-pulled in full (the exact Mead CSV parameter codes are confirmed, but the NLCD S3 bucket's file naming convention is not). Both should be the first two scripts run end to end before the others, to surface any remaining access problems early.
+## Datasets Already Available
+
+These were collected for an earlier, differently-scoped project and exist as files already, though several need to be re-aggregated to fit the new eight-county boundary.
+
+**Irrigation total withdrawal.** A pre-aggregated statewide monthly file exists (`irrigation_huc12_monthly_az_2000_2020.csv`), built from an underlying HUC12-level source matrix that is also still available. Since the statewide file can't be un-aggregated, the HUC12-level source needs to be re-filtered to only the eight counties and re-summed.
+
+**Public supply groundwater withdrawal.** Same situation as irrigation: a statewide pre-aggregated file exists (`nwaa_public_supply_az_monthly.csv`), and the underlying HUC12-level shards are also available for re-filtering and re-aggregation to the eight counties.
+
+**GRACE groundwater anomaly.** A statewide monthly file exists (`grace_groundwater_anomaly.csv`), derived from raw satellite `.nc4` files that are also still available. Because GRACE is a coarse-resolution satellite product (roughly 100km grid cells), it was never truly statewide-precise to begin with, so re-extracting it with a bounding box around the eight counties from the raw files is straightforward.
+
+**MODIS NDVI.** A statewide monthly file exists (`modis_ndvi.csv`). This is the vegetation output target. It can likely be re-clipped to the eight counties if the original raw MODIS pull is still available, or re-pulled fresh from Earthdata scoped to the new region otherwise.
+
+**Population.** A statewide monthly file exists (`azpop_monthly.csv`), interpolated from annual Census figures. This needs to be replaced rather than re-aggregated, since the original interpolation was done at the state level with no county breakdown retained.
+
+## Datasets That Need To Be Created
+
+These don't exist yet in any form and require pulling new source data.
+
+**Population, county-level.** U.S. Census Bureau county population estimates for the eight counties, summed to a regional annual total, then interpolated to monthly using the same method as the original statewide interpolation.
+
+**Lake Mead water management data.** Pulled from the Bureau of Reclamation's HydroData Navigator, reservoir ID 921. Four confirmed CSV endpoints, all daily and starting in 1935:
+
+- Pool elevation: `https://www.usbr.gov/uc/water/hydrodata/reservoir_data/921/csv/49.csv`
+- Storage: `https://www.usbr.gov/uc/water/hydrodata/reservoir_data/921/csv/17.csv`
+- Total release: `https://www.usbr.gov/uc/water/hydrodata/reservoir_data/921/csv/42.csv`
+- Release volume: `https://www.usbr.gov/uc/water/hydrodata/reservoir_data/921/csv/43.csv`
+
+Each needs filtering to the model's date range and aggregation from daily to monthly.
+
+**Urbanization.** USGS Annual NLCD (1985-2023), Fractional Impervious Surface product, pulled from the public cloud bucket (`s3://usgs-landcover/annual-nlcd/c1/v0/cu/mosaic/`). This is raster data covering the whole continental US, not pre-aggregated to any region, so it needs to be downloaded year by year, clipped to the eight-county boundary using a county shapefile, and averaged into a single impervious-surface percentage per year. The result is annual and needs interpolation to monthly.
+
+New private housing permit data from FRED was considered as an alternative urbanization signal and rejected. Permits measure new construction activity rather than the existing built footprint, and only the Tucson metro area has county-level coverage in FRED, leaving seven of the eight counties unrepresented.
+
+**Water stress (USDM-derived score).** The original statewide USDM-based sustainability score (`100 - usdm_dsci / 5`) needs to be re-derived or re-extracted for the eight-county region specifically, since the existing file is statewide.
+
+**Wildfire event data, regionally filtered.** The user already holds a wildfire CSV (`OBJECTID, FIRE_NAME, FIRE_Number, FireID, Acres, FIRE_YEAR, Z, KM2, Source1, Source2, Shape__Area, Shape__Length`). This needs to be filtered to fires located within the eight counties, then converted into an annual wildfire risk index combining fire count and log-transformed total acreage, since the raw file is annual-grain with no monthly date field and the acreage distribution is heavily skewed by a small number of large fires.
+
+**Wildlife abundance.** North American Breeding Bird Survey (BBS), USGS, hosted on ScienceBase, the 2025 release covering 1966 through 2024. Routes are fixed physical roadside survey lines, each with a stable latitude and longitude, sampled annually during June. Route metadata (route ID, name, latitude, longitude, state, stratum, active status) and yearly species-level counts are separate tables joined by route ID and year. Data must be filtered to routes whose coordinates fall inside the eight counties, then aggregated to a single annual abundance index per year (pooled count across species, or a species richness count, still to be decided). No data exists for 2020, since BBS field activity was cancelled that year. Access is through the `sciencebasepy` Python package, which calls the ScienceBase REST API directly. The host `sciencebase.gov` is not reachable from this sandbox's network, so this dataset must be pulled from an environment with open internet access rather than from inside the current pipeline tooling.
+

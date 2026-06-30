@@ -18,10 +18,6 @@ import pandas as pd
 import requests
 from region import COUNTY_FIPS
 
-# -------------------------------------------------------------------
-# Configuration
-# -------------------------------------------------------------------
-
 # USGS parameter codes for groundwater levels
 # 72019 = Depth to water level, ft below land surface
 # 72008 = Depth to water in well, periodic measurement, ft
@@ -29,21 +25,15 @@ from region import COUNTY_FIPS
 # 62611 = Groundwater level above NAVD 1988, feet
 PARAMETER_CODES = ["72019", "72008", "62610", "62611"]
 
-# Date range
 YEAR_START = 2000
 YEAR_END = 2020
 
-# Output files
 OUTPUT_DIR = Path(__file__).resolve().parents[2] / "data" / "Final"
 OUTPUT_DAILY = OUTPUT_DIR / "groundwater_levels_daily_2000_2020.csv"
 OUTPUT_MONTHLY = OUTPUT_DIR / "groundwater_levels_monthly.csv"
 
-# Seconds between API requests
 REQUEST_DELAY = 0.5
 
-# -------------------------------------------------------------------
-# NWIS Daily Values endpoint
-# -------------------------------------------------------------------
 
 BASE_URL = "https://waterservices.usgs.gov/nwis/dv/"
 
@@ -132,7 +122,6 @@ def main() -> None:
         print("No data retrieved. Check parameters and try again.")
         return
 
-    # Combine all daily data
     daily = pd.concat(all_frames, ignore_index=True)
     daily["datetime"] = pd.to_datetime(daily["datetime"], errors="coerce")
     daily = daily.dropna(subset=["datetime"])
@@ -142,10 +131,8 @@ def main() -> None:
     print(f"\nSaved {len(daily):,} daily rows to '{OUTPUT_DAILY}'")
     print(f"  Unique wells: {daily['site_no'].nunique()}")
 
-    # Aggregate to monthly regional mean (using param 72019 as primary)
     daily["year_month"] = daily["datetime"].dt.to_period("M").astype(str)
 
-    # Prefer depth-to-water (72019) if available, fall back to others
     depth_data = daily[daily["param_cd"] == "72019"]
     if len(depth_data) > 0:
         monthly = (

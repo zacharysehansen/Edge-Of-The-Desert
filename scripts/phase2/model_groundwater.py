@@ -48,17 +48,6 @@ N_SPLITS = 5
 CV = TimeSeriesSplit(n_splits=N_SPLITS)
 RANDOM_STATE = 42
 
-# ---------------------------------------------------------------------------
-# Hyperparameter spaces
-# ---------------------------------------------------------------------------
-
-# NOTE: the previous space (max_depth=2, min_child_weight 60-120, reg_lambda
-# 80-150, reg_alpha 5-15, subsample 0.3-0.5) was so aggressive on the
-# small-variance residual target that XGBoost could not clear the minimum
-# split gain/child-weight thresholds and collapsed to a single constant leaf.
-# The exported ONNX then returned one fixed number for every input, so the
-# sliders had no effect on the prediction. These looser ranges let the trees
-# actually split while still regularizing.
 XGB_PARAM_SPACE = {
     "n_estimators": [100, 150, 200],
     "max_depth": [2],
@@ -80,10 +69,6 @@ ELASTICNET_PARAM_SPACE = {
 }
 
 IMPORTANCE_THRESHOLD = 0.015
-# With only ~219 rows, fewer features generalize better. Cap the feature set at
-# the top-K by importance (~14 rows/feature) instead of relying solely on a
-# threshold, which previously either kept too many or tripped the
-# "keep everything" fallback when too few features cleared the bar.
 MAX_FEATURES = 16
 BLEND_WEIGHT_XGB = 0.6
 
@@ -118,11 +103,6 @@ def _select_features(x: pd.DataFrame, y: pd.Series, threshold: float) -> list[st
     if len(selected) < 5:  # noqa: PLR2004
         selected = ranked[:MAX_FEATURES]
     return selected[:MAX_FEATURES]
-
-
-# ---------------------------------------------------------------------------
-# Candidate evaluation
-# ---------------------------------------------------------------------------
 
 
 def _evaluate_candidate(  # noqa: PLR0913
@@ -233,34 +213,24 @@ def _evaluate_candidate(  # noqa: PLR0913
     }
 
 
-# ---------------------------------------------------------------------------
-# Core training
-# ---------------------------------------------------------------------------
-
-
 def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
     """Build, tune, evaluate, and export the groundwater well level model."""
     datasets = build_all()
     x, y = datasets[MODEL_ID]
 
-    # Separate lag1 column for residual formulation
     lag1_col = "depth_to_water_ft_mean_lag1"
     lag1 = x[lag1_col].copy()
     x_full = x.drop(columns=[lag1_col])
 
-    # Residual target
     y_residual = y - lag1
 
-    # Feature selection
     selected = _select_features(x_full, y_residual, IMPORTANCE_THRESHOLD)
     x_selected = x_full[selected]
     n_dropped = len(x_full.columns) - len(selected)
     print(f"  Feature selection: {len(selected)} kept, {n_dropped} dropped")
 
-    # ----- Multi-model competition -----
     candidates = []
 
-    # Direct formulation candidates
     for model_name in ["xgb_direct", "ridge_direct", "elastic_direct"]:
         result = _evaluate_candidate(model_name, x_selected, y, y, None, "direct")
         candidates.append(result)
@@ -268,7 +238,6 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
             f"    {model_name:<20} R²={result['mean_r2']:.4f} ± {result['std_r2']:.4f}"
         )
 
-    # Residual formulation candidates
     for model_name in [
         "xgb_residual",
         "xgb_tight_residual",
@@ -284,11 +253,9 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
             f"    {model_name:<20} R²={result['mean_r2']:.4f} ± {result['std_r2']:.4f}"
         )
 
-    # Pick winner
     best_candidate = max(candidates, key=lambda c: c["mean_r2"])
     print(f"\n  Winner: {best_candidate['name']} (R²={best_candidate['mean_r2']:.4f})")
 
-    # ----- Train final model with tuning -----
     is_residual = best_candidate["formulation"] == "residual"
     is_blend = "blend" in best_candidate["name"]
     y_final = y_residual if is_residual else y
@@ -382,7 +349,6 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
     mean_mae = float(np.mean(fold_mae))
     std_mae = float(np.std(fold_mae))
 
-    # ----- Train score -----
     if is_blend:
         xgb_m, en_m = best_model
         train_pred = BLEND_WEIGHT_XGB * xgb_m.predict(x_selected) + (
@@ -395,7 +361,6 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
     train_r2 = float(r2_score(y, train_pred_actual))
     train_mae = float(mean_absolute_error(y, train_pred_actual))
 
-    # ----- Historical predictions -----
     historical = pd.DataFrame(
         {
             "year_month": y.index.astype(str),
@@ -404,7 +369,6 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
         }
     )
 
-    # ----- Feature importance -----
     if is_blend:
         xgb_m, en_m = best_model
         xgb_imp = xgb_m.feature_importances_
@@ -428,7 +392,6 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
         sorted(importance.items(), key=lambda x: x[1], reverse=True)
     )
 
-    # ----- Feature stats -----
     feature_stats = {
         col: {
             "mean": float(x_selected[col].mean()),
@@ -437,7 +400,6 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
         for col in feature_names
     }
 
-    # ----- Export ONNX -----
     if is_blend:
         xgb_m, _ = best_model
         _export_onnx_xgb(xgb_m, feature_names)
@@ -450,10 +412,8 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
     else:
         _export_onnx_sklearn(best_model, feature_names)
 
-    # Guard against shipping a degenerate constant model (see XGB_PARAM_SPACE note).
     _verify_onnx_not_constant(x_selected)
 
-    # ----- Save artifacts -----
     cv_results = {
         "model_id": MODEL_ID,
         "formulation": best_candidate["formulation"],
@@ -481,11 +441,6 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
     historical.to_csv(MODEL_DIR / f"historical_{MODEL_ID}.csv", index=False)
 
     return cv_results
-
-
-# ---------------------------------------------------------------------------
-# Tuning functions
-# ---------------------------------------------------------------------------
 
 
 def _tune_blend(x: pd.DataFrame, y: pd.Series) -> tuple:
@@ -559,14 +514,7 @@ def _tune_elasticnet(x: pd.DataFrame, y: pd.Series) -> tuple:
     return search.best_estimator_, best_params
 
 
-# ---------------------------------------------------------------------------
-# ONNX export
-# ---------------------------------------------------------------------------
-
-
-def _verify_onnx_not_constant(
-    x_selected: pd.DataFrame, min_std: float = 1e-4
-) -> None:
+def _verify_onnx_not_constant(x_selected: pd.DataFrame, min_std: float = 1e-4) -> None:
     """Fail loudly if the exported ONNX returns a (near-)constant prediction.
 
     A degenerate model (single constant leaf) silently breaks the frontend:
@@ -624,11 +572,6 @@ def _export_onnx_sklearn(model: XGBRegressor, feature_names: list[str]) -> None:
     with open(path, "wb") as f:
         f.write(onnx_model.SerializeToString())
     print(f"  ONNX exported → {path}")
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 
 def _save_json(obj: json, path: Path) -> None:

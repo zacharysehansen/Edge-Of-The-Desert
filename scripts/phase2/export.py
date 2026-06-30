@@ -6,10 +6,6 @@ Collect all model artifacts and produce a unified comparison summary.
 Reads each *_cv_results.json and baselines.json, produces:
   - model/model_comparison.json
   - Printed leaderboard to stdout
-
-Usage
------
-    python -m scripts.phase2.export
 """
 
 from __future__ import annotations
@@ -90,7 +86,6 @@ def build_comparison() -> dict:
             entry["improvement_r2"] = None
             entry["beats_baseline"] = None
 
-        # ONNX export status
         onnx_path = MODEL_DIR / f"{model_id}.onnx"
         entry["onnx_exported"] = onnx_path.exists()
 
@@ -99,7 +94,6 @@ def build_comparison() -> dict:
 
         comparison[model_id] = entry
 
-    # Save
     out_path = MODEL_DIR / "model_comparison.json"
     with open(out_path, "w") as f:
         json.dump(comparison, f, indent=2)
@@ -162,7 +156,6 @@ def print_leaderboard(comparison: dict) -> None:
             f"{bl_str:>10} {imp_str:>8} {beats_str:>6} {onnx_str:>5}"
         )
 
-    # Per-model notes
     print()
     for model_id, entry in comparison.items():
         if entry.get("note"):
@@ -186,10 +179,10 @@ def _is_nan(x: any) -> bool:
         return False
 
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
-
-if __name__ == "__main__":
+def main() -> None:
     comparison = build_comparison()
     print_leaderboard(comparison)
+
+
+if __name__ == "__main__":
+    main()

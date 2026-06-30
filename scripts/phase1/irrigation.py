@@ -18,7 +18,6 @@ Columns in output:
     irrigation_total_withdrawal_mgd - float, regional total (million
                                       gallons per day)
 
-Input file structure [3]:
     The raw file is wide-format with HUC12 codes as columns. Each row
     represents one month (Year + Month columns). The values are
     withdrawal rates in MGD for each HUC12 watershed.
@@ -31,7 +30,6 @@ Input file structure [3]:
         2. Sum across only those columns per row
         3. Output year_month + the summed value
 
-Spatial filter approach:
     HUC12 watershed centroids are matched against the eight-county
     boundary. A HUC12 is included if its centroid falls inside any of
     the eight counties. This requires either:
@@ -41,10 +39,7 @@ Spatial filter approach:
     If neither is available, the script falls back to using all Arizona
     HUC12s that intersect the bounding box, with a clear warning.
 
-Date range: 2000-01 to 2020-12 [3]
-    The irrigation source data covers 2000-2020. This is shorter than
-    the full project range (2000-2023) so downstream scripts will need
-    to handle the gap or extrapolate.
+Date range: 2000-01 to 2020-12. Will need to extrapolate
 """
 
 import logging
@@ -54,9 +49,6 @@ from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 
-# ---------------------------------------------------------------------------
-# Path setup
-# ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
@@ -65,9 +57,6 @@ from phase1.region import (
     filter_points,
 )
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(message)s",
@@ -75,31 +64,16 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
 RAW_DIR = ROOT / "data" / "raw"
 PROCESSED_DIR = ROOT / "data" / "Final"
 INPUT_FILE = RAW_DIR / "IR_HUC12_Tot_WD_monthly_2000_2020.csv"
 OUTPUT_FILE = PROCESSED_DIR / "irrigation_monthly.csv"
 
-# Optional: HUC12 shapefile for spatial filtering
-# WBD (Watershed Boundary Dataset) national or state extract
 HUC12_SHAPEFILE = RAW_DIR / "wbd" / "WBDHU12.shp"
-
-# Optional: HUC12-to-county crosswalk (if available)
 HUC12_COUNTY_CROSSWALK = RAW_DIR / "wbd" / "huc12_county_crosswalk.csv"
 
-# ---------------------------------------------------------------------------
-# Config [3]
-# ---------------------------------------------------------------------------
 YEAR_COL = "Year"
 MONTH_COL = "Month"
-
-
-# ---------------------------------------------------------------------------
-# Loaders
-# ---------------------------------------------------------------------------
 
 
 def _load_raw(path: Path) -> pd.DataFrame:
@@ -182,11 +156,6 @@ def _identify_huc12_columns(df: pd.DataFrame) -> list[str]:
     return huc12_cols
 
 
-# ---------------------------------------------------------------------------
-# Spatial filter — determine which HUC12s are in the eight-county region
-# ---------------------------------------------------------------------------
-
-
 def _filter_huc12s_with_shapefile(
     huc12_cols: list[str],
 ) -> list[str]:
@@ -264,7 +233,6 @@ def _filter_huc12s_with_crosswalk(
     log.info("Loading HUC12-county crosswalk from %s...", HUC12_COUNTY_CROSSWALK)
     xwalk = pd.read_csv(HUC12_COUNTY_CROSSWALK, dtype=str)
 
-    # Look for HUC12 and county FIPS columns
     huc_col = next(
         (c for c in ["HUC12", "huc12", "HUC_12"] if c in xwalk.columns), None
     )
@@ -281,11 +249,9 @@ def _filter_huc12s_with_crosswalk(
         log.warning("Crosswalk file missing HUC12 or FIPS column.")
         return None
 
-    # Filter to eight counties
     regional_xwalk = xwalk[xwalk[fips_col].isin(COUNTY_FIPS)]
     regional_hucs = set(regional_xwalk[huc_col].astype(str).tolist())
 
-    # Match against irrigation columns
     regional_cols = [col for col in huc12_cols if str(col).strip() in regional_hucs]
 
     log.info(
@@ -340,23 +306,15 @@ def _get_regional_huc12_columns(huc12_cols: list[str]) -> list[str]:
     -------
     List of HUC12 column names to include in the regional sum.
     """
-    # Try shapefile first
     result = _filter_huc12s_with_shapefile(huc12_cols)
     if result:
         return result
 
-    # Try crosswalk
     result = _filter_huc12s_with_crosswalk(huc12_cols)
     if result:
         return result
 
-    # Fallback
     return _filter_huc12s_bbox_fallback(huc12_cols)
-
-
-# ---------------------------------------------------------------------------
-# Aggregation
-# ---------------------------------------------------------------------------
 
 
 def _aggregate_to_monthly(
@@ -378,18 +336,15 @@ def _aggregate_to_monthly(
     -------
     DataFrame with columns: year_month, irrigation_total_withdrawal_mgd.
     """
-    # Coerce HUC12 columns to numeric
     for col in regional_cols:
         df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
-    # Build year_month
     df[YEAR_COL] = pd.to_numeric(df[YEAR_COL], errors="coerce").astype(int)
     df[MONTH_COL] = pd.to_numeric(df[MONTH_COL], errors="coerce").astype(int)
     df["year_month"] = (
         df[YEAR_COL].astype(str) + "-" + df[MONTH_COL].astype(str).str.zfill(2)
     )
 
-    # Sum across regional HUC12 columns
     df["irrigation_total_withdrawal_mgd"] = df[regional_cols].sum(axis=1).round(4)
 
     result = (
@@ -412,21 +367,14 @@ def _aggregate_to_monthly(
     return result
 
 
-# ---------------------------------------------------------------------------
-# Sanity checks
-# ---------------------------------------------------------------------------
-
-
 def _sanity_checks(df: pd.DataFrame) -> None:
     """
     Run basic sanity checks on the output.
     """
-    # Null check
     nulls = df["irrigation_total_withdrawal_mgd"].isna().sum()
     if nulls:
         log.warning("%d null withdrawal values in output.", nulls)
 
-    # Negative check
     negatives = (df["irrigation_total_withdrawal_mgd"] < 0).sum()
     if negatives:
         log.warning("%d negative withdrawal values.", negatives)
@@ -442,69 +390,13 @@ def _sanity_checks(df: pd.DataFrame) -> None:
     else:
         log.info("Row count correct: %d monthly rows.", len(df))
 
-    # Seasonal pattern check — irrigation should peak in summer months
-    df_check = df.copy()
-    df_check["month"] = df_check["year_month"].str[5:7].astype(int)
-    summer = df_check[df_check["month"].isin([6, 7, 8])][
-        "irrigation_total_withdrawal_mgd"
-    ].mean()
-    winter = df_check[df_check["month"].isin([12, 1, 2])][
-        "irrigation_total_withdrawal_mgd"
-    ].mean()
 
-    if summer > winter:
-        log.info(
-            "Seasonal pattern check passed: summer mean=%.2f MGD > "
-            "winter mean=%.2f MGD.",
-            summer,
-            winter,
-        )
-    else:
-        log.warning(
-            "Summer mean (%.2f) is NOT greater than winter mean (%.2f). "
-            "Irrigation typically peaks in summer. Review the data.",
-            summer,
-            winter,
-        )
-
-
-# ---------------------------------------------------------------------------
-# Main pipeline
-# ---------------------------------------------------------------------------
-
-
-def run(
-    input_file: Path = INPUT_FILE,
-    output_file: Path = OUTPUT_FILE,
-) -> pd.DataFrame:
-    """
-    Full irrigation pipeline:
-        load wide CSV → identify HUC12 columns → spatial filter →
-        aggregate to monthly → sanity checks → write CSV.
-
-    Parameters
-    ----------
-    input_file : Path
-        Path to ir_huc12_tot_wd_az_2000_2020.csv.
-        Defaults to data/raw/ir_huc12_tot_wd_az_2000_2020.csv.
-    output_file : Path
-        Path for output CSV.
-        Defaults to data/processed/irrigation_monthly.csv.
-
-    Returns
-    -------
-    DataFrame
-        Final monthly irrigation table, also written to output_file.
-    """
+def main() -> None:
     log.info("=== irrigation.py start ===")
 
-    # 1. Load raw wide-format file
-    df = _load_raw(input_file)
-
-    # 2. Identify HUC12 columns
+    df = _load_raw(INPUT_FILE)
     huc12_cols = _identify_huc12_columns(df)
 
-    # 3. Determine which HUC12s are in the eight-county region
     regional_cols = _get_regional_huc12_columns(huc12_cols)
     log.info(
         "Using %d of %d HUC12 columns for the eight-county region.",
@@ -512,48 +404,15 @@ def run(
         len(huc12_cols),
     )
 
-    # 4. Aggregate to monthly regional total
     monthly = _aggregate_to_monthly(df, regional_cols)
 
-    # 5. Sanity checks
     _sanity_checks(monthly)
-
-    # 6. Write output
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    monthly.to_csv(output_file, index=False)
-    log.info("Wrote %d rows to %s", len(monthly), output_file)
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    monthly.to_csv(OUTPUT_FILE, index=False)
+    log.info("Wrote %d rows to %s", len(monthly), OUTPUT_FILE)
 
     log.info("=== irrigation.py complete ===")
-    return monthly
 
-
-# ---------------------------------------------------------------------------
-# CLI entry point
-# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description="Build monthly regional irrigation withdrawal for the "
-        "eight-county southern Arizona study area from HUC12 "
-        "source matrix."
-    )
-    parser.add_argument(
-        "--input",
-        type=Path,
-        default=INPUT_FILE,
-        help=f"Path to raw HUC12 irrigation CSV (default: {INPUT_FILE})",
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=OUTPUT_FILE,
-        help=f"Path for output CSV (default: {OUTPUT_FILE})",
-    )
-    args = parser.parse_args()
-
-    result = run(input_file=args.input, output_file=args.output)
-    print(result.head(12).to_string(index=False))
-    print("...")
-    print(result.tail(12).to_string(index=False))
+    main()

@@ -40,17 +40,11 @@ from pathlib import Path
 import pandas as pd
 import requests
 
-# ---------------------------------------------------------------------------
-# Path setup
-# ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from phase1.region import COUNTIES, COUNTY_FIPS
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(message)s",
@@ -58,16 +52,10 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
 RAW_DIR = ROOT / "data" / "raw" / "usdm_sustainability"
 PROCESSED_DIR = ROOT / "data" / "Final"
 OUTPUT_FILE = PROCESSED_DIR / "water_stress_monthly.csv"
 
-# ---------------------------------------------------------------------------
-# Config [3]
-# ---------------------------------------------------------------------------
 START_DATE = "1/1/2000"
 END_DATE = "12/31/2023"
 START_MONTH = "2000-01"
@@ -94,11 +82,6 @@ TOTAL_AREA = sum(COUNTY_AREAS_SQMI.values())
 # Water stress formula [1][2]
 DSCI_DIVISOR = 5.0
 STRESS_BASELINE = 100.0
-
-
-# ---------------------------------------------------------------------------
-# API pull
-# ---------------------------------------------------------------------------
 
 
 def _fetch_county_dsci(
@@ -234,11 +217,6 @@ def _fetch_all_counties() -> pd.DataFrame:
     return combined
 
 
-# ---------------------------------------------------------------------------
-# Area-weighted aggregation
-# ---------------------------------------------------------------------------
-
-
 def _compute_area_weighted_dsci(df: pd.DataFrame) -> pd.DataFrame:
     """
     Compute area-weighted regional DSCI from county-level data.
@@ -289,11 +267,6 @@ def _compute_area_weighted_dsci(df: pd.DataFrame) -> pd.DataFrame:
     return weekly[["date", "dsci_weighted"]].sort_values("date").reset_index(drop=True)
 
 
-# ---------------------------------------------------------------------------
-# Monthly aggregation
-# ---------------------------------------------------------------------------
-
-
 def _aggregate_to_monthly(df: pd.DataFrame) -> pd.DataFrame:
     """
     Aggregate weekly area-weighted DSCI to monthly mean.
@@ -333,11 +306,6 @@ def _aggregate_to_monthly(df: pd.DataFrame) -> pd.DataFrame:
     return monthly
 
 
-# ---------------------------------------------------------------------------
-# Water stress score
-# ---------------------------------------------------------------------------
-
-
 def _derive_water_stress_score(df: pd.DataFrame) -> pd.DataFrame:
     """
     Derive water stress score from DSCI. [1][2]
@@ -359,11 +327,6 @@ def _derive_water_stress_score(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     return df
-
-
-# ---------------------------------------------------------------------------
-# Gap filling
-# ---------------------------------------------------------------------------
 
 
 def _check_and_fill_gaps(df: pd.DataFrame) -> pd.DataFrame:
@@ -411,11 +374,6 @@ def _check_and_fill_gaps(df: pd.DataFrame) -> pd.DataFrame:
     return merged.reset_index(drop=True)
 
 
-# ---------------------------------------------------------------------------
-# Sanity checks
-# ---------------------------------------------------------------------------
-
-
 def _sanity_checks(df: pd.DataFrame) -> None:
     """Run basic sanity checks."""
 
@@ -450,36 +408,19 @@ def _sanity_checks(df: pd.DataFrame) -> None:
     log.info("Overall mean DSCI=%.1f.", overall_mean)
 
 
-# ---------------------------------------------------------------------------
-# Main pipeline
-# ---------------------------------------------------------------------------
-
-
-def run(output_file: Path = OUTPUT_FILE) -> pd.DataFrame:
-    """
-    Full water stress pipeline:
-        fetch county-level DSCI → area-weighted aggregation →
-        monthly mean → water stress score → fill gaps →
-        sanity checks → write CSV.
-    """
+def main() -> None:
     log.info("=== water_stress.py start ===")
 
-    # 1. Fetch DSCI for all eight counties from USDM API
     county_weekly = _fetch_all_counties()
 
-    # 2. Compute area-weighted regional DSCI
     regional_weekly = _compute_area_weighted_dsci(county_weekly)
 
-    # 3. Aggregate to monthly
     monthly = _aggregate_to_monthly(regional_weekly)
 
-    # 4. Derive water stress score [1][2]
     monthly = _derive_water_stress_score(monthly)
 
-    # 5. Fill gaps
     monthly = _check_and_fill_gaps(monthly)
 
-    # 6. Select output columns
     output = monthly[
         [
             "year_month",
@@ -488,39 +429,14 @@ def run(output_file: Path = OUTPUT_FILE) -> pd.DataFrame:
         ]
     ].copy()
 
-    # 7. Sanity checks
     _sanity_checks(output)
 
-    # 8. Write output
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    output.to_csv(output_file, index=False)
-    log.info("Wrote %d rows to %s", len(output), output_file)
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    output.to_csv(OUTPUT_FILE, index=False)
+    log.info("Wrote %d rows to %s", len(output), OUTPUT_FILE)
 
     log.info("=== water_stress.py complete ===")
-    return output
 
-
-# ---------------------------------------------------------------------------
-# CLI entry point
-# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description="Build monthly area-weighted water stress score for "
-        "the eight-county southern Arizona study area from "
-        "USDM county-level DSCI data."
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=OUTPUT_FILE,
-        help=f"Path for output CSV (default: {OUTPUT_FILE})",
-    )
-    args = parser.parse_args()
-
-    result = run(output_file=args.output)
-    print(result.head(12).to_string(index=False))
-    print("...")
-    print(result.tail(12).to_string(index=False))
+    main()

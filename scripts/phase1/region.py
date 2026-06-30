@@ -24,9 +24,6 @@ import geopandas as gpd
 from rasterio.mask import mask as rio_mask
 from shapely.geometry import box
 
-# ---------------------------------------------------------------------------
-# Constants pulled directly from phase1.example.json [3]
-# ---------------------------------------------------------------------------
 
 STATE_FIPS: str = "04"
 STATE_ABBR: str = "AZ"
@@ -68,10 +65,6 @@ _DEFAULT_SHAPEFILE = (
     / "tiger"
     / "tl_2023_us_county.shp"
 )
-
-# ---------------------------------------------------------------------------
-# Boundary loader
-# ---------------------------------------------------------------------------
 
 
 @lru_cache(maxsize=1)
@@ -147,11 +140,6 @@ def load_county_boundary(shapefile_path: str | Path | None = None) -> gpd.GeoDat
     return boundary
 
 
-# ---------------------------------------------------------------------------
-# Point filter
-# ---------------------------------------------------------------------------
-
-
 def filter_points(
     gdf: gpd.GeoDataFrame,
     shapefile_path: str | Path | None = None,
@@ -201,11 +189,6 @@ def filter_points(
         filtered = filtered.to_crs(original_crs)
 
     return filtered.reset_index(drop=True)
-
-
-# ---------------------------------------------------------------------------
-# Raster clip
-# ---------------------------------------------------------------------------
 
 
 def clip_raster(
@@ -288,11 +271,6 @@ def clip_raster(
     return clipped_array, clipped_transform, clipped_meta
 
 
-# ---------------------------------------------------------------------------
-# Convenience: bounding box as a shapely geometry
-# ---------------------------------------------------------------------------
-
-
 def bbox_geometry() -> box:
     """
     Return the study area bounding box as a shapely Polygon in EPSG:4326.
@@ -302,10 +280,6 @@ def bbox_geometry() -> box:
     min_lon, min_lat, max_lon, max_lat = BBOX
     return box(min_lon, min_lat, max_lon, max_lat)
 
-
-# ---------------------------------------------------------------------------
-# Quick self-test
-# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     print("Eight-county study area")
