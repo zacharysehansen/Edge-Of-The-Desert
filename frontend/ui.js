@@ -1,16 +1,18 @@
 import {
-  MONTHS, SLIDER_DEFS, SLIDER_STATS, OUTPUT_DEFS, TOP_INPUTS,
+  MONTHS, SCENARIO_DURATION_OPTIONS, SLIDER_DEFS, SLIDER_STATS, OUTPUT_DEFS, OUTPUT_STATS, TOP_INPUTS,
   state,
 } from './state.js';
 import { loadModels, runAll } from './models.js';
 
+
 let debounceTimer = null;
+
 
 function scheduleInference() {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(async () => {
     try {
-      const results = await runAll(state.sliders, state.month);
+      const results = await runAll(state.sliders, state.month, state.scenarioDurationMonths);
       if (results) updateAllOutputs();
     } catch (err) {
       console.error('[EotD] inference error:', err);
@@ -18,12 +20,25 @@ function scheduleInference() {
   }, 80);
 }
 
-function buildSliderPanel(panelId, title, keys) {
-  const panel = document.getElementById(panelId);
 
+function buildPanelHeading(panelId, title) {
+  const panel = document.getElementById(panelId);
   const heading = document.createElement('h2');
   heading.textContent = title;
+  if (title === 'The Human Factor'){
+    heading.classList.add('human-title'); 
+  }
+  else{
+    heading.classList.add('climate-title'); 
+  }
+
   panel.appendChild(heading);
+}
+
+
+
+function buildSliderPanel(panelId, keys) {
+  const panel = document.getElementById(panelId);
 
   for (const key of keys) {
     const def   = SLIDER_DEFS[key];
@@ -71,6 +86,7 @@ function buildSliderPanel(panelId, title, keys) {
   }
 }
 
+
 function buildMonthDropdown() {
   const panel = document.getElementById('panel-climate');
 
@@ -107,11 +123,50 @@ function buildMonthDropdown() {
   panel.appendChild(wrap);
 }
 
+
+function buildDurationDropdown() {
+  const panel = document.getElementById('panel-climate');
+
+  const wrap = document.createElement('div');
+  wrap.className = 'slider-group';
+
+  const labelRow = document.createElement('div');
+  labelRow.className = 'slider-label-row';
+
+  const label = document.createElement('label');
+  label.htmlFor = 'duration-select';
+  label.textContent = 'Scenario duration';
+
+  labelRow.appendChild(label);
+  wrap.appendChild(labelRow);
+
+  const select = document.createElement('select');
+  select.id = 'duration-select';
+
+  SCENARIO_DURATION_OPTIONS.forEach(({ value, label: text }) => {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = text;
+    if (value === state.scenarioDurationMonths) opt.selected = true;
+    select.appendChild(opt);
+  });
+
+  select.addEventListener('change', () => {
+    state.scenarioDurationMonths = parseInt(select.value, 10);
+    scheduleInference();
+  });
+
+  wrap.appendChild(select);
+  panel.appendChild(wrap);
+}
+
+
 function buildOutputPanel() {
   const panel = document.getElementById('panel-outputs');
 
   const heading = document.createElement('h2');
-  heading.textContent = 'Model Outputs';
+  heading.textContent = 'The Water Factor';
+  heading.classList.add('water-title');
   panel.appendChild(heading);
 
   for (const key of Object.keys(OUTPUT_DEFS)) {
@@ -144,6 +199,10 @@ function buildOutputPanel() {
     const barMarker = document.createElement('div');
     barMarker.className = 'bar-baseline-marker';
     barMarker.id = `marker-${key}`;
+    // Position is set later, in updateBaselineMarkers(), once calibrateBaselines()
+    // has actually run the model with default sliders. Hidden until then so it
+    // never shows a position based on the old precomputed stat.
+    barMarker.style.visibility = 'hidden';
 
     barWrap.appendChild(barFill);
     barWrap.appendChild(barMarker);
@@ -187,30 +246,12 @@ function buildOutputPanel() {
     panel.appendChild(block);
   }
 
-  const legend = document.createElement('p');
-  legend.className = 'chain-legend';
-  legend.textContent =
-    'GRACE output feeds into NDVI. NDVI output feeds into Wildlife. All other models run independently.';
-  panel.appendChild(legend);
-
   const caveats = document.createElement('ul');
   caveats.className = 'caveats';
 
-  const warnings = [
-    'Lagged and rolling features are approximated by broadcasting the current slider value.',
-    'Wildfire R\u00b2 = 0.05. This reflects background risk, not event prediction.',
-    'Wildlife model trained on 20 annual rows. Treat its output as directional only.',
-    'Surface water will not visibly respond to human input sliders. This is correct model behavior.',
-  ];
-
-  for (const w of warnings) {
-    const li = document.createElement('li');
-    li.textContent = w;
-    caveats.appendChild(li);
-  }
-
   panel.appendChild(caveats);
 }
+
 
 function buildResetButton() {
   const btn = document.getElementById('reset-btn');
@@ -224,16 +265,25 @@ function buildResetButton() {
       const valEl = document.getElementById(`val-${key}`);
       if (valEl) valEl.textContent = formatSliderValue(key, stats.default);
     }
+    state.scenarioDurationMonths = 12;
+    const durationSelect = document.getElementById('duration-select');
+    if (durationSelect) durationSelect.value = state.scenarioDurationMonths;
     scheduleInference();
   });
 }
 
-function buildRunButton() {
-  const btn = document.getElementById('run-btn');
-  if (!btn) return;
-  btn.textContent = 'Run models';
-  btn.addEventListener('click', () => scheduleInference());
+
+function updateBaselineMarkers() {
+  for (const key of Object.keys(OUTPUT_DEFS)) {
+    const marker = document.getElementById(`marker-${key}`);
+    if (!marker) continue;
+    const { min, max, baseline } = OUTPUT_STATS[key];
+    const baselinePct = Math.max(0, Math.min(100, ((baseline - min) / (max - min)) * 100));
+    marker.style.left = `${baselinePct.toFixed(1)}%`;
+    marker.style.visibility = 'visible';
+  }
 }
+
 
 function updateAllOutputs() {
   for (const [key, out] of Object.entries(state.outputs)) {
@@ -273,6 +323,7 @@ function updateAllOutputs() {
   }
 }
 
+
 function onModelReady(key, success) {
   const loadingEl = document.getElementById(`loading-${key}`);
   if (!success) {
@@ -289,13 +340,17 @@ function onModelReady(key, success) {
   if (allDone) scheduleInference();
 }
 
+
 function formatSliderValue(key, value) {
   if (key === 'population') return Math.round(value).toLocaleString();
-  if (key === 'impervious_pct') return value.toFixed(1);
+  if (key === 'irrigation_total_withdrawal_mgd') return Math.round(value).toLocaleString();
+  if (key === 'public_supply_groundwater_mgd') return Math.round(value).toLocaleString();
+  if (key === 'impervious_pct') return value.toFixed(2);
   if (key === 'precipitation_mm_day') return value.toFixed(2);
   if (key === 'temperature_2m_c') return value.toFixed(1);
   return Math.round(value).toString();
 }
+
 
 function formatRaw(key, value) {
   if (key === 'ndvi') return value.toFixed(3);
@@ -303,9 +358,10 @@ function formatRaw(key, value) {
   if (key === 'surface_water') return Math.round(value);
   if (key === 'groundwater') return Math.round(value);
   if (key === 'wildfire') return value.toFixed(3);
-  if (key === 'wildlife') return Math.round(value);
+  if (key === 'wildlife') return value.toFixed(3);
   return value.toFixed(2);
 }
+
 
 function computeStep(min, max) {
   const range = max - min;
@@ -316,18 +372,27 @@ function computeStep(min, max) {
   return 0.01;
 }
 
+
 async function init() {
   const humanKeys    = Object.keys(SLIDER_DEFS).filter(k => SLIDER_DEFS[k].panel === 'human');
   const climateKeys  = Object.keys(SLIDER_DEFS).filter(k => SLIDER_DEFS[k].panel === 'climate');
 
-  buildSliderPanel('panel-human',   'Human Inputs',   humanKeys);
+  // Human panel: heading then sliders
+  buildPanelHeading('panel-human', 'The Human Factor');
+  buildSliderPanel('panel-human', humanKeys);
+
+  // Climate panel: heading first, then dropdowns, then sliders
+  buildPanelHeading('panel-climate', 'The Climate Factor');
   buildMonthDropdown();
-  buildSliderPanel('panel-climate', 'Climate Inputs', climateKeys);
+  buildDurationDropdown();
+  buildSliderPanel('panel-climate', climateKeys);
+
   buildOutputPanel();
   buildResetButton();
-  buildRunButton();
 
   await loadModels(onModelReady);
+  updateBaselineMarkers();
 }
+
 
 export { init };

@@ -27,10 +27,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from onnxmltools import convert_xgboost
-from onnxmltools.convert.common.data_types import FloatTensorType
 from skl2onnx import convert_sklearn
-from skl2onnx.common.data_types import FloatTensorType  # noqa: F811
+from skl2onnx.common.data_types import FloatTensorType
+from sklearn.impute import SimpleImputer
 from sklearn.linear_model import ElasticNet, Ridge
 from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
@@ -265,12 +264,20 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
         y_te_orig = y_raw.iloc[test_idx]
 
         if "xgb" in best_candidate["name"]:
-            fold_model = XGBRegressor(
-                **best_params,
-                objective="reg:squarederror",
-                tree_method="hist",
-                random_state=RANDOM_STATE,
-                verbosity=0,
+            fold_model = Pipeline(
+                [
+                    ("imputer", SimpleImputer(strategy="median")),
+                    (
+                        "model",
+                        XGBRegressor(
+                            **best_params,
+                            objective="reg:squarederror",
+                            tree_method="hist",
+                            random_state=RANDOM_STATE,
+                            verbosity=0,
+                        ),
+                    ),
+                ]
             )
             fold_model.fit(x_tr, y_tr)
             pred_log = fold_model.predict(x_te)
@@ -314,11 +321,7 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
     mean_mae = float(np.mean(fold_mae))
     std_mae = float(np.std(fold_mae))
 
-    # ----- Train score -----
-    if "xgb" in best_candidate["name"]:
-        train_pred_log = best_model.predict(x_selected)
-    else:
-        train_pred_log = best_model.predict(x_selected)
+    train_pred_log = best_model.predict(x_selected)
 
     if is_residual:
         train_pred_log = train_pred_log + lag1_log.values
@@ -338,14 +341,14 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
     # ----- Feature importance -----
     if "xgb" in best_candidate["name"]:
         importance = dict(
-            zip(feature_names, best_model.feature_importances_.tolist(), strict=False)
+            zip(
+                feature_names,
+                best_model.named_steps["model"].feature_importances_.tolist(),
+                strict=False,
+            )
         )
     else:
-        # For linear models, use absolute coefficient values
-        if hasattr(best_model, "named_steps"):
-            coefs = np.abs(best_model.named_steps["model"].coef_)
-        else:
-            coefs = np.abs(best_model.coef_)
+        coefs = np.abs(best_model.named_steps["model"].coef_)
         total = coefs.sum() if coefs.sum() > 0 else 1.0
         importance = dict(zip(feature_names, (coefs / total).tolist(), strict=False))
     sorted_importance = dict(
@@ -361,15 +364,7 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
         for col in feature_names
     }
 
-    # ----- Export ONNX (XGBoost only) -----
-    if "xgb" in best_candidate["name"]:
-        _export_onnx(best_model, feature_names)
-    else:
-        print(
-            f"  [INFO] Linear model ({best_candidate['name']})"
-            " — ONNX export via skl2onnx"
-        )
-        _export_onnx_sklearn(best_model, feature_names)
+    _export_onnx(best_model, feature_names)
 
     # ----- Save artifacts -----
     cv_results = {
@@ -408,15 +403,24 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
 
 
 def _tune_xgboost(x: pd.DataFrame, y: pd.Series) -> tuple:
-    base = XGBRegressor(
-        objective="reg:squarederror",
-        tree_method="hist",
-        random_state=RANDOM_STATE,
-        verbosity=0,
+    pipe = Pipeline(
+        [
+            ("imputer", SimpleImputer(strategy="median")),
+            (
+                "model",
+                XGBRegressor(
+                    objective="reg:squarederror",
+                    tree_method="hist",
+                    random_state=RANDOM_STATE,
+                    verbosity=0,
+                ),
+            ),
+        ]
     )
+    prefixed = {f"model__{k}": v for k, v in XGB_PARAM_SPACE.items()}
     search = RandomizedSearchCV(
-        base,
-        XGB_PARAM_SPACE,
+        pipe,
+        prefixed,
         n_iter=60,
         cv=CV,
         scoring="r2",
@@ -425,7 +429,8 @@ def _tune_xgboost(x: pd.DataFrame, y: pd.Series) -> tuple:
         refit=True,
     )
     search.fit(x, y)
-    return search.best_estimator_, search.best_params_
+    best_params = {k.replace("model__", ""): v for k, v in search.best_params_.items()}
+    return search.best_estimator_, best_params
 
 
 def _tune_ridge(x: pd.DataFrame, y: pd.Series) -> tuple:
@@ -472,32 +477,18 @@ def _tune_elasticnet(x: pd.DataFrame, y: pd.Series) -> tuple:
 # ---------------------------------------------------------------------------
 
 
-def _export_onnx(model: XGBRegressor, feature_names: list[str]) -> None:
-    """Export XGBoost to ONNX."""
-    booster = model.get_booster()
-    numeric_names = [f"f{i}" for i in range(len(feature_names))]
-    booster.feature_names = numeric_names
-
-    clone = XGBRegressor(**model.get_params())
-    clone.fit(np.zeros((2, len(feature_names))), np.zeros(2))
-    clone.get_booster().load_model(bytearray(booster.save_raw()))
-    clone.get_booster().feature_names = numeric_names
-
-    initial_type = [("features", FloatTensorType([None, len(feature_names)]))]
-    onnx_model = convert_xgboost(clone, initial_types=initial_type)
-
-    path = MODEL_DIR / f"{MODEL_ID}.onnx"
-    with open(path, "wb") as f:
-        f.write(onnx_model.SerializeToString())
-    print(f"  ONNX exported → {path}")
-
-
-def _export_onnx_sklearn(model: XGBRegressor, feature_names: list[str]) -> None:
-    """Export sklearn pipeline to ONNX."""
-
-    initial_type = [("features", FloatTensorType([None, len(feature_names)]))]
-    onnx_model = convert_sklearn(model, initial_types=initial_type)
-
+def _export_onnx(pipe: Pipeline, feature_names: list[str]) -> None:
+    try:
+        initial_type = [("features", FloatTensorType([None, len(feature_names)]))]
+        onnx_model = convert_sklearn(
+            pipe, initial_types=initial_type, target_opset={"": 12, "ai.onnx.ml": 1}
+        )
+    except ImportError as e:
+        print(f"  [WARN] ONNX export dependencies missing ({e}) — skipping")
+        return
+    except Exception as e:
+        print(f"  [WARN] ONNX export failed ({e}) — skipping")
+        return
     path = MODEL_DIR / f"{MODEL_ID}.onnx"
     with open(path, "wb") as f:
         f.write(onnx_model.SerializeToString())

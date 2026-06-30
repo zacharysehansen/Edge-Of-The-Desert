@@ -1,6 +1,17 @@
+import computedStats from './computed_stats.json' with { type: 'json' };
+
 const MONTHS = [
   "January","February","March","April","May","June",
   "July","August","September","October","November","December"
+];
+
+const SCENARIO_DURATION_OPTIONS = [
+  { value: 1,  label: "1 month" },
+  { value: 3,  label: "3 months" },
+  { value: 6,  label: "6 months" },
+  { value: 12, label: "1 year" },
+  { value: 24, label: "2 years" },
+  { value: 36, label: "3 years" },
 ];
 
 const SLIDER_DEFS = {
@@ -14,16 +25,8 @@ const SLIDER_DEFS = {
   usdm_dsci:                { label: "Drought Index (DSCI)",    unit: "",        panel: "climate" },
 };
 
-const SLIDER_STATS = {
-  population:                      { min: 1800000, max: 2600000,  default: 2100000  },
-  irrigation_total_withdrawal_mgd: { min: 400,     max: 1800,     default: 950      },
-  public_supply_groundwater_mgd:   { min: 80,      max: 320,      default: 175      },
-  impervious_pct:                  { min: 2.5,     max: 6.5,      default: 4.2      },
-  mead_pool_elevation:             { min: 1050,    max: 1220,     default: 1130     },
-  precipitation_mm_day:            { min: 0.3,     max: 5.2,      default: 1.4      },
-  temperature_2m_c:                { min: 14,      max: 32,       default: 22       },
-  usdm_dsci:                       { min: 0,       max: 400,      default: 150      },
-};
+// Loaded dynamically from computed_stats.json (p5, p95, p50)
+const SLIDER_STATS = computedStats.SLIDER_STATS;
 
 const OUTPUT_DEFS = {
   grace:        { label: "GRACE Groundwater Anomaly", unit: "cm",    higherIsBetter: true,  feedsInto: "ndvi"     },
@@ -34,14 +37,8 @@ const OUTPUT_DEFS = {
   wildlife:     { label: "Wildlife Abundance",        unit: "index", higherIsBetter: true,  feedsInto: null       },
 };
 
-const OUTPUT_STATS = {
-  grace:         { min: -8,   max: 4,    baseline: -1.5  },
-  ndvi:          { min: 0.10, max: 0.45, baseline: 0.25  },
-  groundwater:   { min: 50,   max: 250,  baseline: 140   },
-  surface_water: { min: 5,    max: 900,  baseline: 60    },
-  wildfire:      { min: 0,    max: 1,    baseline: 0.18  },
-  wildlife:      { min: 800,  max: 2200, baseline: 1400  },
-};
+// Loaded dynamically from computed_stats.json (p5, p95, p50 as baseline)
+const OUTPUT_STATS = computedStats.OUTPUT_STATS;
 
 const TOP_INPUTS = {
   grace:         "temperature, precipitation anomaly, seasonal position",
@@ -54,12 +51,16 @@ const TOP_INPUTS = {
 
 const state = {
   month: 7,
+  scenarioDurationMonths: 12,
   sliders: Object.fromEntries(
     Object.keys(SLIDER_STATS).map(k => [k, SLIDER_STATS[k].default])
   ),
   outputs: Object.fromEntries(
     Object.keys(OUTPUT_DEFS).map(k => [k, { score: null, rawValue: null, delta: null, loading: true, error: false }])
   ),
+  // Flat map of every feature name to its current value.
+  // Built fresh by runAll() before each inference pass.
+  featureCatalog: {},
 };
 
 function getMonthEncoding(monthNum) {
@@ -80,6 +81,7 @@ function computeDelta(modelKey, currentScore) {
 
 export {
   MONTHS,
+  SCENARIO_DURATION_OPTIONS,
   SLIDER_DEFS,
   SLIDER_STATS,
   OUTPUT_DEFS,

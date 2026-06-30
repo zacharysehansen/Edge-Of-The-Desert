@@ -3,32 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Edge of the Desert — Environmental Model</title>
+  <title>Edge of the Desert V2</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Serif:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.17.3/ort.min.js"></script>
+
+  <!-- importmap must come before any type="module" script -->
+  <script type="importmap">
+  {
+    "imports": {
+      "onnxruntime-web/wasm": "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.3/dist/esm/ort.min.js"
+    }
+  }
+  </script>
 </head>
 <body>
 
 <header id="app-header">
   <h1>Edge of the Desert</h1>
-  <span class="subtitle">Southern Arizona Environmental Model — 8-County Region</span>
 </header>
 
 <div id="app-body">
-  <section class="panel" id="panel-human" aria-label="Human Inputs"></section>
+  <section class="panel" id="panel-human"  aria-label="Human Inputs"></section>
   <section class="panel" id="panel-climate" aria-label="Climate Inputs"></section>
   <section class="panel" id="panel-outputs" aria-label="Model Outputs"></section>
 
   <footer id="app-footer">
     <button id="reset-btn"></button>
-    <button id="run-btn"></button>
   </footer>
 </div>
 
 <script type="module">
-  import { init } from './js/ui.js';
+  import { init } from './ui.js';
   init();
 </script>
 

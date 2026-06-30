@@ -1,0 +1,76 @@
+{
+  "SLIDER_STATS": {
+    "population": {
+      "min": 4570294.081,
+      "max": 6537529.2585,
+      "default": 5723559.05
+    },
+    "irrigation_total_withdrawal_mgd": {
+      "min": 53377831.8885,
+      "max": 55800203.8318,
+      "default": 54135574.4972
+    },
+    "public_supply_groundwater_mgd": {
+      "min": 28962.0194,
+      "max": 42309.2337,
+      "default": 33551.9634
+    },
+    "impervious_pct": {
+      "min": 0.8253,
+      "max": 1.2839,
+      "default": 1.144
+    },
+    "mead_pool_elevation": {
+      "min": 1058.4032,
+      "max": 1194.7139,
+      "default": 1104.6754
+    },
+    "precipitation_mm_day": {
+      "min": 0.0277,
+      "max": 2.3133,
+      "default": 0.5161
+    },
+    "usdm_dsci": {
+      "min": 9.315,
+      "max": 378.885,
+      "default": 194.31
+    },
+    "temperature_2m_c": {
+      "min": 7.8824,
+      "max": 29.9466,
+      "default": 18.6694
+    }
+  },
+  "OUTPUT_STATS": {
+    "grace": {
+      "min": -0.131,
+      "max": 0.0151,
+      "baseline": -0.0433
+    },
+    "ndvi": {
+      "min": 0.1876,
+      "max": 0.2755,
+      "baseline": 0.2167
+    },
+    "groundwater": {
+      "min": 82.596,
+      "max": 173.7612,
+      "baseline": 104.8476
+    },
+    "surface_water": {
+      "min": 47.6769,
+      "max": 212.2415,
+      "baseline": 80.4578
+    },
+    "wildfire": {
+      "min": 0.1135,
+      "max": 0.5602,
+      "baseline": 0.3345
+    },
+    "wildlife": {
+      "min": 0.3911,
+      "max": 0.9997,
+      "baseline": 0.775
+    }
+  }
+}

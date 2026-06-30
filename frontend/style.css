@@ -5,7 +5,7 @@
 }
 
 :root {
-  --green:      #8FD694;
+  --green:      #5A9367;
   --sand:       #E3DACC;
   --teal:       #28536B;
   --terra:      #A76D60;
@@ -13,6 +13,10 @@
   --sand-dark:  #D4C9B7;
   --teal-light: #3A6E8A;
   --bg:         #F0EBE1;
+  --red:        #3b252c;
+  --blue:       #06BEE1;
+  --orange:     #BA5A31;
+
 }
 
 html, body {
@@ -92,6 +96,19 @@ html, body {
   border-bottom: 1px solid var(--teal);
   padding-bottom: 6px;
   margin-bottom: 16px;
+}
+
+.panel h2.human-title {
+  font-weight: bold;
+  color: var(--orange);
+}
+
+.panel h2.climate-title{
+  color: var(--green);
+}
+
+.panel h2.water-title{
+  color: var(--blue);
 }
 
 /* ── Footer strip ────────────────────────────────────────── */
