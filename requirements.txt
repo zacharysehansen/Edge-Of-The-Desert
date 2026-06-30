@@ -18,6 +18,8 @@ openpyxl
 xlrd
 gdal
 rasterio
+geopandas
+shapely
 requests
 xarray
 netCDF4
