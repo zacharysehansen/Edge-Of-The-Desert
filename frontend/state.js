@@ -61,6 +61,8 @@ const state = {
   // Flat map of every feature name to its current value.
   // Built fresh by runAll() before each inference pass.
   featureCatalog: {},
+  // Holds the raw groundwater output from the previous inference run for lag calculations.
+  prevGroundwaterRaw: null,
 };
 
 function getMonthEncoding(monthNum) {
