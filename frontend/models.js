@@ -347,6 +347,10 @@ function buildFeatureCatalog(sliderValues, month, durationMonths = state.scenari
             groundwaterBaseline,
             durationMonths,
         );
+        // If we have a previous groundwater raw value, use it as the lag-1 feature so the model can reflect changes over time.
+        if (state.prevGroundwaterRaw !== null) {
+            catalog.depth_to_water_ft_mean_lag1 = state.prevGroundwaterRaw;
+        }
         for (const key of Object.keys(SLIDER_STATS)) {
         addMonthlyTemporalFeatures(
             catalog,
@@ -506,6 +510,10 @@ async function runAll(sliderValues, month, durationMonths = state.scenarioDurati
         const score = normalizeOutput(key, rawValue);
                     const delta = computeDelta(key, score);
             state.outputs[key] = { score, rawValue, delta, loading: false, error: false };
+            // Store the raw groundwater output for the next run (used as lag-1 feature)
+            if (key === 'groundwater') {
+                state.prevGroundwaterRaw = rawValue;
+            }
             }
 
     return state.outputs;
