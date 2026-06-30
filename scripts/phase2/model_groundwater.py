@@ -19,9 +19,11 @@ Usage
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
+import onnxruntime as ort
 import pandas as pd
 from onnxmltools import convert_xgboost
 from onnxmltools.convert.common.data_types import FloatTensorType
@@ -33,9 +35,11 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from xgboost import XGBRegressor
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT))
+
 from scripts.phase2.features import build_all
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
 MODEL_DIR = REPO_ROOT / "model"
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -48,15 +52,22 @@ RANDOM_STATE = 42
 # Hyperparameter spaces
 # ---------------------------------------------------------------------------
 
+# NOTE: the previous space (max_depth=2, min_child_weight 60-120, reg_lambda
+# 80-150, reg_alpha 5-15, subsample 0.3-0.5) was so aggressive on the
+# small-variance residual target that XGBoost could not clear the minimum
+# split gain/child-weight thresholds and collapsed to a single constant leaf.
+# The exported ONNX then returned one fixed number for every input, so the
+# sliders had no effect on the prediction. These looser ranges let the trees
+# actually split while still regularizing.
 XGB_PARAM_SPACE = {
-    "n_estimators": [100, 150, 200, 300],
+    "n_estimators": [100, 150, 200],
     "max_depth": [2],
-    "learning_rate": [0.005, 0.01, 0.02],
-    "subsample": [0.3, 0.4, 0.5],
-    "colsample_bytree": [0.2, 0.25, 0.3],
-    "reg_alpha": [5.0, 10.0, 15.0],
-    "reg_lambda": [80, 100, 150],
-    "min_child_weight": [60, 80, 100, 120],
+    "learning_rate": [0.01, 0.02, 0.05],
+    "subsample": [0.6, 0.7, 0.8],
+    "colsample_bytree": [0.4, 0.5, 0.7],
+    "reg_alpha": [0.0, 1.0, 2.0],
+    "reg_lambda": [10, 20, 50],
+    "min_child_weight": [10, 20, 30],
 }
 
 RIDGE_PARAM_SPACE = {
@@ -69,6 +80,11 @@ ELASTICNET_PARAM_SPACE = {
 }
 
 IMPORTANCE_THRESHOLD = 0.015
+# With only ~219 rows, fewer features generalize better. Cap the feature set at
+# the top-K by importance (~14 rows/feature) instead of relying solely on a
+# threshold, which previously either kept too many or tripped the
+# "keep everything" fallback when too few features cleared the bar.
+MAX_FEATURES = 16
 BLEND_WEIGHT_XGB = 0.6
 
 
@@ -78,7 +94,12 @@ BLEND_WEIGHT_XGB = 0.6
 
 
 def _select_features(x: pd.DataFrame, y: pd.Series, threshold: float) -> list[str]:
-    """Fit a quick XGBoost and return features above the importance threshold."""
+    """Fit a quick XGBoost and return the most important features.
+
+    Keeps features above ``threshold``, then caps the set at ``MAX_FEATURES``
+    (highest importance first) to keep the rows/feature ratio sane on a small
+    dataset. Falls back to the top ``MAX_FEATURES`` if too few clear the bar.
+    """
     model = XGBRegressor(
         n_estimators=300,
         max_depth=2,
@@ -92,8 +113,11 @@ def _select_features(x: pd.DataFrame, y: pd.Series, threshold: float) -> list[st
     )
     model.fit(x, y)
     importances = dict(zip(x.columns, model.feature_importances_, strict=False))
-    selected = [col for col, imp in importances.items() if imp >= threshold]
-    return selected if len(selected) >= 5 else list(x.columns)  # noqa: PLR2004
+    ranked = sorted(importances, key=lambda c: importances[c], reverse=True)
+    selected = [c for c in ranked if importances[c] >= threshold]
+    if len(selected) < 5:  # noqa: PLR2004
+        selected = ranked[:MAX_FEATURES]
+    return selected[:MAX_FEATURES]
 
 
 # ---------------------------------------------------------------------------
@@ -147,12 +171,12 @@ def _evaluate_candidate(  # noqa: PLR0913
             model = XGBRegressor(
                 n_estimators=150,
                 max_depth=2,
-                learning_rate=0.01,
-                min_child_weight=50,
-                reg_lambda=80,
-                reg_alpha=5.0,
-                subsample=0.5,
-                colsample_bytree=0.3,
+                learning_rate=0.02,
+                min_child_weight=20,
+                reg_lambda=20,
+                reg_alpha=1.0,
+                subsample=0.6,
+                colsample_bytree=0.5,
                 random_state=RANDOM_STATE,
                 verbosity=0,
             )
@@ -426,6 +450,9 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
     else:
         _export_onnx_sklearn(best_model, feature_names)
 
+    # Guard against shipping a degenerate constant model (see XGB_PARAM_SPACE note).
+    _verify_onnx_not_constant(x_selected)
+
     # ----- Save artifacts -----
     cv_results = {
         "model_id": MODEL_ID,
@@ -535,6 +562,36 @@ def _tune_elasticnet(x: pd.DataFrame, y: pd.Series) -> tuple:
 # ---------------------------------------------------------------------------
 # ONNX export
 # ---------------------------------------------------------------------------
+
+
+def _verify_onnx_not_constant(
+    x_selected: pd.DataFrame, min_std: float = 1e-4
+) -> None:
+    """Fail loudly if the exported ONNX returns a (near-)constant prediction.
+
+    A degenerate model (single constant leaf) silently breaks the frontend:
+    the output never responds to slider changes. We re-load the model we just
+    wrote and check that its predictions vary across the training rows.
+    """
+    path = MODEL_DIR / f"{MODEL_ID}.onnx"
+    sess = ort.InferenceSession(str(path))
+    input_name = sess.get_inputs()[0].name
+    feed = {input_name: x_selected.to_numpy(dtype=np.float32)}
+    preds = sess.run(None, feed)[0].ravel()
+    pred_std = float(np.std(preds))
+    pred_range = float(np.ptp(preds))
+    print(
+        f"  ONNX sanity check: pred std={pred_std:.6g}, range={pred_range:.6g}"
+        f" over {len(preds)} training rows"
+    )
+    if pred_std < min_std:
+        msg = (
+            f"Exported ONNX is effectively constant (std={pred_std:.6g} <"
+            f" {min_std}). The model learned no signal and will not respond to"
+            " inputs. Loosen regularization in XGB_PARAM_SPACE / the candidate"
+            " configs and retrain."
+        )
+        raise RuntimeError(msg)
 
 
 def _export_onnx_xgb(model: XGBRegressor, feature_names: list[str]) -> None:

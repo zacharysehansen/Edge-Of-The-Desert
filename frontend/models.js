@@ -50,6 +50,20 @@ const STATIC_FEATURE_BASELINES = {
     mead_total_release: 12657,
 };
 
+// Snapshot of the historical (pre-calibration) baselines, captured at module
+// load. Residual models predict (value − lag1) and reconstruct via
+// `residual + lag1` in finalizePrediction(), where lag1 is seeded from these.
+// The seed must stay fixed at the historical reference value: calibrateBaselines()
+// overwrites OUTPUT_STATS[key].baseline with the model's own default-slider
+// prediction (used only to position the red baseline line / compute deltas), and
+// reusing that mutated value as the lag1 seed would add the residual twice.
+const SEED_BASELINES = {
+    grace:         OUTPUT_STATS.grace.baseline,
+    ndvi:          OUTPUT_STATS.ndvi.baseline,
+    groundwater:   OUTPUT_STATS.groundwater.baseline,
+    surface_water: OUTPUT_STATS.surface_water.baseline,
+};
+
 // ── Tensor helpers ────────────────────────────────────────────────────────────
 
 function getStatsDefault(name, featureStats) {
@@ -154,7 +168,6 @@ function makePredictScore(modelKey) {
             ),
         };
 
-        console.log(`[EotD] inputArray for "${modelKey}": ` + featureNames.map((n, i) => `${n}=${inputArray[i]}`).join(' | '));
 
         const startTime = performance.now();
         const outputs = await session.run(feeds);
@@ -262,8 +275,6 @@ function addMonthlyTemporalFeatures(catalog, baseName, current, baseline, durati
 
 function buildFeatureCatalog(sliderValues, month, durationMonths = state.scenarioDurationMonths) {
 
-    console.log('[EotD] buildFeatureCatalog called with sliderValues =', JSON.stringify(sliderValues), 'month =', month, 'durationMonths =', durationMonths);
-
     const { month_sin, month_cos } = getMonthEncoding(month);
     const baselinePrecip = sliderBaseline('precipitation_mm_day');
     const baselineTemperature = sliderBaseline('temperature_2m_c');
@@ -274,10 +285,10 @@ function buildFeatureCatalog(sliderValues, month, durationMonths = state.scenari
         baselinePrecip,
         durationMonths,
     );
-    const annualNdviBaseline = OUTPUT_STATS.ndvi.baseline;
-    const graceBaseline = OUTPUT_STATS.grace.baseline;
-    const groundwaterBaseline = OUTPUT_STATS.groundwater.baseline;
-    const surfaceWaterBaseline = OUTPUT_STATS.surface_water.baseline;
+    const annualNdviBaseline = SEED_BASELINES.ndvi;
+    const graceBaseline = SEED_BASELINES.grace;
+    const groundwaterBaseline = SEED_BASELINES.groundwater;
+    const surfaceWaterBaseline = SEED_BASELINES.surface_water;
     const wildlifeBaseline = 0.75;
 
     const catalog = {
@@ -414,8 +425,10 @@ async function runPipeline(sliderValues, month, durationMonths) {
 
     // Build the shared catalog once
     state.featureCatalog = buildFeatureCatalog(sliderValues, month, durationMonths);
-    const graceBaseline = OUTPUT_STATS.grace.baseline;
-    const annualNdviBaseline = OUTPUT_STATS.ndvi.baseline;
+    const graceBaseline = SEED_BASELINES.grace;
+    const annualNdviBaseline = SEED_BASELINES.ndvi;
+    const groundwaterBaseline = SEED_BASELINES.groundwater;
+    const surfaceWaterBaseline = SEED_BASELINES.surface_water;
 
     const graceWarmup = canRun('grace')
         ? await safePredict('grace', {})
@@ -473,6 +486,26 @@ async function runPipeline(sliderValues, month, durationMonths) {
     console.log('[EotD] swRaw =', swRaw);
     console.log('[EotD] wfRaw =', wfRaw);
     console.log('[EotD] wlRaw =', wlRaw);
+
+    if (gwRaw !== null) {
+        Object.assign(state.featureCatalog, {
+            depth_to_water_ft_mean:       gwRaw,
+            depth_to_water_ft_mean_lag1:  lagByDuration(gwRaw, groundwaterBaseline, durationMonths, 1),
+            depth_to_water_ft_mean_lag3:  lagByDuration(gwRaw, groundwaterBaseline, durationMonths, 3),
+            depth_to_water_ft_mean_roll3: rollByDuration(gwRaw, groundwaterBaseline, durationMonths, 3),
+            depth_to_water_ft_mean_roll6: rollByDuration(gwRaw, groundwaterBaseline, durationMonths, 6),
+        });
+    }
+
+    if (swRaw !== null) {
+        Object.assign(state.featureCatalog, {
+            discharge_cfs_mean:       swRaw,
+            discharge_cfs_mean_lag1:  lagByDuration(swRaw, surfaceWaterBaseline, durationMonths, 1),
+            discharge_cfs_mean_lag3:  lagByDuration(swRaw, surfaceWaterBaseline, durationMonths, 3),
+            discharge_cfs_mean_roll3: rollByDuration(swRaw, surfaceWaterBaseline, durationMonths, 3),
+            discharge_cfs_mean_roll6: rollByDuration(swRaw, surfaceWaterBaseline, durationMonths, 6),
+        });
+    }
 
     const rawResults = {
         grace:         graceRaw,
