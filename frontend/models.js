@@ -339,15 +339,7 @@ function buildFeatureCatalog(sliderValues, month, durationMonths = state.scenari
         precip_x_temperature: sliderValues.precipitation_mm_day * sliderValues.temperature_2m_c,
     };
 
-            // Add temporal features for groundwater baseline (required for residual lag)
-        addMonthlyTemporalFeatures(
-            catalog,
-            'depth_to_water_ft_mean',
-            groundwaterBaseline,
-            groundwaterBaseline,
-            durationMonths,
-        );
-        for (const key of Object.keys(SLIDER_STATS)) {
+    for (const key of Object.keys(SLIDER_STATS)) {
         addMonthlyTemporalFeatures(
             catalog,
             key,
