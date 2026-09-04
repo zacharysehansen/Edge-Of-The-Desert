@@ -38,13 +38,22 @@ let calibrationPromise = null;
 const RESIDUAL_LAG_FEATURES = {
     grace: "grace_groundwater_anomaly_lag1",
     ndvi: "ndvi_lag1",
-    groundwater: "depth_to_water_ft_mean_lag1",
-    surface_water: "discharge_cfs_mean_lag1",
+    groundwater: "depth_to_water_anomaly_ft_lag1",
+    surface_water: "discharge_log_anomaly_lag1",
 };
 
-const TARGET_TRANSFORMS = {
-    surface_water: "log1p",
-};
+// Surface water used to carry a log1p target transform. It no longer does: the target
+// is now a per-gage log anomaly index, so the log lives inside the target itself and
+// the value is signed. Applying expm1 to it would be a domain error, not an inverse.
+const TARGET_TRANSFORMS = {};
+
+// The drought slider is PDSI. NDVI, GRACE and wildfire were trained on the USDM DSCI, which
+// only exists from 2000 and correlates just -0.66 with PDSI (R² = 0.44). This is the OLS fit
+// of DSCI on PDSI over their 288-month overlap; DSCI is bounded [0, 500] so the result is
+// clamped. It is an approximation, and a lossy one — stated here rather than hidden.
+function dsciFromPdsi(pdsi) {
+    return Math.max(0, Math.min(500, 114.109 - 37.231 * pdsi));
+}
 
 const STATIC_FEATURE_BASELINES = {
     mead_total_release: 12657,
@@ -180,6 +189,24 @@ function makePredictScore(modelKey) {
 
 // ── Model loading ─────────────────────────────────────────────────────────────
 
+// Models are fetched from the absolute path /model/, so the HTTP server must be rooted at
+// the REPOSITORY root — model/ and frontend/ are siblings. Serving from inside frontend/ is
+// the easy mistake: every /model/ request 404s, the 404 body is an HTML page, and .json()
+// then dies on "<" with "unexpected character at line 1 column 1", which says nothing at all
+// about the actual problem. Check r.ok first and say what is really wrong.
+async function fetchJson(url) {
+    const r = await fetch(url);
+    if (!r.ok) {
+        throw new Error(
+            `HTTP ${r.status} fetching ${url}. ` +
+            `Serve from the repository root (model/ and frontend/ are siblings): ` +
+            `run "python -m http.server 8000" in the repo root, then open ` +
+            `http://localhost:8000/frontend/index.html`
+        );
+    }
+    return r.json();
+}
+
 async function loadModels(onModelReady) {
     console.log('[EotD] loadModels() starting...');
     for (const key of MODEL_KEYS) {
@@ -188,9 +215,9 @@ async function loadModels(onModelReady) {
         try {
             const [session, featureNames, featureStats, cvResults] = await Promise.all([
                 ort.InferenceSession.create(`/model/${filename}.onnx`),
-                fetch(`/model/${filename}_feature_names.json`).then(r => r.json()),
-                fetch(`/model/${filename}_feature_stats.json`).then(r => r.json()),
-                fetch(`/model/${filename}_cv_results.json`).then(r => r.json()).catch(() => ({})),
+                fetchJson(`/model/${filename}_feature_names.json`),
+                fetchJson(`/model/${filename}_feature_stats.json`),
+                fetchJson(`/model/${filename}_cv_results.json`).catch(() => ({})),
             ]);
 
             console.log(`[EotD] Model "${key}" loaded. Features (${featureNames.length}):`, featureNames);
@@ -289,7 +316,7 @@ function buildFeatureCatalog(sliderValues, month, durationMonths = state.scenari
     const graceBaseline = SEED_BASELINES.grace;
     const groundwaterBaseline = SEED_BASELINES.groundwater;
     const surfaceWaterBaseline = SEED_BASELINES.surface_water;
-    const wildlifeBaseline = 0.75;
+    const wildlifeBaseline = 0.0;   // the target is an anomaly: 0 == an average year
 
     const catalog = {
         population:                      sliderValues.population,
@@ -300,7 +327,14 @@ function buildFeatureCatalog(sliderValues, month, durationMonths = state.scenari
         mead_total_release:              STATIC_FEATURE_BASELINES.mead_total_release,
         precipitation_mm_day:            sliderValues.precipitation_mm_day,
         temperature_2m_c:                sliderValues.temperature_2m_c,
-        usdm_dsci:                       sliderValues.usdm_dsci,
+        usdm_dsci:                       dsciFromPdsi(sliderValues.nclimdiv_pdsi),
+        // nClimDiv climate block — what surface water actually runs on. Temperature and
+        // precipitation are the same physical quantities as the MERRA-2 sliders (they
+        // correlate +0.999 and +0.920 over the overlap), so the sliders drive both.
+        nclimdiv_pdsi:                   sliderValues.nclimdiv_pdsi,
+        nclimdiv_temperature_c:          sliderValues.temperature_2m_c,
+        nclimdiv_precipitation_mm_day:   sliderValues.precipitation_mm_day,
+        nclimdiv_precip_x_temperature:   sliderValues.precipitation_mm_day * sliderValues.temperature_2m_c,
         grace_available:                 1,
         grace_groundwater_anomaly:       graceBaseline,
         grace_groundwater_anomaly_lag1:  graceBaseline,
@@ -312,23 +346,29 @@ function buildFeatureCatalog(sliderValues, month, durationMonths = state.scenari
         ndvi_lag3:                       annualNdviBaseline,
         ndvi_roll3:                      annualNdviBaseline,
         ndvi_roll6:                      annualNdviBaseline,
-        depth_to_water_ft_mean:          groundwaterBaseline,
-        depth_to_water_ft_mean_lag1:     groundwaterBaseline,
-        depth_to_water_ft_mean_lag3:     groundwaterBaseline,
-        depth_to_water_ft_mean_roll3:    groundwaterBaseline,
-        depth_to_water_ft_mean_roll6:    groundwaterBaseline,
-        discharge_cfs_mean:              surfaceWaterBaseline,
-        discharge_cfs_mean_lag1:         surfaceWaterBaseline,
-        discharge_cfs_mean_lag3:         surfaceWaterBaseline,
-        discharge_cfs_mean_roll3:        surfaceWaterBaseline,
-        discharge_cfs_mean_roll6:        surfaceWaterBaseline,
+        depth_to_water_anomaly_ft:       groundwaterBaseline,
+        depth_to_water_anomaly_ft_lag1:  groundwaterBaseline,
+        depth_to_water_anomaly_ft_lag3:  groundwaterBaseline,
+        depth_to_water_anomaly_ft_roll3: groundwaterBaseline,
+        depth_to_water_anomaly_ft_roll6: groundwaterBaseline,
+        discharge_log_anomaly:           surfaceWaterBaseline,
+        discharge_log_anomaly_lag1:      surfaceWaterBaseline,
+        discharge_log_anomaly_lag3:      surfaceWaterBaseline,
+        discharge_log_anomaly_roll3:     surfaceWaterBaseline,
+        discharge_log_anomaly_roll6:     surfaceWaterBaseline,
         population_annual_mean:                      annualMeanByDuration(sliderValues.population, sliderBaseline('population'), durationMonths),
         irrigation_total_withdrawal_mgd_annual_sum: annualSumByDuration(sliderValues.irrigation_total_withdrawal_mgd, baselineIrrigation, durationMonths),
         public_supply_groundwater_mgd_annual_sum:   annualSumByDuration(sliderValues.public_supply_groundwater_mgd, baselinePublicSupply, durationMonths),
         mead_pool_elevation_annual_mean:             annualMeanByDuration(sliderValues.mead_pool_elevation, sliderBaseline('mead_pool_elevation'), durationMonths),
         mead_pool_elevation_june:                    durationMonths >= 6 ? sliderValues.mead_pool_elevation : sliderBaseline('mead_pool_elevation'),
         mead_total_release_annual_sum:               STATIC_FEATURE_BASELINES.mead_total_release * 12,
-        usdm_dsci_annual_mean:                       annualMeanByDuration(sliderValues.usdm_dsci, sliderBaseline('usdm_dsci'), durationMonths),
+        usdm_dsci_annual_mean:                       annualMeanByDuration(dsciFromPdsi(sliderValues.nclimdiv_pdsi), dsciFromPdsi(sliderBaseline('nclimdiv_pdsi')), durationMonths),
+        nclimdiv_pdsi_annual_mean:                   annualMeanByDuration(sliderValues.nclimdiv_pdsi, sliderBaseline('nclimdiv_pdsi'), durationMonths),
+        nclimdiv_pdsi_jja_mean:                      sliderValues.nclimdiv_pdsi,
+        nclimdiv_temperature_c_annual_mean:          annualMeanByDuration(sliderValues.temperature_2m_c, sliderBaseline('temperature_2m_c'), durationMonths),
+        nclimdiv_temperature_c_jja_mean:             sliderValues.temperature_2m_c,
+        nclimdiv_precipitation_mm_day_annual_sum:    annualSumByDuration(sliderValues.precipitation_mm_day, sliderBaseline('precipitation_mm_day'), durationMonths),
+        nclimdiv_log_precip_annual:                  Math.log1p(Math.max(0, annualSumByDuration(sliderValues.precipitation_mm_day, sliderBaseline('precipitation_mm_day'), durationMonths))),
         temperature_2m_c_annual_mean:                annualMeanByDuration(sliderValues.temperature_2m_c, baselineTemperature, durationMonths),
         temperature_2m_c_jja_mean:                   durationMonths >= 3 ? sliderValues.temperature_2m_c : baselineTemperature,
         precipitation_mm_day_annual_sum:             currentPrecipAnnual,
@@ -338,12 +378,14 @@ function buildFeatureCatalog(sliderValues, month, durationMonths = state.scenari
         ndvi_annual_mean_lag1:                       annualNdviBaseline,
         grace_groundwater_anomaly_annual_mean:       graceBaseline,
         impervious_pct_annual_mean:                  annualMeanByDuration(sliderValues.impervious_pct, sliderBaseline('impervious_pct'), durationMonths),
-        bbs_abundance_index_lag1:                    wildlifeBaseline,
-        bbs_abundance_index_lag2:                    wildlifeBaseline,
-        bbs_abundance_index_roll3:                   wildlifeBaseline,
+        bbs_abundance_anomaly_lag1:                  wildlifeBaseline,
+        bbs_abundance_anomaly_lag2:                 wildlifeBaseline,
+        bbs_abundance_anomaly_roll3:                wildlifeBaseline,
         year_linear:                                 19,
         precipitation_mm_day_annual_sum_lag1:        priorAnnualByDuration(currentPrecipAnnual, baselinePrecip * 12, durationMonths),
-        usdm_dsci_annual_mean_lag1:                  priorAnnualByDuration(sliderValues.usdm_dsci, sliderBaseline('usdm_dsci'), durationMonths),
+        usdm_dsci_annual_mean_lag1:                  priorAnnualByDuration(dsciFromPdsi(sliderValues.nclimdiv_pdsi), dsciFromPdsi(sliderBaseline('nclimdiv_pdsi')), durationMonths),
+        nclimdiv_pdsi_annual_mean_lag1:              priorAnnualByDuration(sliderValues.nclimdiv_pdsi, sliderBaseline('nclimdiv_pdsi'), durationMonths),
+        nclimdiv_precipitation_mm_day_annual_sum_lag1: priorAnnualByDuration(sliderValues.precipitation_mm_day, sliderBaseline('precipitation_mm_day'), durationMonths),
         month_sin,
         month_cos,
         precip_x_impervious:  sliderValues.precipitation_mm_day * sliderValues.impervious_pct,
@@ -489,21 +531,21 @@ async function runPipeline(sliderValues, month, durationMonths) {
 
     if (gwRaw !== null) {
         Object.assign(state.featureCatalog, {
-            depth_to_water_ft_mean:       gwRaw,
-            depth_to_water_ft_mean_lag1:  lagByDuration(gwRaw, groundwaterBaseline, durationMonths, 1),
-            depth_to_water_ft_mean_lag3:  lagByDuration(gwRaw, groundwaterBaseline, durationMonths, 3),
-            depth_to_water_ft_mean_roll3: rollByDuration(gwRaw, groundwaterBaseline, durationMonths, 3),
-            depth_to_water_ft_mean_roll6: rollByDuration(gwRaw, groundwaterBaseline, durationMonths, 6),
+            depth_to_water_anomaly_ft:       gwRaw,
+            depth_to_water_anomaly_ft_lag1:  lagByDuration(gwRaw, groundwaterBaseline, durationMonths, 1),
+            depth_to_water_anomaly_ft_lag3:  lagByDuration(gwRaw, groundwaterBaseline, durationMonths, 3),
+            depth_to_water_anomaly_ft_roll3: rollByDuration(gwRaw, groundwaterBaseline, durationMonths, 3),
+            depth_to_water_anomaly_ft_roll6: rollByDuration(gwRaw, groundwaterBaseline, durationMonths, 6),
         });
     }
 
     if (swRaw !== null) {
         Object.assign(state.featureCatalog, {
-            discharge_cfs_mean:       swRaw,
-            discharge_cfs_mean_lag1:  lagByDuration(swRaw, surfaceWaterBaseline, durationMonths, 1),
-            discharge_cfs_mean_lag3:  lagByDuration(swRaw, surfaceWaterBaseline, durationMonths, 3),
-            discharge_cfs_mean_roll3: rollByDuration(swRaw, surfaceWaterBaseline, durationMonths, 3),
-            discharge_cfs_mean_roll6: rollByDuration(swRaw, surfaceWaterBaseline, durationMonths, 6),
+            discharge_log_anomaly:       swRaw,
+            discharge_log_anomaly_lag1:  lagByDuration(swRaw, surfaceWaterBaseline, durationMonths, 1),
+            discharge_log_anomaly_lag3:  lagByDuration(swRaw, surfaceWaterBaseline, durationMonths, 3),
+            discharge_log_anomaly_roll3: rollByDuration(swRaw, surfaceWaterBaseline, durationMonths, 3),
+            discharge_log_anomaly_roll6: rollByDuration(swRaw, surfaceWaterBaseline, durationMonths, 6),
         });
     }
 

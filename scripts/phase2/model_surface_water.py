@@ -3,8 +3,8 @@ model_surface_water.py
 ----------------------
 Model 4: Surface Water Conditions (Discharge) — monthly regression.
 
-Multi-model competition with log-transformed target:
-  - Target: log1p(discharge_cfs_mean) to handle right-skew from flood events
+Multi-model competition:
+  - Target: discharge_log_anomaly — the per-gage log anomaly index built in Phase 1
   - Formulations: direct vs residual-over-lag1
   - Algorithms: Ridge, ElasticNet, XGBoost (6 candidates)
   - Feature selection: drops low-importance features after initial fit
@@ -12,8 +12,16 @@ Multi-model competition with log-transformed target:
 TimeSeriesSplit(n_splits=5) cross-validation.
 Export: ONNX + artifacts to model/.
 
-Note: gage_height_ft_mean is excluded due to missing values in the source data.
-Only discharge_cfs_mean (full coverage) is used as the prediction target.
+Note on the target: this script used to predict log1p(discharge_cfs_mean), a mean of raw
+discharge across whichever gages reported that month. Two problems with that. Discharge
+spans four orders of magnitude across gages, so the raw mean was substantially one gage
+(09525503 alone supplied 45% of it); and a mean over a changing roster moves when the
+roster moves. Phase 1 now centers each gage on its own long-term mean *in log space*
+before averaging, which fixes both. The log therefore already lives inside the target —
+there is no log1p here anymore, and the target is signed, so applying one would be a
+domain error rather than a transform.
+
+gage_height_ft_mean is excluded due to missing values in the source data.
 
 Usage
 -----
@@ -38,6 +46,7 @@ from sklearn.preprocessing import StandardScaler
 from xgboost import XGBRegressor
 
 from scripts.phase2.features import build_all
+from scripts.phase2.metrics import nested_cv_evaluate, persistence_r2, skill_score
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MODEL_DIR = REPO_ROOT / "model"
@@ -45,8 +54,27 @@ MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
 MODEL_ID = "surface_water"
 N_SPLITS = 5
+INNER_SPLITS = 3
 CV = TimeSeriesSplit(n_splits=N_SPLITS)
 RANDOM_STATE = 42
+
+# Candidates for the in-fold competition, scored in residual (log-anomaly) space.
+CANDIDATES = ("xgb", "ridge", "elastic")
+
+COMPETITION_CONFIGS = {
+    "xgb": {
+        "n_estimators": 600,
+        "max_depth": 3,
+        "learning_rate": 0.03,
+        "min_child_weight": 7,
+        "reg_lambda": 5,
+        "reg_alpha": 0.1,
+        "subsample": 0.8,
+        "colsample_bytree": 0.7,
+    },
+    "ridge": {"alpha": 1.0},
+    "elastic": {"alpha": 0.1, "l1_ratio": 0.5},
+}
 
 # ---------------------------------------------------------------------------
 # Hyperparameter spaces
@@ -105,84 +133,80 @@ def _select_features(x: pd.DataFrame, y: pd.Series, threshold: float) -> list[st
 # ---------------------------------------------------------------------------
 
 
-def _evaluate_candidate(  # noqa: PLR0913
-    name: str,
-    x_train: pd.DataFrame,
-    y_train: pd.Series,
-    y_actual: pd.Series,
-    lag1: pd.Series | None,
-    formulation: str,
-) -> dict:
-    """Evaluate a single model candidate via CV. Returns scores dict."""
-    fold_r2, fold_mae = [], []
-
-    for train_idx, test_idx in CV.split(x_train):
-        x_tr, x_te = x_train.iloc[train_idx], x_train.iloc[test_idx]
-        y_tr = y_train.iloc[train_idx]
-        y_te_actual = y_actual.iloc[test_idx]
-
-        if "xgb" in name:
-            model = XGBRegressor(
-                n_estimators=600,
-                max_depth=3,
-                learning_rate=0.03,
-                min_child_weight=7,
-                reg_lambda=5,
-                reg_alpha=0.1,
-                subsample=0.8,
-                colsample_bytree=0.7,
-                random_state=RANDOM_STATE,
-                verbosity=0,
-            )
-            model.fit(x_tr, y_tr)
-            pred = model.predict(x_te)
-        elif "ridge" in name:
-            pipe = Pipeline([("scaler", StandardScaler()), ("model", Ridge(alpha=1.0))])
-            pipe.fit(x_tr, y_tr)
-            pred = pipe.predict(x_te)
-        elif "elastic" in name:
-            pipe = Pipeline(
-                [
-                    ("scaler", StandardScaler()),
-                    ("model", ElasticNet(alpha=0.1, l1_ratio=0.5, max_iter=5000)),
-                ]
-            )
-            pipe.fit(x_tr, y_tr)
-            pred = pipe.predict(x_te)
-        else:
-            continue
-
-        # Convert back from log space and add lag1 if residual
-        if formulation == "residual" and lag1 is not None:
-            pred_log = pred + lag1.iloc[test_idx].values
-        else:
-            pred_log = pred
-
-        # Convert from log1p space back to original
-        pred_actual = np.expm1(pred_log)
-        y_te_orig = (
-            np.expm1(y_te_actual.values)
-            if formulation == "direct"
-            else np.expm1(y_actual.iloc[test_idx].values)
+def _build(name: str, params: dict | None = None) -> Pipeline:
+    """Instantiate one candidate. `params=None` uses the fixed competition config."""
+    cfg = params if params is not None else COMPETITION_CONFIGS[name]
+    if name == "xgb":
+        return Pipeline(
+            [
+                ("imputer", SimpleImputer(strategy="median")),
+                (
+                    "model",
+                    XGBRegressor(
+                        **cfg,
+                        objective="reg:squarederror",
+                        tree_method="hist",
+                        random_state=RANDOM_STATE,
+                        verbosity=0,
+                    ),
+                ),
+            ]
         )
+    if name == "ridge":
+        return Pipeline([("scaler", StandardScaler()), ("model", Ridge(**cfg))])
+    if name == "elastic":
+        return Pipeline(
+            [("scaler", StandardScaler()), ("model", ElasticNet(**cfg, max_iter=5000))]
+        )
+    raise ValueError(f"Unknown candidate '{name}'")
 
-        # For residual, y_actual is already in log space
-        if formulation == "residual":
-            y_te_orig = np.expm1(y_actual.iloc[test_idx].values)
 
-        r2 = r2_score(y_te_orig, pred_actual)
-        mae = mean_absolute_error(y_te_orig, pred_actual)
-        fold_r2.append(r2)
-        fold_mae.append(mae)
+def _compete(x: pd.DataFrame, y: pd.Series, cv: TimeSeriesSplit) -> list[dict]:
+    """Score each candidate on `cv` in residual (log-anomaly) space, best-first."""
+    results = []
+    for name in CANDIDATES:
+        scores = []
+        for train_idx, test_idx in cv.split(x):
+            model = _build(name)
+            model.fit(x.iloc[train_idx], y.iloc[train_idx])
+            scores.append(r2_score(y.iloc[test_idx], model.predict(x.iloc[test_idx])))
+        results.append(
+            {
+                "name": name,
+                "mean_r2": float(np.mean(scores)),
+                "std_r2": float(np.std(scores)),
+            }
+        )
+    return sorted(results, key=lambda c: c["mean_r2"], reverse=True)
 
-    return {
-        "name": name,
-        "formulation": formulation,
-        "mean_r2": float(np.mean(fold_r2)),
-        "std_r2": float(np.std(fold_r2)),
-        "mean_mae": float(np.mean(fold_mae)),
-        "std_mae": float(np.std(fold_mae)),
-    }
+
+def _tune(name: str, x: pd.DataFrame, y: pd.Series, cv: TimeSeriesSplit) -> tuple:
+    """Hyperparameter-tune one candidate on `cv`."""
+    if name == "xgb":
+        return _tune_xgboost(x, y, cv)
+    if name == "ridge":
+        return _tune_ridge(x, y, cv)
+    return _tune_elasticnet(x, y, cv)
+
+
+def _fit_predict(x_tr: pd.DataFrame, y_tr: pd.Series, x_te: pd.DataFrame) -> np.ndarray:
+    """
+    The whole model-building procedure, applied to one training fold.
+
+    Feature selection, the candidate competition, and the hyperparameter search all
+    happen here, so none of them can see the outer test fold. Works throughout in
+    residual space; the caller adds the lag1 anchor back to reconstruct the index.
+    """
+    inner = TimeSeriesSplit(n_splits=INNER_SPLITS)
+
+    selected = _select_features(x_tr, y_tr, IMPORTANCE_THRESHOLD)
+    x_tr_sel = x_tr[selected]
+
+    winner = _compete(x_tr_sel, y_tr, inner)[0]["name"]
+    model, _ = _tune(winner, x_tr_sel, y_tr, inner)
+    model.fit(x_tr_sel, y_tr)
+
+    return model.predict(x_te[selected])
 
 
 # ---------------------------------------------------------------------------
@@ -193,153 +217,72 @@ def _evaluate_candidate(  # noqa: PLR0913
 def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
     """Build, tune, evaluate, and export the surface water model."""
     datasets = build_all()
-    x, y_raw = datasets[MODEL_ID]
+    x, y = datasets[MODEL_ID]
 
     # Separate lag1 column
-    lag1_col = "discharge_cfs_mean_lag1"
-    lag1_raw = x[lag1_col].copy()
+    lag1_col = "discharge_log_anomaly_lag1"
+    lag1 = x[lag1_col].copy()
     x_base = x.drop(columns=[lag1_col])
 
-    # Log-transform target and lag1
-    y_log = np.log1p(y_raw)
-    lag1_log = np.log1p(lag1_raw)
+    # Residual-over-lag1. The target is already a log-space anomaly, so this is a
+    # month-over-month change in log flow — i.e. a ratio — which is the right way to
+    # represent the multiplicative flood dynamics. The direct formulation was tested
+    # and lost, so the formulation is a settled design decision rather than something
+    # re-picked from the data each fold.
+    y_residual = y - lag1
 
-    # Feature selection on log-target (direct formulation)
-    selected = _select_features(x_base, y_log, IMPORTANCE_THRESHOLD)
+    # ----- Honest score: every data-dependent choice is made inside the fold -----
+    # No `inverse`: the anomaly index *is* the level here. There is no log1p to undo.
+    scores = nested_cv_evaluate(
+        fit_predict=_fit_predict,
+        x=x_base,
+        y_level=y,
+        y_target=y_residual,
+        cv=CV,
+        anchor=lag1,
+    )
+    baseline_r2 = persistence_r2(y_level=y, lag1_level=lag1, cv=CV)
+
+    mean_r2 = scores["cv_mean_r2"]
+    std_r2 = scores["cv_std_r2"]
+    mean_mae = scores["cv_mean_mae"]
+    std_mae = scores["cv_std_mae"]
+    fold_details = scores["folds"]
+
+    # ----- Final model for export: refit the same procedure on the full panel -----
+    selected = _select_features(x_base, y_residual, IMPORTANCE_THRESHOLD)
     x_selected = x_base[selected]
     n_dropped = len(x_base.columns) - len(selected)
+    feature_names = list(x_selected.columns)
     print(f"  Feature selection: {len(selected)} kept, {n_dropped} dropped")
 
-    # ----- Multi-model competition -----
-    # Direct formulation: predict log1p(discharge) directly
-    # Residual formulation: predict log1p(discharge) - log1p(discharge_lag1)
-    y_residual_log = y_log - lag1_log
-
-    candidates = []
-
-    # Direct formulation candidates
-    for model_name in ["xgb_direct", "ridge_direct", "elastic_direct"]:
-        result = _evaluate_candidate(
-            model_name, x_selected, y_log, y_log, None, "direct"
-        )
-        candidates.append(result)
+    candidates = _compete(x_selected, y_residual, CV)
+    for c in candidates:
         print(
-            f"    {model_name:<20} R²={result['mean_r2']:.4f} ± {result['std_r2']:.4f}"
+            f"    {c['name']:<10} residual R²={c['mean_r2']:.4f} ± {c['std_r2']:.4f}"
         )
 
-    # Residual formulation candidates
-    for model_name in ["xgb_residual", "ridge_residual", "elastic_residual"]:
-        result = _evaluate_candidate(
-            model_name, x_selected, y_residual_log, y_log, lag1_log, "residual"
-        )
-        candidates.append(result)
-        print(
-            f"    {model_name:<20} R²={result['mean_r2']:.4f} ± {result['std_r2']:.4f}"
-        )
+    best_name = candidates[0]["name"]
+    print(f"\n  Winner: {best_name}")
 
-    # Pick winner
-    best_candidate = max(candidates, key=lambda c: c["mean_r2"])
-    print(f"\n  Winner: {best_candidate['name']} (R²={best_candidate['mean_r2']:.4f})")
+    best_model, best_params = _tune(best_name, x_selected, y_residual, CV)
+    best_model.fit(x_selected, y_residual)
 
-    # ----- Train final model with tuning -----
-    is_residual = best_candidate["formulation"] == "residual"
-    y_final = y_residual_log if is_residual else y_log
-    feature_names = list(x_selected.columns)
-
-    if "xgb" in best_candidate["name"]:
-        best_model, best_params = _tune_xgboost(x_selected, y_final)
-    elif "ridge" in best_candidate["name"]:
-        best_model, best_params = _tune_ridge(x_selected, y_final)
-    else:
-        best_model, best_params = _tune_elasticnet(x_selected, y_final)
-
-    # ----- Fold-level evaluation on original scale -----
-    fold_r2, fold_mae = [], []
-    fold_details = []
-
-    for fold_i, (train_idx, test_idx) in enumerate(CV.split(x_selected)):
-        x_tr = x_selected.iloc[train_idx]
-        y_tr = y_final.iloc[train_idx]
-        x_te = x_selected.iloc[test_idx]
-        y_te_orig = y_raw.iloc[test_idx]
-
-        if "xgb" in best_candidate["name"]:
-            fold_model = Pipeline(
-                [
-                    ("imputer", SimpleImputer(strategy="median")),
-                    (
-                        "model",
-                        XGBRegressor(
-                            **best_params,
-                            objective="reg:squarederror",
-                            tree_method="hist",
-                            random_state=RANDOM_STATE,
-                            verbosity=0,
-                        ),
-                    ),
-                ]
-            )
-            fold_model.fit(x_tr, y_tr)
-            pred_log = fold_model.predict(x_te)
-        elif "ridge" in best_candidate["name"]:
-            fold_model = Pipeline(
-                [("scaler", StandardScaler()), ("model", Ridge(**best_params))]
-            )
-            fold_model.fit(x_tr, y_tr)
-            pred_log = fold_model.predict(x_te)
-        else:
-            fold_model = Pipeline(
-                [
-                    ("scaler", StandardScaler()),
-                    ("model", ElasticNet(**best_params, max_iter=5000)),
-                ]
-            )
-            fold_model.fit(x_tr, y_tr)
-            pred_log = fold_model.predict(x_te)
-
-        if is_residual:
-            pred_log = pred_log + lag1_log.iloc[test_idx].values
-
-        pred_actual = np.expm1(pred_log)
-        r2 = r2_score(y_te_orig, pred_actual)
-        mae = mean_absolute_error(y_te_orig, pred_actual)
-        fold_r2.append(r2)
-        fold_mae.append(mae)
-        fold_details.append(
-            {
-                "fold": fold_i,
-                "test_start": str(y_raw.index[test_idx[0]]),
-                "test_end": str(y_raw.index[test_idx[-1]]),
-                "test_size": len(test_idx),
-                "r2": float(r2),
-                "mae": float(mae),
-            }
-        )
-
-    mean_r2 = float(np.mean(fold_r2))
-    std_r2 = float(np.std(fold_r2))
-    mean_mae = float(np.mean(fold_mae))
-    std_mae = float(np.std(fold_mae))
-
-    train_pred_log = best_model.predict(x_selected)
-
-    if is_residual:
-        train_pred_log = train_pred_log + lag1_log.values
-    train_pred_actual = np.expm1(train_pred_log)
-    train_r2 = float(r2_score(y_raw, train_pred_actual))
-    train_mae = float(mean_absolute_error(y_raw, train_pred_actual))
+    train_pred = best_model.predict(x_selected) + lag1.values
+    train_r2 = float(r2_score(y, train_pred))
+    train_mae = float(mean_absolute_error(y, train_pred))
 
     # ----- Historical predictions -----
     historical = pd.DataFrame(
         {
-            "year_month": y_raw.index.astype(str),
-            "discharge_actual": y_raw.values,
-            "discharge_predicted": train_pred_actual,
+            "year_month": y.index.astype(str),
+            "discharge_actual": y.values,
+            "discharge_predicted": train_pred,
         }
     )
 
     # ----- Feature importance -----
-    if "xgb" in best_candidate["name"]:
+    if best_name == "xgb":
         importance = dict(
             zip(
                 feature_names,
@@ -369,13 +312,14 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
     # ----- Save artifacts -----
     cv_results = {
         "model_id": MODEL_ID,
-        "formulation": best_candidate["formulation"],
-        "target_transform": "log1p",
-        "winner": best_candidate["name"],
+        "formulation": "residual_over_lag1",
+        "target_transform": "none",
+        "cv_method": f"nested TimeSeriesSplit({N_SPLITS} outer / {INNER_SPLITS} inner)",
+        "winner": best_name,
         "competition": candidates,
-        "window_start": str(y_raw.index[0]),
-        "window_end": str(y_raw.index[-1]),
-        "n_rows": len(y_raw),
+        "window_start": str(y.index[0]),
+        "window_end": str(y.index[-1]),
+        "n_rows": len(y),
         "n_features": len(feature_names),
         "n_features_dropped": n_dropped,
         "best_params": best_params,
@@ -383,6 +327,10 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
         "cv_std_r2": std_r2,
         "cv_mean_mae": mean_mae,
         "cv_std_mae": std_mae,
+        # R² on the residual — the part the model actually predicts.
+        "cv_target_r2": scores["cv_target_r2"],
+        "baseline_lag1_r2": baseline_r2,
+        "skill_r2": skill_score(mean_r2, baseline_r2),
         "train_r2": train_r2,
         "train_mae": train_mae,
         "folds": fold_details,
@@ -402,7 +350,7 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
 # ---------------------------------------------------------------------------
 
 
-def _tune_xgboost(x: pd.DataFrame, y: pd.Series) -> tuple:
+def _tune_xgboost(x: pd.DataFrame, y: pd.Series, cv: TimeSeriesSplit) -> tuple:
     pipe = Pipeline(
         [
             ("imputer", SimpleImputer(strategy="median")),
@@ -422,7 +370,7 @@ def _tune_xgboost(x: pd.DataFrame, y: pd.Series) -> tuple:
         pipe,
         prefixed,
         n_iter=60,
-        cv=CV,
+        cv=cv,
         scoring="r2",
         random_state=RANDOM_STATE,
         n_jobs=-1,
@@ -433,13 +381,13 @@ def _tune_xgboost(x: pd.DataFrame, y: pd.Series) -> tuple:
     return search.best_estimator_, best_params
 
 
-def _tune_ridge(x: pd.DataFrame, y: pd.Series) -> tuple:
+def _tune_ridge(x: pd.DataFrame, y: pd.Series, cv: TimeSeriesSplit) -> tuple:
     pipe = Pipeline([("scaler", StandardScaler()), ("model", Ridge())])
     search = RandomizedSearchCV(
         pipe,
         RIDGE_PARAM_SPACE,
         n_iter=5,
-        cv=CV,
+        cv=cv,
         scoring="r2",
         random_state=RANDOM_STATE,
         n_jobs=-1,
@@ -450,7 +398,7 @@ def _tune_ridge(x: pd.DataFrame, y: pd.Series) -> tuple:
     return search.best_estimator_, {"alpha": best_alpha}
 
 
-def _tune_elasticnet(x: pd.DataFrame, y: pd.Series) -> tuple:
+def _tune_elasticnet(x: pd.DataFrame, y: pd.Series, cv: TimeSeriesSplit) -> tuple:
     pipe = Pipeline(
         [("scaler", StandardScaler()), ("model", ElasticNet(max_iter=5000))]
     )
@@ -458,7 +406,7 @@ def _tune_elasticnet(x: pd.DataFrame, y: pd.Series) -> tuple:
         pipe,
         ELASTICNET_PARAM_SPACE,
         n_iter=20,
-        cv=CV,
+        cv=cv,
         scoring="r2",
         random_state=RANDOM_STATE,
         n_jobs=-1,
@@ -524,9 +472,21 @@ if __name__ == "__main__":
         f"  Features   : {results['n_features']} "
         f" (dropped {results['n_features_dropped']})"
     )
-    print(f"  CV R²      : {results['cv_mean_r2']:.4f} ± {results['cv_std_r2']:.4f}")
-    print(f"  CV MAE     : {results['cv_mean_mae']:.4f} ± {results['cv_std_mae']:.4f}")
-    print(f"  Train R²   : {results['train_r2']:.4f}")
-    print(f"  Train MAE  : {results['train_mae']:.4f}")
+    print(f"  CV R² (level): {results['cv_mean_r2']:.4f} ± {results['cv_std_r2']:.4f}")
+    print(
+        f"  CV MAE       : {results['cv_mean_mae']:.4f}"
+        f" ± {results['cv_std_mae']:.4f}"
+    )
+    print(f"  Persistence  : {results['baseline_lag1_r2']:.4f}   (lag1, same folds)")
+    print(f"  SKILL        : {results['skill_r2']:+.4f}   (level R² − persistence)")
+    print(
+        f"  CV R² resid  : {results['cv_target_r2']:.4f}"
+        "   (the part the model predicts)"
+    )
+    print(f"  Train R²     : {results['train_r2']:.4f}")
+    if results["skill_r2"] is not None and results["skill_r2"] <= 0:
+        print(
+            "\n  *** NO SKILL: this model does not beat copying last month's value. ***"
+        )
     print(f"\n  Best params: {results['best_params']}")
     print(f"\n  Artifacts saved to {MODEL_DIR}/")

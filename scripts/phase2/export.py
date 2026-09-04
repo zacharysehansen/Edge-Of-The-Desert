@@ -17,7 +17,17 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MODEL_DIR = REPO_ROOT / "model"
 
-MODEL_IDS = ["ndvi", "grace", "wildfire_monthly", "wildlife"]
+# Every trained model must appear here. groundwater and surface_water were previously
+# missing, so their rows in the report were hand-written with a blank baseline column —
+# which is how a groundwater model that loses to persistence went unnoticed.
+MODEL_IDS = [
+    "ndvi",
+    "grace",
+    "groundwater",
+    "surface_water",
+    "wildfire_monthly",
+    "wildlife",
+]
 
 
 def load_json(path: Path) -> dict | None:
@@ -47,8 +57,13 @@ def build_comparison() -> dict:
             "window": f"{cv.get('window_start')} → {cv.get('window_end')}",
             "n_rows": cv.get("n_rows"),
             "n_features": cv.get("n_features"),
+            "cv_method": cv.get("cv_method"),
             "train_r2": cv.get("train_r2"),
             "train_mae": cv.get("train_mae"),
+            # R² on the target the model was actually trained on. For a residual model
+            # this is far lower than the level R², and it is the number saying
+            # whether the model learned anything.
+            "cv_target_r2": cv.get("cv_target_r2"),
         }
 
         # Model-specific metrics
@@ -57,34 +72,52 @@ def build_comparison() -> dict:
             entry["loo_mae"] = cv.get("loo_mae")
             entry["spearman_corr"] = cv.get("spearman_corr")
             entry["spearman_p"] = cv.get("spearman_p")
-            entry["cv_method"] = "LeaveOneOut"
         else:
             entry["cv_mean_r2"] = cv.get("cv_mean_r2")
             entry["cv_std_r2"] = cv.get("cv_std_r2")
             entry["cv_mean_mae"] = cv.get("cv_mean_mae")
             entry["cv_std_mae"] = cv.get("cv_std_mae")
-            entry["cv_method"] = "TimeSeriesSplit"
 
-        # Baseline comparison
+        # Baseline comparison. Prefer the baseline the model script measured on its own
+        # folds; fall back to baselines.json only if the model didn't record one.
         bl = baselines.get(model_id, {})
         lag1 = bl.get("lag1_persistence", {})
-        entry["baseline_lag1_r2"] = lag1.get("mean_r2")
+        baseline_r2 = cv.get("baseline_lag1_r2")
+        if baseline_r2 is None:
+            baseline_r2 = lag1.get("mean_r2")
+        entry["baseline_lag1_r2"] = baseline_r2
         entry["baseline_lag1_mae"] = lag1.get("mean_mae")
 
-        # Improvement over baseline
-        model_r2 = entry.get("cv_mean_r2") or entry.get("loo_r2")
-        baseline_r2 = lag1.get("mean_r2")
-        if model_r2 is not None and baseline_r2 is not None:
+        model_r2 = entry.get("cv_mean_r2")
+        if model_r2 is None:
+            model_r2 = entry.get("loo_r2")
 
-            if not math.isnan(baseline_r2):
-                entry["improvement_r2"] = round(model_r2 - baseline_r2, 4)
-                entry["beats_baseline"] = model_r2 > baseline_r2
-            else:
-                entry["improvement_r2"] = None
-                entry["beats_baseline"] = None
+        skill = cv.get("skill_r2")
+        if (
+            skill is None
+            and model_r2 is not None
+            and baseline_r2 is not None
+            and not math.isnan(baseline_r2)
+        ):
+            skill = model_r2 - baseline_r2
+
+        if skill is not None and not _is_nan(skill):
+            entry["skill_r2"] = round(skill, 4)
+            entry["beats_persistence"] = skill > 0
         else:
-            entry["improvement_r2"] = None
-            entry["beats_baseline"] = None
+            entry["skill_r2"] = None
+            entry["beats_persistence"] = None
+
+        # A model has to clear TWO baselines, and neither alone is sufficient:
+        #   - the mean (R² > 0). R² is already defined against the test-fold mean, so
+        #     R² <= 0 means the model is worse than a flat line.
+        #   - persistence (skill > 0), which is the hard one for autoregressive targets.
+        # Groundwater is why both are needed: it posts a healthy level R² of ~0.54 and
+        # still loses to persistence, because the lag1 anchor is doing all the work.
+        entry["beats_mean"] = None if model_r2 is None else model_r2 > 0
+        entry["beats_baseline"] = bool(
+            entry.get("beats_persistence") and entry.get("beats_mean")
+        )
 
         onnx_path = MODEL_DIR / f"{model_id}.onnx"
         entry["onnx_exported"] = onnx_path.exists()
@@ -101,67 +134,82 @@ def build_comparison() -> dict:
     return comparison
 
 
-def print_leaderboard(comparison: dict) -> None:
-    """Print a formatted leaderboard to stdout."""
-    print(f"\n{'='*72}")
-    print("  Model Comparison — Phase 2 Results")
-    print(f"{'='*72}\n")
+def _fmt(value: float | None, spec: str = "+.4f") -> str:
+    if value is None or _is_nan(value):
+        return "—"
+    return format(value, spec)
 
-    header = f"{'Model':<12} {'CV R²':>10} {'CV MAE':>10}"
-    f" {'BL R²':>10} {'Δ R²':>8} {'Beat?':>6} {'ONNX':>5}"
+
+def print_leaderboard(comparison: dict) -> None:
+    """
+    Print the leaderboard, ranked by skill over persistence.
+
+    Skill, not R², is the headline. For an autoregressive target, a high R² can mean
+    nothing more than "last month's value is a good guess" — which is free. Skill is
+    what the model adds on top of that, and it is the only column that separates a
+    working model from an expensive copy of `lag1`.
+    """
+    print(f"\n{'='*86}")
+    print("  Model Comparison — Phase 2 Results  (ranked by skill over persistence)")
+    print(f"{'='*86}\n")
+
+    header = (
+        f"{'Model':<17} {'VERDICT':>9} {'SKILL':>8} {'R² lvl':>8} "
+        f"{'persist':>8} "
+        f"{'R² tgt':>8} {'ONNX':>5}"
+    )
     print(header)
     print("-" * len(header))
 
-    for model_id, entry in comparison.items():
+    def sort_key(item: tuple) -> float:
+        skill = item[1].get("skill_r2")
+        return skill if skill is not None and not _is_nan(skill) else -math.inf
+
+    failures = []
+    for model_id, entry in sorted(comparison.items(), key=sort_key, reverse=True):
         if entry.get("status") == "not_trained":
+            dash = "—"
             print(
-                f"{model_id:<12} {'—':>10} {'—':>10} "
-                f"{'—':>10} {'—':>8} {'—':>6} {'—':>5}"
+                f"{model_id:<17} {dash:>9} {dash:>8} {dash:>8} "
+                f"{dash:>8} {dash:>8} {dash:>5}"
             )
             continue
 
-        # Get the appropriate R² and MAE
-        if model_id == "wildlife":
-            r2_str = (
-                f"{entry['loo_r2']:.4f}" if entry.get("loo_r2") is not None else "—"
-            )
-            mae_str = (
-                f"{entry['loo_mae']:.4f}" if entry.get("loo_mae") is not None else "—"
-            )
+        level_r2 = entry.get("cv_mean_r2")
+        if level_r2 is None:
+            level_r2 = entry.get("loo_r2")
+
+        if entry.get("beats_baseline"):
+            verdict = "OK"
+        elif entry.get("beats_mean") is False:
+            verdict = "< MEAN"
+            failures.append(f"{model_id} (worse than a flat line)")
         else:
-            r2_str = (
-                f"{entry['cv_mean_r2']:.4f}"
-                if entry.get("cv_mean_r2") is not None
-                else "—"
-            )
-            mae_str = (
-                f"{entry['cv_mean_mae']:.6f}"
-                if entry.get("cv_mean_mae") is not None
-                else "—"
-            )
-
-        bl_r2 = entry.get("baseline_lag1_r2")
-        bl_str = f"{bl_r2:.4f}" if bl_r2 is not None and not _is_nan(bl_r2) else "—"
-
-        imp = entry.get("improvement_r2")
-        imp_str = f"{imp:+.4f}" if imp is not None else "—"
-
-        beats = entry.get("beats_baseline")
-        beats_str = "YES" if beats else ("NO" if beats is False else "—")
+            verdict = "< PERSIST"
+            failures.append(f"{model_id} (no better than copying last month)")
 
         onnx_str = "✓" if entry.get("onnx_exported") else "✗"
-
         print(
-            f"{model_id:<12} {r2_str:>10} {mae_str:>10} "
-            f"{bl_str:>10} {imp_str:>8} {beats_str:>6} {onnx_str:>5}"
+            f"{model_id:<17} {verdict:>9} {_fmt(entry.get('skill_r2')):>8} "
+            f"{_fmt(level_r2, '.4f'):>8} "
+            f"{_fmt(entry.get('baseline_lag1_r2'), '.4f'):>8} "
+            f"{_fmt(entry.get('cv_target_r2'), '.4f'):>8} {onnx_str:>5}"
         )
 
     print()
-    for model_id, entry in comparison.items():
-        if entry.get("note"):
-            print(f"  [{model_id}] {entry['note']}")
+    print("  A model must clear BOTH baselines to read OK:")
+    print("    R² lvl  > 0  — beats predicting the test-fold mean (a flat line).")
+    print("    SKILL   > 0  — beats lag1 persistence (R² lvl minus persist).")
+    print("  Neither alone is enough. Groundwater posts a healthy R² lvl (~0.54) and")
+    print("  still loses to persistence: the lag1 anchor is doing all of the work.")
+    print("  R² tgt = R² on the target actually trained on (the residual, for a")
+    print("  residual model). The level R² beside it is inflated by the lag1 anchor.")
 
-    # Wildlife-specific stats
+    if failures:
+        print("\n  *** NOT PREDICTIVE ***")
+        for f in failures:
+            print(f"      {f}")
+
     wl = comparison.get("wildlife", {})
     if wl.get("spearman_corr") is not None:
         print(

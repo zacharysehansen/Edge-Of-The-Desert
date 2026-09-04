@@ -197,7 +197,8 @@ This document catalogs all data inputs for the Southern Arizona Water and Land S
 | **Output File** | `data/Final/grace_monthly.csv` |
 | **Output Columns** | `year_month, grace_groundwater_anomaly, grace_available` [1] |
 | **Processing** | NetCDF opened with xarray, bounding box subset (with 0-360° longitude handling), spatial mean computed per timestep, pre-GRACE months (2000-01 to 2002-03) filled with 0.0, inter-mission gap (2017-07 to 2018-05) linearly interpolated, `grace_available` flag marks real vs. filled data [1] |
-| **Known Gaps** | Pre-mission: 2000-01 to 2002-03 (filled with 0.0); Inter-mission: 2017-07 to 2018-05 (interpolated) [1] |
+| **Known Gaps** | Pre-mission: 2000-01 to 2002-03 (filled with 0.0); Inter-mission: 2017-07 to 2018-05 (interpolated); **plus routine single-month instrument dropouts scattered across the record** (2003-06, 2011-01, 2011-06, 2011-12, 2012-05, 2012-10, 2013-03, 2013-08/09, 2014-02, 2014-07, 2014-12, 2015-05/06, 2015-10/11, 2016-04, 2016-09, 2016-10, 2017-02, 2018-08/09) — GRACE powers down its accelerometers in low-solar-cycle months, so months are simply missing [1] |
+| **Fill Extent** | **62 of 288 months are filled, not measured** — 27 pre-mission zeros plus **33 interpolated months in 23 separate blocks** inside the 2002-10+ modeling window. `grace_available == 0` marks every one. Any model using `grace_groundwater_anomaly` as a **target** must exclude these rows (and the row after each block, whose lag1 anchor is fill). See `_MONTHLY_MODEL_SPECS["grace"]["require_real_target"]` in `scripts/phase2/features.py` |
 | **Access Method** | NASA Earthdata (`earthaccess` Python package) |
 | **Access Date** | June 2025 |
 
@@ -266,18 +267,20 @@ This document catalogs all data inputs for the Southern Arizona Water and Land S
 
 | Field | Detail |
 |-------|--------|
-| **Description** | Monthly wildfire risk index combining fire frequency and log-transformed acreage for Arizona fires [2] |
-| **Source** | InterAgencyFirePerimeterHistory (National Interagency Fire Center) — all years CSV [2] |
-| **Raw File** | `data/raw/wildfire/InterAgencyFirePerimeterHistory_All_Years_View_-1590405183658604377.csv` |
-| **Format** | CSV with columns: `FIRE_YEAR, GIS_ACRES, DATE_CUR, UNIT_ID` (among others) |
-| **Temporal Resolution** | Monthly (month extracted from DATE_CUR perimeter mapping date) [1] |
-| **Spatial Resolution** | Filtered to Arizona fires via UNIT_ID containing "AZ" [1] |
-| **Date Range** | 2000-01 through 2023-12 [3] |
+| **Description** | Monthly large-wildfire risk index combining fire frequency and log-transformed acreage, on true ignition dates [2] |
+| **Source** | **MTBS** (Monitoring Trends in Burn Severity) fire-occurrence points — USGS/USFS, national, 1984–present |
+| **Raw File** | `data/raw/wildfire/mtbs/mtbs_FODpoints_DD.shp` |
+| **Re-pull** | `curl -sL -o mtbs.zip https://edcintl.cr.usgs.gov/downloads/sciweb1/shared/MTBS_Fire/data/composite_data/fod_pt_shapefile/mtbs_fod_pts_data.zip` (3.5 MB, no auth) |
+| **Format** | Point shapefile; key fields `ig_date` (**true ignition date**), `burnbndac` (acres), `incid_type` |
+| **Temporal Resolution** | Monthly, aggregated on `ig_date` |
+| **Spatial Resolution** | Point-in-polygon clip to the eight-county boundary via `region.filter_points()` |
+| **Date Range** | 2000-01 through 2023-12 (**MTBS supports 1984**; 105 additional in-region fires available pre-2000) |
 | **Output File** | `data/Final/wildfire_monthly.csv` |
 | **Output Columns** | `year_month, fire_count, total_acres, log_acres, wildfire_risk_index` [1] |
-| **Processing** | AZ fires filtered by UNIT_ID, month extracted from DATE_CUR (YYYYMMDD format), FIRE_YEAR used as authoritative year, aggregated to monthly fire count and total acres, log1p transform, risk index = 0.5 × norm(fire_count) + 0.5 × norm(log_acres) [1] |
-| **Row Count** | 288 monthly rows (complete coverage, months with no fires filled as 0) [1] |
-| **Note** | DATE_CUR is the perimeter mapping date, not ignition date — introduces a systematic seasonal offset that is captured by the model's seasonal encoding |
+| **Processing** | Drop `Prescribed Fire`/`Other` (keep `Wildfire`, `Wildland Fire Use`), clip to region, aggregate by ignition month → fire count + total acres, log1p transform, risk index = 0.5 × norm(fire_count) + 0.5 × norm(log_acres) |
+| **Row Count** | 288 monthly rows; 326 fires. **177 months (61%) are zero** — a month with no large fire is the most common outcome, and those zeros are real data, not missing values |
+| **Coverage caveat** | MTBS only maps fires ≥ ~1000 acres in the West, so `fire_count` means **large fires**, not all ignitions |
+| **⚠ History** | This series was previously built from `InterAgencyFirePerimeterHistory` with the month parsed from **`DATE_CUR` — a database-maintenance timestamp, not an ignition date**. 57% of AZ fires landed on five calendar days (Feb 1 alone held 1,221), the implied fire season peaked in *February*, and the target was anti-correlated with temperature (−0.27). **It was not measuring wildfire.** The perimeter file has no ignition-date field at any grain finer than `FIRE_YEAR`. Do not go back to it. `wildfire_monthly.py` now refuses to write the CSV if the peak ignition month falls outside April–August. |
 
 ---
 
@@ -342,12 +345,13 @@ This document catalogs all data inputs for the Southern Arizona Water and Land S
 
 ## Known Limitations
 
-1. **Irrigation and Public Supply end in 2020** — downstream modeling must handle the 2021-2023 gap via exclusion or extrapolation [3]
-2. **GRACE pre-mission fill (2000-01 to 2002-03)** — filled with 0.0 (neutral), flagged with `grace_available=0` [1]
-3. **Wildlife row count (24 rows)** — below the 50-row warning threshold; cross-validation will be unstable [1]
-4. **Wildfire row count (50 rows)** — at the minimum acceptable threshold [1]
-5. **Water stress uses statewide DSCI as proxy** — updated to county-level API when available, but the API returns statewide-equivalent DSCI values per county [2]
-6. **GRACE spatial resolution (~300km)** — too coarse to distinguish within-region gradients [2]
+1. **Irrigation and Public Supply end in 2020** — handled by *exclusion*, per model. Models whose target runs past 2020 (NDVI, GRACE, wildfire) drop these two series and every feature derived from them, and run to 2023-12. Models whose target ends in 2020 anyway (groundwater, surface water) keep them. Do **not** extrapolate them; they are near-pure month-of-year templates and dropping them costs almost nothing (measured: −0.0075 NDVI skill).
+2. **Groundwater levels and Surface water end in 2020** — these are *targets*, so those two models are structurally capped at 2020-12 and cannot score current conditions.
+3. **GRACE fill is more extensive than the mission gaps suggest** — 62 of 288 months are filled, not measured: pre-mission zeros (2000-01 to 2002-03) *and* 33 interpolated months scattered in 23 blocks. All flagged `grace_available=0`. Never train or score a GRACE-targeted model on them [1]
+4. **Wildlife row count (24 rows)** — below the 50-row warning threshold; cross-validation will be unstable [1]
+5. **Wildfire row count (50 rows)** — at the minimum acceptable threshold [1]
+6. **Water stress uses statewide DSCI as proxy** — updated to county-level API when available, but the API returns statewide-equivalent DSCI values per county [2]
+7. **GRACE spatial resolution (~300km)** — too coarse to distinguish within-region gradients [2]
 
 ---
 

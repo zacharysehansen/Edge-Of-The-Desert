@@ -26,6 +26,7 @@ from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
 from xgboost import XGBRegressor
 
 from scripts.phase2.features import build_all
+from scripts.phase2.metrics import nested_cv_evaluate, persistence_r2, skill_score
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MODEL_DIR = REPO_ROOT / "model"
@@ -33,6 +34,7 @@ MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
 MODEL_ID = "grace"
 N_SPLITS = 5
+INNER_SPLITS = 3
 CV = TimeSeriesSplit(n_splits=N_SPLITS)
 RANDOM_STATE = 42
 
@@ -57,6 +59,33 @@ PARAM_SPACE = {
 # ---------------------------------------------------------------------------
 
 
+def _make_search() -> RandomizedSearchCV:
+    """A fresh hyperparameter search. Its `cv` is an INNER split — see _fit_predict."""
+    base_model = XGBRegressor(
+        objective="reg:squarederror",
+        tree_method="hist",
+        random_state=RANDOM_STATE,
+        verbosity=0,
+    )
+    return RandomizedSearchCV(
+        base_model,
+        PARAM_SPACE,
+        n_iter=60,
+        cv=TimeSeriesSplit(n_splits=INNER_SPLITS),
+        scoring="r2",
+        random_state=RANDOM_STATE,
+        n_jobs=-1,
+        refit=True,
+    )
+
+
+def _fit_predict(
+    x_tr: pd.DataFrame, y_tr: pd.Series, x_te: pd.DataFrame
+) -> np.ndarray:
+    """Tune and fit on the training fold only, then predict the residual for x_te."""
+    return _make_search().fit(x_tr, y_tr).best_estimator_.predict(x_te)
+
+
 def train_and_evaluate() -> dict:
     """Build, tune, evaluate, and export the GRACE model."""
     datasets = build_all()
@@ -69,67 +98,27 @@ def train_and_evaluate() -> dict:
 
     y_residual = y - lag1
 
-    base_model = XGBRegressor(
-        objective="reg:squarederror",
-        tree_method="hist",
-        random_state=RANDOM_STATE,
-        verbosity=0,
-    )
-
-    search = RandomizedSearchCV(
-        base_model,
-        PARAM_SPACE,
-        n_iter=60,
+    scores = nested_cv_evaluate(
+        fit_predict=_fit_predict,
+        x=x_train,
+        y_level=y,
+        y_target=y_residual,
         cv=CV,
-        scoring="r2",
-        random_state=RANDOM_STATE,
-        n_jobs=-1,
-        refit=True,
+        anchor=lag1,
     )
+    baseline_r2 = persistence_r2(y_level=y, lag1_level=lag1, cv=CV)
+
+    mean_r2 = scores["cv_mean_r2"]
+    std_r2 = scores["cv_std_r2"]
+    mean_mae = scores["cv_mean_mae"]
+    std_mae = scores["cv_std_mae"]
+    fold_details = scores["folds"]
+
+    # The exported model is refit on everything — only the *score* has to be nested.
+    search = _make_search()
     search.fit(x_train, y_residual)
     best_model = search.best_estimator_
     best_params = search.best_params_
-
-    fold_r2, fold_mae = [], []
-    fold_details = []
-
-    for fold_i, (train_idx, test_idx) in enumerate(CV.split(x_train)):
-        x_tr = x_train.iloc[train_idx]
-        y_tr = y_residual.iloc[train_idx]
-        x_te = x_train.iloc[test_idx]
-        y_te_actual = y.iloc[test_idx]
-        lag1_te = lag1.iloc[test_idx]
-
-        fold_model = XGBRegressor(
-            **best_params,
-            objective="reg:squarederror",
-            tree_method="hist",
-            random_state=RANDOM_STATE,
-            verbosity=0,
-        )
-        fold_model.fit(x_tr, y_tr)
-        pred_residual = fold_model.predict(x_te)
-        pred_actual = pred_residual + lag1_te.values
-
-        r2 = r2_score(y_te_actual, pred_actual)
-        mae = mean_absolute_error(y_te_actual, pred_actual)
-        fold_r2.append(r2)
-        fold_mae.append(mae)
-        fold_details.append(
-            {
-                "fold": fold_i,
-                "test_start": str(y.index[test_idx[0]]),
-                "test_end": str(y.index[test_idx[-1]]),
-                "test_size": len(test_idx),
-                "r2": float(r2),
-                "mae": float(mae),
-            }
-        )
-
-    mean_r2 = float(np.mean(fold_r2))
-    std_r2 = float(np.std(fold_r2))
-    mean_mae = float(np.mean(fold_mae))
-    std_mae = float(np.std(fold_mae))
 
     # overfit diagnostic
     train_pred_residual = best_model.predict(x_train)
@@ -165,6 +154,9 @@ def train_and_evaluate() -> dict:
     cv_results = {
         "model_id": MODEL_ID,
         "formulation": "residual_over_lag1",
+        "cv_method": (
+            f"nested TimeSeriesSplit({N_SPLITS} outer / {INNER_SPLITS} inner)"
+        ),
         "window_start": str(y.index[0]),
         "window_end": str(y.index[-1]),
         "n_rows": len(y),
@@ -174,6 +166,9 @@ def train_and_evaluate() -> dict:
         "cv_std_r2": std_r2,
         "cv_mean_mae": mean_mae,
         "cv_std_mae": std_mae,
+        "cv_target_r2": scores["cv_target_r2"],
+        "baseline_lag1_r2": baseline_r2,
+        "skill_r2": skill_score(mean_r2, baseline_r2),
         "train_r2": train_r2,
         "train_mae": train_mae,
         "folds": fold_details,
@@ -221,13 +216,26 @@ def main() -> None:
 
     results = train_and_evaluate()
 
-    print(f"\n  Window     : {results['window_start']} → {results['window_end']}")
-    print(f"  Rows       : {results['n_rows']}")
-    print(f"  Features   : {results['n_features']}")
-    print(f"  CV R²      : {results['cv_mean_r2']:.4f} ± {results['cv_std_r2']:.4f}")
-    print(f"  CV MAE     : {results['cv_mean_mae']:.6f} ± {results['cv_std_mae']:.6f}")
-    print(f"  Train R²   : {results['train_r2']:.4f}")
-    print(f"  Train MAE  : {results['train_mae']:.6f}")
+    print(f"\n  Window       : {results['window_start']} → {results['window_end']}")
+    print(f"  Rows         : {results['n_rows']}")
+    print(f"  Features     : {results['n_features']}")
+    print(
+        f"  CV R² (level): {results['cv_mean_r2']:.4f}"
+        f" ± {results['cv_std_r2']:.4f}"
+    )
+    print(
+        f"  CV MAE       : {results['cv_mean_mae']:.6f}"
+        f" ± {results['cv_std_mae']:.6f}"
+    )
+    print(
+        f"  Persistence  : {results['baseline_lag1_r2']:.4f}   (lag1, same folds)"
+    )
+    print(f"  SKILL        : {results['skill_r2']:+.4f}   (level R² − persistence)")
+    print(
+        f"  CV R² resid  : {results['cv_target_r2']:.4f}"
+        "   (the part the model predicts)"
+    )
+    print(f"  Train R²     : {results['train_r2']:.4f}")
     print(f"\n  Best params: {results['best_params']}")
     print(f"\n  Artifacts saved to {MODEL_DIR}/")
 

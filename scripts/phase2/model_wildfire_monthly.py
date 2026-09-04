@@ -36,6 +36,7 @@ from sklearn.preprocessing import StandardScaler
 from xgboost import XGBRegressor
 
 from scripts.phase2.features import build_all
+from scripts.phase2.metrics import nested_cv_evaluate, persistence_r2, skill_score
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MODEL_DIR = REPO_ROOT / "model"
@@ -43,6 +44,7 @@ MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
 MODEL_ID = "wildfire_monthly"
 N_SPLITS = 5
+INNER_SPLITS = 3
 CV = TimeSeriesSplit(n_splits=N_SPLITS)
 RANDOM_STATE = 42
 
@@ -109,71 +111,99 @@ def _build_xgboost() -> tuple[str, Pipeline, dict, bool]:
     return "XGBoost", pipe, param_grid, True
 
 
+def _build_xgboost_tweedie() -> tuple[str, Pipeline, dict, bool]:
+    """
+    XGBoost with a Tweedie objective for the zero-inflated target.
+
+    wildfire_risk_index is non-negative and ~61% exact zeros (177/288 months on
+    the 2002-2023 window). Squared-error regression treats those zeros as ordinary
+    low values and is pulled toward a positive mean everywhere; a Tweedie
+    (compound Poisson-Gamma, 1 < power < 2) objective models the point mass at zero
+    plus a continuous positive part, which is what this target actually is.
+
+    It competes on out-of-fold R² like every other candidate — if the better-shaped
+    loss does not convert into R², squared-error XGBoost wins and nothing changes.
+    Kept as a single-output regressor so the ONNX/frontend contract is unchanged
+    (a two-part hurdle model would break the one-model-per-output assumption in
+    models.js).
+    """
+    pipe = Pipeline(
+        [
+            ("imputer", SimpleImputer(strategy="median")),
+            (
+                "model",
+                XGBRegressor(
+                    objective="reg:tweedie",
+                    tree_method="hist",
+                    random_state=RANDOM_STATE,
+                    verbosity=0,
+                ),
+            ),
+        ]
+    )
+    param_grid = {
+        "model__tweedie_variance_power": [1.1, 1.3, 1.5, 1.7],
+        "model__n_estimators": [100, 200, 300],
+        "model__max_depth": [2, 3],
+        "model__learning_rate": [0.01, 0.03, 0.05],
+        "model__subsample": [0.7, 0.8, 0.9],
+        "model__colsample_bytree": [0.5, 0.6, 0.7],
+        "model__reg_alpha": [0.1, 0.5, 1.0, 5.0],
+        "model__reg_lambda": [1, 5, 10],
+        "model__min_child_weight": [3, 5, 10],
+    }
+    return "XGBoost-Tweedie", pipe, param_grid, True
+
+
 # ---------------------------------------------------------------------------
 # Evaluation
 # ---------------------------------------------------------------------------
 
 
-def _evaluate_candidate(  # noqa: PLR0913
-    model_name: str,
-    formulation: str,
-    pipe: Pipeline,
-    param_grid: dict,
-    use_random: bool,
-    x: pd.DataFrame,
-    y: pd.Series,
-    lag1: pd.Series,
-) -> dict:
-    """Train and evaluate a candidate model under a given formulation."""
-    y_train_target = y - lag1 if formulation == "residual" else y
-
+def _search(
+    pipe: Pipeline, param_grid: dict, use_random: bool, cv: TimeSeriesSplit
+) -> Pipeline:
+    """Build a hyperparameter search bound to the CV split it is handed."""
     if use_random:
-        search = RandomizedSearchCV(
+        return RandomizedSearchCV(
             pipe,
             param_grid,
             n_iter=40,
-            cv=CV,
+            cv=cv,
             scoring="r2",
             random_state=RANDOM_STATE,
             n_jobs=-1,
             refit=True,
         )
-    else:
-        search = GridSearchCV(
-            pipe,
-            param_grid,
-            cv=CV,
-            scoring="r2",
-            n_jobs=-1,
-            refit=True,
-        )
+    return GridSearchCV(pipe, param_grid, cv=cv, scoring="r2", n_jobs=-1, refit=True)
 
-    search.fit(x, y_train_target)
+
+def _evaluate_candidate(  # noqa: PLR0913
+    model_name: str,
+    pipe: Pipeline,
+    param_grid: dict,
+    use_random: bool,
+    x: pd.DataFrame,
+    y: pd.Series,
+    cv: TimeSeriesSplit,
+) -> dict:
+    """Tune one candidate on `cv` and score it there. Direct formulation only."""
+    search = _search(pipe, param_grid, use_random, cv)
+    search.fit(x, y)
     best_pipe = search.best_estimator_
 
-    # Fold-level evaluation (always score in actual scale)
     fold_r2, fold_mae = [], []
-    for train_idx, test_idx in CV.split(x):
-        x_tr, y_tr = x.iloc[train_idx], y_train_target.iloc[train_idx]
-        x_te = x.iloc[test_idx]
-        y_te_actual = y.iloc[test_idx]
-
+    for train_idx, test_idx in cv.split(x):
         fold_pipe = clone(best_pipe)
-        fold_pipe.fit(x_tr, y_tr)
-        pred = fold_pipe.predict(x_te)
-
-        if formulation == "residual":
-            pred_actual = pred + lag1.iloc[test_idx].values
-        else:
-            pred_actual = pred
-
-        fold_r2.append(r2_score(y_te_actual, pred_actual))
-        fold_mae.append(mean_absolute_error(y_te_actual, pred_actual))
+        fold_pipe.fit(x.iloc[train_idx], y.iloc[train_idx])
+        pred = fold_pipe.predict(x.iloc[test_idx])
+        fold_r2.append(r2_score(y.iloc[test_idx], pred))
+        fold_mae.append(mean_absolute_error(y.iloc[test_idx], pred))
 
     return {
-        "label": f"{model_name} ({formulation})",
+        "label": f"{model_name} (direct)",
         "model_name": model_name,
-        "formulation": formulation,
+        "formulation": "direct",
         "pipe": best_pipe,
         "params": search.best_params_,
         "cv_mean_r2": float(np.mean(fold_r2)),
@@ -183,6 +213,33 @@ def _evaluate_candidate(  # noqa: PLR0913
         "n_rows": len(y),
         "n_features": x.shape[1],
     }
+
+
+def _fit_predict(x_tr: pd.DataFrame, y_tr: pd.Series, x_te: pd.DataFrame) -> np.ndarray:
+    """
+    The whole model-building procedure, applied to one training fold.
+
+    The candidate competition and the hyperparameter search both run on an inner split
+    of the training fold, so neither can see the outer test fold.
+    """
+    inner = TimeSeriesSplit(n_splits=INNER_SPLITS)
+
+    results = []
+    for builder in (
+        _build_ridge,
+        _build_elasticnet,
+        _build_xgboost,
+        _build_xgboost_tweedie,
+    ):
+        name, pipe, grid, use_random = builder()
+        results.append(
+            _evaluate_candidate(name, pipe, grid, use_random, x_tr, y_tr, inner)
+        )
+
+    winner = max(results, key=lambda c: c["cv_mean_r2"])
+    best_pipe = clone(winner["pipe"])
+    best_pipe.fit(x_tr, y_tr)
+    return best_pipe.predict(x_te)
 
 
 # ---------------------------------------------------------------------------
@@ -207,41 +264,40 @@ def train_and_evaluate() -> dict:
     x = x_full.drop(columns=[lag1_col])
     feature_names = list(x.columns)
 
+    # ----- Honest score: competition + tuning happen inside each fold -----
+    scores = nested_cv_evaluate(
+        fit_predict=_fit_predict,
+        x=x,
+        y_level=y,
+        y_target=y,  # direct formulation: the model predicts the level itself
+        cv=CV,
+    )
+    baseline_r2 = persistence_r2(y_level=y, lag1_level=lag1, cv=CV)
+
+    # ----- Final model for export: same procedure, refit on the full panel -----
     candidates = []
-    model_builders = [_build_ridge, _build_elasticnet, _build_xgboost]
-    formulations = ["direct", "residual"]
+    for builder in (
+        _build_ridge,
+        _build_elasticnet,
+        _build_xgboost,
+        _build_xgboost_tweedie,
+    ):
+        name, pipe, params, use_random = builder()
+        print(f"  {name:<12} ({x.shape[0]} rows, {x.shape[1]} features)...")
+        candidates.append(_evaluate_candidate(name, pipe, params, use_random, x, y, CV))
 
-    for formulation in formulations:
-        for builder in model_builders:
-            name, pipe, params, use_random = builder()
-            print(
-                f"  {name:<12} × {formulation:<10} "
-                f"({x.shape[0]} rows, {x.shape[1]} features)..."
-            )
-            result = _evaluate_candidate(
-                name, formulation, pipe, params, use_random, x, y, lag1
-            )
-            candidates.append(result)
-
-    # Print comparison table
     print(f"\n  {'Candidate':<30} {'CV R²':>10} {'CV MAE':>10}")
     print(f"  {'-'*52}")
     for c in sorted(candidates, key=lambda x: x["cv_mean_r2"], reverse=True):
         print(f"  {c['label']:<30} {c['cv_mean_r2']:>10.4f} {c['cv_mean_mae']:>10.4f}")
 
-    # Select winner
     winner = max(candidates, key=lambda c: c["cv_mean_r2"])
-    print(f"\n  WINNER: {winner['label']} (CV R² = {winner['cv_mean_r2']:.4f})")
+    print(f"\n  WINNER: {winner['label']}")
 
     best_pipe = winner["pipe"]
-    formulation = winner["formulation"]
+    formulation = "direct"
 
-    train_pred = best_pipe.predict(x)
-    if formulation == "residual":
-        train_pred_actual = train_pred + lag1.values
-    else:
-        train_pred_actual = train_pred
-
+    train_pred_actual = best_pipe.predict(x)
     train_r2 = float(r2_score(y, train_pred_actual))
     train_mae = float(mean_absolute_error(y, train_pred_actual))
 
@@ -280,13 +336,19 @@ def train_and_evaluate() -> dict:
         "window_end": str(y.index[-1]),
         "n_rows": len(y),
         "n_features": len(feature_names),
+        "cv_method": f"nested TimeSeriesSplit({N_SPLITS} outer / {INNER_SPLITS} inner)",
         "best_params": {k: _jsonable(v) for k, v in winner["params"].items()},
-        "cv_mean_r2": winner["cv_mean_r2"],
-        "cv_std_r2": winner["cv_std_r2"],
-        "cv_mean_mae": winner["cv_mean_mae"],
-        "cv_std_mae": winner["cv_std_mae"],
+        "cv_mean_r2": scores["cv_mean_r2"],
+        "cv_std_r2": scores["cv_std_r2"],
+        "cv_mean_mae": scores["cv_mean_mae"],
+        "cv_std_mae": scores["cv_std_mae"],
+        # Direct formulation, so the target IS the level: cv_target_r2 == cv_mean_r2.
+        "cv_target_r2": scores["cv_target_r2"],
+        "baseline_lag1_r2": baseline_r2,
+        "skill_r2": skill_score(scores["cv_mean_r2"], baseline_r2),
         "train_r2": train_r2,
         "train_mae": train_mae,
+        "folds": scores["folds"],
         "all_candidates": [
             {
                 "label": c["label"],
@@ -296,9 +358,12 @@ def train_and_evaluate() -> dict:
             for c in sorted(candidates, key=lambda x: x["cv_mean_r2"], reverse=True)
         ],
         "note": (
-            f"Monthly wildfire model. Winner: {winner['label']}. "
-            f"Competed 3 models × 2 formulations (6 total). "
-            f"219 monthly rows from 2002-10 to 2020-12."
+            "Direct formulation (fire is not autoregressive; the residual formulation "
+            "was tested and lost). Reported CV R² is nested: the model competition "
+            "(Ridge / ElasticNet / XGBoost squared-error / XGBoost Tweedie) and the "
+            "hyperparameter search both run inside each fold. Target is zero-inflated "
+            "(~61% zero months), which is why a Tweedie objective competes; it only "
+            "wins if it improves out-of-fold R²."
         ),
     }
 
@@ -399,8 +464,9 @@ def main() -> None:
     print(f"  Features   : {results['n_features']}")
     print(f"  CV R²      : {results['cv_mean_r2']:.4f} ± {results['cv_std_r2']:.4f}")
     print(f"  CV MAE     : {results['cv_mean_mae']:.6f} ± {results['cv_std_mae']:.6f}")
+    print(f"  Persistence: {results['baseline_lag1_r2']:.4f}   (lag1, same folds)")
+    print(f"  SKILL      : {results['skill_r2']:+.4f}   (CV R² − persistence)")
     print(f"  Train R²   : {results['train_r2']:.4f}")
-    print(f"  Train MAE  : {results['train_mae']:.6f}")
     print(f"\n  Best params: {results['best_params']}")
     print(f"\n  Artifacts saved to {MODEL_DIR}/")
 

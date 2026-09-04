@@ -22,7 +22,13 @@ const SLIDER_DEFS = {
   mead_pool_elevation:      { label: "Lake Mead Level",         unit: "ft",      panel: "human"   },
   precipitation_mm_day:     { label: "Precipitation",           unit: "mm/day",  panel: "climate" },
   temperature_2m_c:         { label: "Temperature",             unit: "°C",      panel: "climate" },
-  usdm_dsci:                { label: "Drought Index (DSCI)",    unit: "",        panel: "climate" },
+  // Drought is exposed as PDSI, not USDM DSCI. PDSI is signed (negative = dry, positive =
+  // wet), runs back to 1895, and is the exact input the two strongest models use (surface
+  // water and wildlife). The USDM DSCI that NDVI/GRACE/wildfire want is *derived* from it
+  // in models.js — those two indices only correlate -0.66, so that derivation is
+  // approximate, and it is the price of having one honest drought control instead of two
+  // that can contradict each other.
+  nclimdiv_pdsi:            { label: "Drought (PDSI)",          unit: "",        panel: "climate" },
 };
 
 // Loaded dynamically from computed_stats.json (p5, p95, p50)
@@ -31,10 +37,16 @@ const SLIDER_STATS = computedStats.SLIDER_STATS;
 const OUTPUT_DEFS = {
   grace:        { label: "GRACE Groundwater Anomaly", unit: "cm",    higherIsBetter: true,  feedsInto: "ndvi"     },
   ndvi:         { label: "NDVI Vegetation Health",    unit: "NDVI",  higherIsBetter: true,  feedsInto: "wildlife" },
-  groundwater:  { label: "Groundwater Well Depth",    unit: "ft",    higherIsBetter: false, feedsInto: null       },
-  surface_water:{ label: "Surface Water Discharge",   unit: "cfs",   higherIsBetter: true,  feedsInto: null       },
+  // Both of these are per-station anomaly indices, not levels. A regional mean of raw
+  // well depths / raw discharge is a mean over whichever stations reported that month,
+  // so it moves with the roster as much as with the water; the models are trained on the
+  // centered version instead. Groundwater is still "depth to water", so positive = deeper
+  // = less water = worse. Surface water is a log ratio, so 0 = normal flow and +0.7 ≈ 2x.
+  groundwater:  { label: "Groundwater Depth vs Normal", unit: "ft",       higherIsBetter: false, feedsInto: null       },
+  surface_water:{ label: "Streamflow vs Normal",        unit: "log ratio", higherIsBetter: true,  feedsInto: null       },
   wildfire:     { label: "Wildfire Risk Index",       unit: "",      higherIsBetter: false, feedsInto: null       },
-  wildlife:     { label: "Wildlife Abundance",        unit: "index", higherIsBetter: true,  feedsInto: null       },
+  // Per-route log-abundance anomaly: 0 = an average year, + = more birds than normal.
+  wildlife:     { label: "Bird Abundance vs Normal", unit: "log ratio", higherIsBetter: true,  feedsInto: null       },
 };
 
 // Loaded dynamically from computed_stats.json (p5, p95, p50 as baseline)
@@ -44,9 +56,9 @@ const TOP_INPUTS = {
   grace:         "temperature, precipitation anomaly, seasonal position",
   ndvi:          "temperature (lag), public supply groundwater, precipitation",
   groundwater:   "precipitation, temperature, drought index",
-  surface_water: "precipitation anomaly, temperature anomaly (lag), precipitation",
+  surface_water: "drought (PDSI, 6-mo mean), precipitation (3-mo mean), precipitation",
   wildfire:      "population, urbanization (lag), temperature (lag)",
-  wildlife:      "NDVI (annual mean), drought index, public supply groundwater",
+  wildlife:      "precipitation (prior year), drought index (PDSI), summer drought",
 };
 
 const state = {

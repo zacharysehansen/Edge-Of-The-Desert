@@ -14,7 +14,46 @@ Columns in output:
     route_count       - int, number of BBS routes active in the region
     total_abundance   - int, pooled bird count across all species and routes
     species_richness  - int, unique species observed across all routes
-    abundance_index   - float, log1p of total_abundance, normalized to [0,1]
+    abundance_anomaly - float, THE TARGET. Per-route log-abundance anomaly, averaged.
+    abundance_index   - float, log1p(total_abundance) min-max normalized. LEGACY —
+                        do not model on this. See below.
+
+**Why `total_abundance` is not a measure of bird abundance.**
+
+It is a *sum over whichever routes were surveyed that year*, and the number of
+routes surveyed is not constant. In the eight-county region it swings between 15
+and 26 per year; statewide the BBS ran ~15 routes/year in the 1970s-80s and ~45
+from 1990 onward. So the sum rises and falls with **survey effort**, not birds.
+
+Measured on the 2000-2024 region output, `route_count` correlates:
+
+    route_count  vs  total_abundance    r = +0.840  (p = 2.8e-07)
+    route_count  vs  abundance_index    r = +0.861  (p = 6.6e-08)
+    route_count  vs  species_richness   r = +0.866  (p = 4.8e-08)
+
+The old `abundance_index` was **86% correlated with how many people went
+birdwatching**. It is a survey-effort index wearing a bird costume, and it is
+physically unlearnable from climate.
+
+Effort-correcting drops that to r = +0.324 (p = 0.12, not significant), and the
+real signal survives: bird abundance per route declines ~23% across the record
+(p < 0.0001). The decline is genuine; the old target simply conflated it with
+routes being dropped.
+
+**The fix: `abundance_anomaly`.** Each route is centered on its *own* long-term
+mean log abundance before averaging, so (a) a year with more routes is not
+automatically a bigger year, and (b) a productive riparian route and a sparse
+desert route contribute equally. This is the same construction used for the well
+and gage networks in `groundwater_levels.py` and `water_surface.py` — a mean over
+a churning station roster is never a measurement of what the stations measure.
+
+This also had to land **before** the window was extended to 1968. Route counts
+triple around 1990, so summing across that would manufacture a spurious "bird
+abundance tripled" step that is purely BBS adding routes.
+
+`abundance_index` is retained for comparison only. It is additionally min-max
+normalized over the full series, which is look-ahead (the same class as the
+`consecutive_dry_years` bug).
 
 Source files downloaded from:
     https://www.sciencebase.gov/catalog/item/691cfb53d4be021d1d89b482
@@ -38,7 +77,7 @@ Missing year: 2020
     BBS field activity was cancelled. Excluded from output rather
     than filled with zeros. [2]
 
-Date range: 2000-01-01 to 2024-12-31 [3]
+Date range: 1968-01-01 to 2024-12-31
 """
 
 import logging
@@ -70,9 +109,17 @@ ROUTES_FILE = RAW_DIR / "Routes.csv"
 COUNTS_FILE = RAW_DIR / "Arizona.csv"
 OUTPUT_FILE = PROCESSED_DIR / "wildlife_annual.csv"
 
-START_YEAR = 2000
+# BBS Arizona counts run 1968-2024. The old 2000 floor was a project convention, not a
+# source limit, and it discarded ~30k rows. The anomaly target below is what makes using
+# them safe — see the module docstring.
+START_YEAR = 1968
 END_YEAR = 2024
 BBS_CANCELLED_YEARS = [2020]
+
+# A route needs enough of a record for its own long-term mean to mean anything.
+# Routes below this are dropped from the anomaly index (they still count toward the
+# raw diagnostics).
+MIN_YEARS_PER_ROUTE = 8
 
 # Confirmed column names from the inspection output
 COUNT_COL = "SpeciesTotal"  # sum across all 50 stops per species per route
@@ -321,7 +368,55 @@ def _aggregate_to_annual(
         annual["species_richness"].mean(),
     )
 
+    annual = annual.merge(_route_anomaly_index(counts_df), on="year", how="left")
+
     return annual
+
+
+def _route_anomaly_index(counts_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Build the effort-corrected target: a per-route log-abundance anomaly, averaged.
+
+    Each route is centered on its *own* long-term mean before averaging, so the index
+    does
+    not move just because more (or more productive) routes were surveyed. Log space,
+    because a route's count is multiplicative — a doubling on a sparse desert route
+    should
+    count the same as a doubling on a rich riparian one.
+
+    Without this the target is a survey-effort index: route_count correlates +0.86
+    with the
+    old `abundance_index`. See the module docstring.
+    """
+    per_route = (
+        counts_df.groupby([ROUTE_COL, YEAR_COL])[COUNT_COL]
+        .sum()
+        .reset_index(name="route_abundance")
+    )
+
+    # A route needs a real record before its "long-term mean" means anything.
+    n_years = per_route.groupby(ROUTE_COL)[YEAR_COL].transform("size")
+    kept = per_route[n_years >= MIN_YEARS_PER_ROUTE].copy()
+
+    dropped = per_route[ROUTE_COL].nunique() - kept[ROUTE_COL].nunique()
+    log.info(
+        "Anomaly index: %d routes kept, %d dropped for <%d years of record.",
+        kept[ROUTE_COL].nunique(),
+        dropped,
+        MIN_YEARS_PER_ROUTE,
+    )
+
+    kept["log_abundance"] = np.log1p(kept["route_abundance"])
+    kept["anomaly"] = kept["log_abundance"] - kept.groupby(ROUTE_COL)[
+        "log_abundance"
+    ].transform("mean")
+
+    return (
+        kept.groupby(YEAR_COL)["anomaly"]
+        .mean()
+        .reset_index()
+        .rename(columns={YEAR_COL: "year", "anomaly": "abundance_anomaly"})
+    )
 
 
 def _build_abundance_index(annual: pd.DataFrame) -> pd.DataFrame:
@@ -375,6 +470,39 @@ def _row_count_check(df: pd.DataFrame) -> None:
         log.info("Row count acceptable for modeling: %d annual rows.", n)
 
 
+MAX_EFFORT_CORR = 0.6
+
+
+def _effort_confound_check(df: pd.DataFrame) -> None:
+    """
+    Refuse to ship a target that is really a measure of survey effort.
+
+    The old `abundance_index` correlated **+0.86** with `route_count` — it was
+    tracking how
+    many routes were surveyed, not how many birds there were. This is the check that
+    would
+    have caught that on day one, and it makes the class of error unrepeatable. It is the
+    same guard `wildfire_monthly._validate_seasonality` provides for the fire target.
+    """
+    target, effort = df["abundance_anomaly"], df["route_count"]
+    corr = float(np.corrcoef(target, effort)[0, 1])
+    log.info("Effort check: corr(abundance_anomaly, route_count) = %+.3f", corr)
+
+    if abs(corr) > MAX_EFFORT_CORR:
+        raise ValueError(
+            f"abundance_anomaly correlates {corr:+.3f} with route_count "
+            f"(limit ±{MAX_EFFORT_CORR}). The target is tracking survey effort, not "
+            "birds. Do not model on it — fix the effort correction first."
+        )
+
+    legacy = float(np.corrcoef(df["abundance_index"], effort)[0, 1])
+    log.info(
+        "  (legacy abundance_index correlates %+.3f with route_count — this is why "
+        "it is not the target)",
+        legacy,
+    )
+
+
 def main() -> None:
     log.info("=== wildlife_bbs.py start ===")
 
@@ -395,9 +523,12 @@ def main() -> None:
             "route_count",
             "total_abundance",
             "species_richness",
+            "abundance_anomaly",
             "abundance_index",
         ]
     ].copy()
+
+    _effort_confound_check(output)
 
     if BBS_CANCELLED_YEARS[0] in output["year"].values:
         log.warning("2020 found in output despite cancellation filter. Removing now.")

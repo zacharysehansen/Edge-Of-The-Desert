@@ -25,7 +25,9 @@ import pandas as pd
 from scripts.phase2.merge import (
     ANNUAL_WINDOW_END,
     ANNUAL_WINDOW_START,
+    MONTHLY_CAPPED_2020_BASES,
     MONTHLY_WINDOW_END,
+    MONTHLY_WINDOW_END_EXTENDED,
     MONTHLY_WINDOW_START,
     build_annual_panel,
     build_monthly_panel,
@@ -44,12 +46,26 @@ _MONTHLY_BASE_INPUTS = [
 ]
 
 # Columns that get lag + rolling treatment
-_LAG_ROLL_COLS = _MONTHLY_BASE_INPUTS + [
+# nClimDiv drought/temperature/precipitation — the only climate inputs that exist before
+# 2000. Any monthly model reaching back past the satellite era is built from these.
+_NCLIMDIV_INPUTS = [
+    "nclimdiv_pdsi",
+    "nclimdiv_temperature_c",
+    "nclimdiv_precipitation_mm_day",
+]
+
+_LAG_ROLL_COLS = _MONTHLY_BASE_INPUTS + _NCLIMDIV_INPUTS + [
     "grace_groundwater_anomaly",
     "ndvi",
     "wildfire_risk_index",
     "fire_count",
     "log_acres",
+    # Per-station anomaly indices — the actual targets for the groundwater and
+    # surface-water models. The raw *_mean columns beside them are a mean over
+    # whichever stations happened to report that month, so they move with the
+    # roster as much as with the water. See scripts/phase1/groundwater_levels.py.
+    "depth_to_water_anomaly_ft",
+    "discharge_log_anomaly",
     "depth_to_water_ft_mean",
     "discharge_cfs_mean",
 ]
@@ -73,7 +89,12 @@ def _add_monthly_lag_roll(df: pd.DataFrame) -> pd.DataFrame:
 def _add_anomaly_features(df: pd.DataFrame) -> pd.DataFrame:
     """Standardised departure from 12-month trailing mean for temperature and precip."""
     df = df.copy()
-    for col in ("temperature_2m_c", "precipitation_mm_day"):
+    for col in (
+        "temperature_2m_c",
+        "precipitation_mm_day",
+        "nclimdiv_temperature_c",
+        "nclimdiv_precipitation_mm_day",
+    ):
         if col not in df.columns:
             continue
         roll12_col = f"{col}_roll12"
@@ -103,6 +124,14 @@ def _add_interaction_features(df: pd.DataFrame) -> pd.DataFrame:
     # Precipitation x temperature = evapotranspiration proxy
     if "precipitation_mm_day" in df.columns and "temperature_2m_c" in df.columns:
         df["precip_x_temperature"] = df["precipitation_mm_day"] * df["temperature_2m_c"]
+    # Same, on the long-record series, so pre-2000 rows have one too.
+    if (
+        "nclimdiv_precipitation_mm_day" in df.columns
+        and "nclimdiv_temperature_c" in df.columns
+    ):
+        df["nclimdiv_precip_x_temperature"] = (
+            df["nclimdiv_precipitation_mm_day"] * df["nclimdiv_temperature_c"]
+        )
     return df
 
 
@@ -181,18 +210,18 @@ def _monthly_feature_cols(exclude_target_base: list[str]) -> list[str]:
         "ndvi_lag3",
         "ndvi_roll3",
         "ndvi_roll6",
-        # Groundwater well level
-        "depth_to_water_ft_mean",
-        "depth_to_water_ft_mean_lag1",
-        "depth_to_water_ft_mean_lag3",
-        "depth_to_water_ft_mean_roll3",
-        "depth_to_water_ft_mean_roll6",
-        # Surface water discharge
-        "discharge_cfs_mean",
-        "discharge_cfs_mean_lag1",
-        "discharge_cfs_mean_lag3",
-        "discharge_cfs_mean_roll3",
-        "discharge_cfs_mean_roll6",
+        # Groundwater well level (per-well anomaly; positive = deeper than normal)
+        "depth_to_water_anomaly_ft",
+        "depth_to_water_anomaly_ft_lag1",
+        "depth_to_water_anomaly_ft_lag3",
+        "depth_to_water_anomaly_ft_roll3",
+        "depth_to_water_anomaly_ft_roll6",
+        # Surface water discharge (per-gage log anomaly)
+        "discharge_log_anomaly",
+        "discharge_log_anomaly_lag1",
+        "discharge_log_anomaly_lag3",
+        "discharge_log_anomaly_roll3",
+        "discharge_log_anomaly_roll6",
         # Interaction features
         "precip_x_impervious",
         "precip_x_temperature",
@@ -232,6 +261,9 @@ def _engineer_annual(annual_raw: pd.DataFrame) -> pd.DataFrame:
     df = annual_raw.copy()
 
     annual_lag_roll_cols = [
+        "nclimdiv_pdsi_annual_mean",
+        "nclimdiv_temperature_c_annual_mean",
+        "nclimdiv_precipitation_mm_day_annual_sum",
         "population_annual_mean",
         "irrigation_total_withdrawal_mgd_annual_sum",
         "public_supply_groundwater_mgd_annual_sum",
@@ -248,7 +280,7 @@ def _engineer_annual(annual_raw: pd.DataFrame) -> pd.DataFrame:
         "ndvi_jja_mean",
         "impervious_pct_annual_mean",
         "wildfire_risk_index",
-        "bbs_abundance_index",
+        "bbs_abundance_anomaly",
     ]
     df = _add_annual_lag_roll(df, annual_lag_roll_cols)
 
@@ -282,7 +314,9 @@ def _add_fire_ecology_features(df: pd.DataFrame) -> pd.DataFrame:
 
     if "precipitation_mm_day_annual_sum" in df.columns:
         precip = df["precipitation_mm_day_annual_sum"]
-        median_precip = precip.median()
+        # Expanding, not full-series: a full-series median would let a given year's
+        # "is this a dry year" flag depend on precipitation that had not happened yet.
+        median_precip = precip.expanding(min_periods=3).median()
         is_dry = (precip < median_precip).astype(int)
         dry_count = []
         count = 0
@@ -313,30 +347,258 @@ def _add_fire_ecology_features(df: pd.DataFrame) -> pd.DataFrame:
 # Feature columns for annual models
 # ---------------------------------------------------------------------------
 
+# Wildlife runs on the BBS record: 1968-2024. Every input except nClimDiv floors at
+# 2000, so
+# reaching back means using nClimDiv (drought/temperature/precipitation, 1895+) and
+# nothing
+# else. NDVI, GRACE, USDM, Lake Mead, irrigation, public supply, population and
+# impervious %
+# are all satellite-or-2000-era series; a single one of them in X would NaN-mask the
+# panel
+# straight back to 20 rows via the not-null filter.
+#
+# The old list was 22 features on 20 rows. This is 12 on 56 — the p >> n problem that
+# PHASE2_REPORT.md called unfixable is simply gone, and it cost no new downloads beyond
+# a
+# free NOAA text file.
+#
+# What is given up: NDVI as a food-availability proxy, which is genuinely the mechanism
+# you
+# would want for birds. That is a real loss, and it is the trade for 36 extra years. If
+# the
+# NDVI link matters more than sample size, the 2000-2023 feature set is still buildable
+# —
+# but at n=20 it was not learnable, which is the whole reason for this change.
 _WILDLIFE_FEATURES = [
-    "population_annual_mean",
-    "irrigation_total_withdrawal_mgd_annual_sum",
-    "public_supply_groundwater_mgd_annual_sum",
-    "mead_pool_elevation_annual_mean",
-    "mead_pool_elevation_june",
-    "mead_total_release_annual_sum",
-    "usdm_dsci_annual_mean",
-    "temperature_2m_c_annual_mean",
-    "temperature_2m_c_jja_mean",
-    "precipitation_mm_day_annual_sum",
-    "log_precip_annual",
-    "ndvi_annual_mean",
-    "ndvi_jja_mean",
-    "grace_groundwater_anomaly_annual_mean",
-    "impervious_pct_annual_mean",
+    "nclimdiv_pdsi_annual_mean",
+    "nclimdiv_pdsi_jja_mean",
+    "nclimdiv_temperature_c_annual_mean",
+    "nclimdiv_temperature_c_jja_mean",
+    "nclimdiv_precipitation_mm_day_annual_sum",
+    "nclimdiv_log_precip_annual",
     "year_linear",
-    "bbs_abundance_index_lag1",
-    "bbs_abundance_index_lag2",
-    "bbs_abundance_index_roll3",
-    "ndvi_annual_mean_lag1",
-    "precipitation_mm_day_annual_sum_lag1",
-    "usdm_dsci_annual_mean_lag1",
+    "bbs_abundance_anomaly_lag1",
+    "bbs_abundance_anomaly_lag2",
+    "bbs_abundance_anomaly_roll3",
+    "nclimdiv_pdsi_annual_mean_lag1",
+    "nclimdiv_precipitation_mm_day_annual_sum_lag1",
 ]
+
+# ---------------------------------------------------------------------------
+# Monthly model specs
+# ---------------------------------------------------------------------------
+# Each model declares its own target, its own end date, and its own feature set.
+#
+# `extended` models run to 2023-12. The price is dropping every feature derived
+# from MONTHLY_CAPPED_2020_BASES — irrigation, public supply, well depth and
+# discharge all stop at 2020-12, and one NaN column would mask the extra rows
+# straight back off again. That price is low: those inputs are near-pure
+# month-of-year templates already carried by month_sin/month_cos.
+#
+# `groundwater` and `surface_water` are not extended because their *targets*
+# end 2020-12. There are no extra rows for them to gain, so they keep the full
+# feature set.
+
+# Features available before 2000. Everything else in the panel — USDM, MERRA-2
+# temperature/precipitation, NDVI, GRACE, Lake Mead, population, irrigation, public
+# supply, impervious % — floors at 2000, and a single one of them in X would NaN-mask
+# the model straight back to the short window.  The price is real and worth stating:
+# this drops `usdm_dsci`, which PHASE2_REPORT.md's variance decomposition names the
+# single highest-signal input in the entire panel, and it drops `precip_x_impervious`,
+# which was a top-5 feature for surface water. A model on this list is buying rows
+# with signal. Whether that is a good trade is an empirical question, and the answer
+# is not obviously yes — see PROBLEMS.md Part 4, where extending the window to rescue
+# GRACE and wildfire made both *worse*.
+_LONG_RECORD_MONTHLY_FEATURES = [
+    "nclimdiv_pdsi",
+    "nclimdiv_pdsi_lag1",
+    "nclimdiv_pdsi_lag3",
+    "nclimdiv_pdsi_roll3",
+    "nclimdiv_pdsi_roll6",
+    "nclimdiv_pdsi_roll12",
+    "nclimdiv_temperature_c",
+    "nclimdiv_temperature_c_lag1",
+    "nclimdiv_temperature_c_roll3",
+    "nclimdiv_temperature_c_roll6",
+    "nclimdiv_temperature_c_roll12",
+    "nclimdiv_temperature_c_anomaly",
+    "nclimdiv_temperature_c_anomaly_lag1",
+    "nclimdiv_temperature_c_anomaly_roll3",
+    "nclimdiv_precipitation_mm_day",
+    "nclimdiv_precipitation_mm_day_lag1",
+    "nclimdiv_precipitation_mm_day_lag3",
+    "nclimdiv_precipitation_mm_day_roll3",
+    "nclimdiv_precipitation_mm_day_roll6",
+    "nclimdiv_precipitation_mm_day_roll12",
+    "nclimdiv_precipitation_mm_day_anomaly",
+    "nclimdiv_precipitation_mm_day_anomaly_lag1",
+    "nclimdiv_precipitation_mm_day_anomaly_roll3",
+    "nclimdiv_precip_x_temperature",
+    "month_sin",
+    "month_cos",
+]
+
+
+# Discharge is a *response* variable, not a human or climate pressure. Until now the
+# extended models never saw it — not by design, but as an accident of the data:
+# discharge ended in 2020 and so was dropped by MONTHLY_CAPPED_2020_BASES. Extending
+# NWIS to 2025 removed that accident and silently handed these models a new feature
+# block, which cost
+# wildfire 0.034 skill (+0.5615 -> +0.5271).
+#  So the exclusion is now explicit and stated, rather than implied by a coverage gap.
+# If feeding discharge into NDVI is worth trying on the merits, that is its own
+# experiment — it should not arrive as a side effect of a Phase 1 window change.
+_RESPONSE_FEATURE_BASES = ["discharge_log_anomaly", "discharge_cfs_mean", "n_gages"]
+
+_MONTHLY_MODEL_SPECS: dict[str, dict] = {
+    "ndvi": {
+        "target": "ndvi",
+        "extended": True,
+        "also_exclude": [*_RESPONSE_FEATURE_BASES],
+    },
+    "grace": {
+        "target": "grace_groundwater_anomaly",
+        "extended": True,
+        "also_exclude": [*_RESPONSE_FEATURE_BASES],
+        # GRACE has no instrument for 2000-01..2002-03 (zero-filled) or across
+        # the GRACE→GRACE-FO gap (interpolated). Those months are fabrication,
+        # not measurement, and must never appear in the target or in the lag1
+        # anchor the residual is built on.
+        "require_real_target": "grace_available",
+    },
+    "groundwater": {
+        # Per-well anomaly, not the raw roster mean. The raw mean moves when the set of
+        # reporting wells changes (turnover correlates +0.75 with its month-to-month
+        # jump), which is not a thing any model can learn.
+        "target": "depth_to_water_anomaly_ft",
+        "extended": False,
+        # depth_to_water_ft_mean is the *same measurement* as the target, just averaged
+        # without centering. Leaving it in X would hand the model the answer.
+        "also_exclude": ["depth_to_water_ft_mean", "n_wells"],
+    },
+    "surface_water": {
+        "target": "discharge_log_anomaly",
+        "extended": False,
+        # NWIS now runs 1980-2025, so this is the longest monthly series in the project.
+        # Reaching back past 2000 means the feature set collapses to nClimDiv alone —
+        # no usdm_dsci, no impervious interaction, 63 features down to 26.
+        #
+        # That trade was measured rather than assumed, because it is exactly the trade
+        # that failed for GRACE and wildfire (PROBLEMS.md Part 4). Holding the test rows
+        # fixed at the common 2002-10..2020-12 period and varying only the training
+        # data:
+        #
+        #     SHORT  2002-2020, 63 features   R² = +0.6777   skill = +0.6344
+        #     LONG   1980-2025, 26 features   R² = +0.7955   skill = +0.7522
+        #
+        # Same 180 test months, same persistence baseline (+0.0433). The 332 extra
+        # months buy more than the lost features cost. n: 219 -> 551.
+        "long_record": True,
+        "window_start": "1980-01",
+        "window_end": "2025-12",
+        # discharge_cfs_mean is the same measurement as the target; n_gages is the
+        # roster size, which is exactly the artifact the anomaly index removes.
+        "also_exclude": [
+            "gage_height_ft_mean",
+            "discharge_cfs_mean",
+            "n_gages",
+        ],
+    },
+    "wildfire_monthly": {
+        "target": "wildfire_risk_index",
+        "extended": False,
+        # MTBS ignition dates run back to 1984, so this is a long-record model like
+        # surface_water. Reaching before 2000 collapses the feature set to nClimDiv
+        # alone — no usdm_dsci, no MERRA-2, no NDVI/GRACE cross-features — because
+        # every one of those floors at 2000 and a single NaN column would mask the
+        # pre-2000 rows straight back off again. That is an acceptable trade here
+        # precisely because fire is driven by drought/heat/precipitation, which is
+        # exactly what nClimDiv (PDSI/temp/precip, 1895+) carries. The old target
+        # extension made wildfire *worse* (PROBLEMS.md Part 4), but that was a
+        # fabricated DATE_CUR time axis; the MTBS target is real, so the extra ~192
+        # months are real signal. Measured before/after in PHASE2_REPORT.md.
+        "long_record": True,
+        "window_start": "1984-01",
+        "window_end": "2023-12",
+        "also_exclude": [
+            "fire_count",
+            "log_acres",
+            "total_acres",
+            *_RESPONSE_FEATURE_BASES,
+        ],
+    },
+}
+
+
+def _monthly_dataset(
+    monthly: pd.DataFrame, spec: dict
+) -> tuple[pd.DataFrame, pd.Series]:
+    """Slice the engineered monthly panel into one model's (X, y)."""
+    target = spec["target"]
+    extended = spec["extended"]
+
+    # A model may override either bookend. The global MONTHLY_WINDOW_START (2002-10)
+    # exists
+    # only because GRACE is zero-filled before it; a model carrying no GRACE features
+    # is not
+    # bound by it and can run back to whatever its own target and features support.
+    window_start = spec.get("window_start", MONTHLY_WINDOW_START)
+    window_end = spec.get(
+        "window_end", MONTHLY_WINDOW_END_EXTENDED if extended else MONTHLY_WINDOW_END
+    )
+    window = monthly.loc[
+        pd.Period(window_start, freq="M") : pd.Period(window_end, freq="M")
+    ].copy()
+
+    if spec.get("long_record"):
+        # Pre-2000 rows exist only for nClimDiv, so the feature set is restricted to it.
+        exclude = [target, *spec.get("also_exclude", [])]
+        features = [
+            f
+            for f in _LONG_RECORD_MONTHLY_FEATURES
+            if not any(f == e or f.startswith(e + "_") for e in exclude)
+        ]
+        features = [f for f in features if f in window.columns]
+        lag1_col = f"{target}_lag1"
+        x = window[features + [lag1_col]].copy()
+        y = window[target].copy()
+        mask = x.notna().all(axis=1) & y.notna()
+        return x[mask], y[mask]
+
+    exclude = [target, *spec.get("also_exclude", [])]
+    features = _monthly_feature_cols(exclude_target_base=exclude)
+
+    if extended:
+        features = [
+            f
+            for f in features
+            if not any(
+                f == base or f.startswith(base + "_")
+                for base in MONTHLY_CAPPED_2020_BASES
+            )
+        ]
+
+    features = [f for f in features if f in window.columns]
+
+    lag1_col = f"{target}_lag1"
+    x = window[features + [lag1_col]].copy()  # lag1 kept for the residual anchor
+    y = window[target].copy()
+    mask = x.notna().all(axis=1) & y.notna()
+
+    flag = spec.get("require_real_target")
+    if flag is not None:
+        # Both the target and the lag1 anchor must be real measurements —
+        # otherwise the residual is a change measured against a filled value.
+        # Shifted on the full panel so the first window row sees its true
+        # predecessor rather than a NaN introduced by the slice.
+        real = monthly[flag] == 1
+        real_and_lag1 = (real & real.shift(1, fill_value=False)).loc[window.index]
+        mask &= real_and_lag1
+        # Constant once filtered, and it would leak the fill pattern anyway.
+        x = x.drop(columns=[flag], errors="ignore")
+
+    return x[mask], y[mask]
+
 
 # ---------------------------------------------------------------------------
 # Build all datasets
@@ -368,71 +630,14 @@ def build_all(  # noqa: PLR0915
     datasets = {}
 
     # -----------------------------------------------------------------------
-    # Monthly models (Model 1: NDVI, Model 2: GRACE)
+    # Monthly models
     # -----------------------------------------------------------------------
     monthly = _engineer_monthly(monthly_raw)
 
-    window_start = pd.Period(MONTHLY_WINDOW_START, freq="M")
-    window_end = pd.Period(MONTHLY_WINDOW_END, freq="M")
-    monthly_w = monthly.loc[window_start:window_end].copy()
-
-    # Model 1 - NDVI
-    ndvi_features = _monthly_feature_cols(exclude_target_base=["ndvi"])
-    ndvi_features = [f for f in ndvi_features if f in monthly_w.columns]
-    x_ndvi = monthly_w[ndvi_features + ["ndvi_lag1"]].copy()  # lag1 kept for residual
-    y_ndvi = monthly_w["ndvi"].copy()
-    mask = x_ndvi.notna().all(axis=1) & y_ndvi.notna()
-    datasets["ndvi"] = (x_ndvi[mask], y_ndvi[mask])
-
-    # Model 2 - GRACE
-    grace_features = _monthly_feature_cols(
-        exclude_target_base=["grace_groundwater_anomaly"]
-    )
-    grace_features = [f for f in grace_features if f in monthly_w.columns]
-    x_grace = monthly_w[grace_features + ["grace_groundwater_anomaly_lag1"]].copy()
-    y_grace = monthly_w["grace_groundwater_anomaly"].copy()
-    mask = x_grace.notna().all(axis=1) & y_grace.notna()
-    datasets["grace"] = (x_grace[mask], y_grace[mask])
-
-    # Model 3 - Groundwater Well Levels
-    if "depth_to_water_ft_mean" in monthly_w.columns:
-        gw_features = _monthly_feature_cols(
-            exclude_target_base=["depth_to_water_ft_mean"]
-        )
-        gw_features = [f for f in gw_features if f in monthly_w.columns]
-        x_gw = monthly_w[gw_features + ["depth_to_water_ft_mean_lag1"]].copy()
-        y_gw = monthly_w["depth_to_water_ft_mean"].copy()
-        mask = x_gw.notna().all(axis=1) & y_gw.notna()
-        datasets["groundwater"] = (x_gw[mask], y_gw[mask])
-
-    # Model 4 - Surface Water Conditions (discharge only; gage_height has gaps)
-    if "discharge_cfs_mean" in monthly_w.columns:
-        sw_features = _monthly_feature_cols(
-            exclude_target_base=["discharge_cfs_mean", "gage_height_ft_mean"]
-        )
-        sw_features = [f for f in sw_features if f in monthly_w.columns]
-        x_sw = monthly_w[sw_features + ["discharge_cfs_mean_lag1"]].copy()
-        y_sw = monthly_w["discharge_cfs_mean"].copy()
-        mask = x_sw.notna().all(axis=1) & y_sw.notna()
-        datasets["surface_water"] = (x_sw[mask], y_sw[mask])
-
-    # Model 5 - Wildfire Risk Index
-    if "wildfire_risk_index" in monthly_w.columns:
-        wf_monthly_features = _monthly_feature_cols(
-            exclude_target_base=[
-                "wildfire_risk_index",
-                "fire_count",
-                "log_acres",
-                "total_acres",
-            ]
-        )
-        wf_monthly_features = [f for f in wf_monthly_features if f in monthly_w.columns]
-        x_wf_monthly = monthly_w[
-            wf_monthly_features + ["wildfire_risk_index_lag1"]
-        ].copy()
-        y_wf_monthly = monthly_w["wildfire_risk_index"].copy()
-        mask = x_wf_monthly.notna().all(axis=1) & y_wf_monthly.notna()
-        datasets["wildfire_monthly"] = (x_wf_monthly[mask], y_wf_monthly[mask])
+    for model_id, spec in _MONTHLY_MODEL_SPECS.items():
+        if spec["target"] not in monthly.columns:
+            continue
+        datasets[model_id] = _monthly_dataset(monthly, spec)
 
     # Model 6 - Wildlife
     annual = _engineer_annual(annual_raw)
@@ -441,7 +646,7 @@ def build_all(  # noqa: PLR0915
     wildlife_w = annual_w.drop(index=2020, errors="ignore")
     wl_features = [f for f in _WILDLIFE_FEATURES if f in wildlife_w.columns]
     x_wildlife = wildlife_w[wl_features].copy()
-    y_wildlife = wildlife_w["bbs_abundance_index"].copy()
+    y_wildlife = wildlife_w["bbs_abundance_anomaly"].copy()
     _base_cols_wl = [c for c in wl_features if "_lag" not in c and "_roll" not in c]
     mask = x_wildlife[_base_cols_wl].notna().all(axis=1) & y_wildlife.notna()
     datasets["wildlife"] = (x_wildlife[mask], y_wildlife[mask])

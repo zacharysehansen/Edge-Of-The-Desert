@@ -38,6 +38,20 @@ FILE_TO_KEY = {
         "json_key": "usdm_dsci",
         "column": "usdm_dsci",
     },
+    "nclimdiv_monthly.csv": {
+        # THE drought slider. PDSI is signed (- dry, + wet), runs back to 1895, and is
+        # the
+        # exact input for the two strongest models (surface water, wildlife).
+        # usdm_dsci is
+        # still a slider stat because NDVI/GRACE/wildfire use it, but the frontend no
+        # longer
+        # exposes it directly — it derives it from PDSI. See DROUGHT_PDSI_TO_DSCI in
+        # frontend/models.js. Zero is "normal", a real reading, so it must not be
+        # dropped.
+        "json_key": "nclimdiv_pdsi",
+        "column": "nclimdiv_pdsi",
+        "zero_is_data": True,
+    },
     "temperature_monthly.csv": {
         "json_key": "temperature_2m_c",
         "column": "temperature_2m_c",
@@ -53,19 +67,34 @@ FILE_TO_KEY = {
     },
     "groundwater_levels_monthly.csv": {
         "json_key": "groundwater",
-        "column": "depth_to_water_ft_mean",
+        # The per-well anomaly, not the raw roster mean — this is what the model
+        # predicts. Positive = deeper than normal = less groundwater. A zero here is
+        # "exactly normal", a real and meaningful reading, so it must not be dropped.
+        "column": "depth_to_water_anomaly_ft",
+        "zero_is_data": True,
     },
     "water_surface_monthly.csv": {
         "json_key": "surface_water",
-        "column": "discharge_cfs_mean",
+        # Per-gage log anomaly. Zero = normal flow, a real reading.
+        "column": "discharge_log_anomaly",
+        "zero_is_data": True,
     },
     "wildfire_monthly.csv": {
         "json_key": "wildfire",
         "column": "wildfire_risk_index",
+        # A zero here is a real observation — 61% of months have no large fire.
+        # Dropping zeros would put the frontend's resting wildfire risk at 0.41
+        # (the median of fire months only) instead of 0.0.
+        "zero_is_data": True,
     },
     "wildlife_annual.csv": {
         "json_key": "wildlife",
-        "column": "abundance_index",
+        # The per-route anomaly, not the old min-max index. The old one was a sum over
+        # whichever routes were surveyed, so it tracked survey effort (r = +0.94 with
+        # route_count) rather than birds. Zero here means "an average year", a real and
+        # meaningful reading, so it must not be dropped.
+        "column": "abundance_anomaly",
+        "zero_is_data": True,
     },
 }
 
@@ -78,6 +107,7 @@ SLIDER_KEYS = {
     "precipitation_mm_day",
     "temperature_2m_c",
     "usdm_dsci",
+    "nclimdiv_pdsi",
 }
 
 OUTPUT_KEYS = {
@@ -90,13 +120,21 @@ OUTPUT_KEYS = {
 }
 
 
-def compute_stats(values: pd.DataFrame) -> dict[str, float]:
-    """Return 5th, 50th, and 95th percentiles after removing NaNs and zeros."""
+def compute_stats(values: pd.DataFrame, zero_is_data: bool = False) -> dict[str, float]:
+    """
+    Return 5th, 50th, and 95th percentiles after removing NaNs.
+
+    Zeros are dropped by default: for most variables here (population, discharge,
+    withdrawal) a zero is a missing reading rather than a measurement. Set
+    `zero_is_data` for series where zero is a real observation — wildfire, where
+    a month with no large fire is the single most common outcome.
+    """
     values = values.dropna()
-    values = values[values != 0]
+    if not zero_is_data:
+        values = values[values != 0]
 
     if values.empty:
-        raise ValueError("No non-zero values found.")
+        raise ValueError("No values left after filtering.")
 
     return {
         "min": round(float(np.percentile(values, 5)), 4),
@@ -126,7 +164,7 @@ def main() -> None:
                 f"Available columns: {list(df.columns)}"
             )
 
-        stats = compute_stats(df[column])
+        stats = compute_stats(df[column], config.get("zero_is_data", False))
 
         if key in SLIDER_KEYS:
             slider_stats[key] = {

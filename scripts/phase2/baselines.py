@@ -42,10 +42,10 @@ CV_SPLITTERS = {
 LAG1_COL = {
     "ndvi": "ndvi_lag1",
     "grace": "grace_groundwater_anomaly_lag1",
-    "groundwater": "depth_to_water_ft_mean_lag1",
-    "surface_water": "discharge_cfs_mean_lag1",
+    "groundwater": "depth_to_water_anomaly_ft_lag1",
+    "surface_water": "discharge_log_anomaly_lag1",
     "wildfire_monthly": "wildfire_risk_index_lag1",
-    "wildlife": "bbs_abundance_index_lag1",
+    "wildlife": "bbs_abundance_anomaly_lag1",
 }
 
 

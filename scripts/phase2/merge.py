@@ -22,12 +22,53 @@ PROCESSED = REPO_ROOT / "data" / "processed"
 MONTHLY_PANEL_PATH = PROCESSED / "monthly_panel.csv"
 ANNUAL_PANEL_PATH = PROCESSED / "annual_panel.csv"
 
-# Modeling window bookends — used by features.py and model scripts
+# Modeling window bookends — used by features.py and model scripts.
+#
+# The start is fixed by GRACE: everything before 2002-04 is zero-fill, not
+# measurement, so no model may see it. Six months of roll warmup puts the first
+# usable row at 2002-10.
 MONTHLY_WINDOW_START = "2002-10"
-MONTHLY_WINDOW_END = "2020-12"
 
-ANNUAL_WINDOW_START = 2000
-ANNUAL_WINDOW_END = 2020
+# The end is *per model*, not global. Two source series (irrigation, public supply)
+# and one target (well depth) stop at 2020-12; most of the rest run to 2023-12, and
+# discharge now runs to 2025-12. A model whose target outlives the short series is
+# capped at 2020 only if it carries features derived from them — so those models drop
+# them instead. See MONTHLY_CAPPED_2020_BASES and features._monthly_dataset.
+MONTHLY_WINDOW_END = "2020-12"
+MONTHLY_WINDOW_END_EXTENDED = "2023-12"
+
+# Base columns whose source series end 2020-12. Any feature derived from one of
+# these is NaN after that date, so a single one of them in a model's X drags the
+# whole model back to the short window via the not-null mask.
+MONTHLY_CAPPED_2020_BASES = [
+    "irrigation_total_withdrawal_mgd",
+    "public_supply_groundwater_mgd",
+    "depth_to_water_ft_mean",
+    "depth_to_water_anomaly_ft",
+    "n_wells",
+    # NOTE: the discharge columns used to live here. They no longer do —
+    # water_surface.py now
+    # pulls 1980-2025, so discharge is the *longest* monthly series in the panel, not
+    # one of
+    # the shortest. Groundwater is still 2000-2020 and still belongs here.
+]
+
+# The monthly panel's index floor. 1968 is the BBS floor — the earliest target
+# anywhere in the project. nClimDiv reaches 1895, so this is bounded by data we
+# have, not by data we lack.
+PANEL_START = "1968-01"
+
+# The panel ceiling. NWIS discharge now runs to 2025; everything else stops earlier
+# and is simply NaN up here, which each model's not-null mask handles.
+PANEL_END = "2025-12"
+
+# The annual window is now bounded by the *target*, not by a 2000-floored feature.
+# Wildlife (BBS) runs 1968-2024. Pre-2000 rows carry nClimDiv drought/temperature/
+# precipitation and nothing else — every satellite input (NDVI, GRACE) and the USDM
+# are NaN out there, so any annual model reaching back must drop them.
+# See _WILDLIFE_FEATURES in features.py.
+ANNUAL_WINDOW_START = 1968
+ANNUAL_WINDOW_END = 2024
 
 
 # ---------------------------------------------------------------------------
@@ -40,6 +81,11 @@ ANNUAL_WINDOW_END = 2020
 # "last"   — December value (end-of-year stock, e.g. lake elevation)
 
 MONTHLY_TO_ANNUAL_RULES = {
+    # nClimDiv — the only inputs that exist before 2000. Every annual model
+    # reaching past the satellite era is built from these three and nothing else.
+    "nclimdiv_pdsi": ["mean", "jja"],
+    "nclimdiv_temperature_c": ["mean", "jja"],
+    "nclimdiv_precipitation_mm_day": ["mean", "sum", "jja"],
     "population": ["mean", "june"],
     "irrigation_total_withdrawal_mgd": ["sum", "mean"],
     "public_supply_groundwater_mgd": ["sum", "mean"],
@@ -84,9 +130,19 @@ def build_monthly_panel() -> pd.DataFrame:
     Columns missing for a sub-range (irrigation ends 2020-12) are NaN
     outside their coverage window — this is intentional and reported.
     """
-    full_index = pd.period_range("2000-01", "2023-12", freq="M")
+    # The panel starts at the BBS floor (1968), not 2000. Every satellite/USDM
+    # source is simply NaN out there, which is correct and harmless — each model
+    # declares its own window, and the monthly models all start at
+    # MONTHLY_WINDOW_START (2002-10) regardless.
+    #
+    # What the extra rows buy is the *annual* panel: nClimDiv carries drought,
+    # temperature and precipitation back to 1895, so the annual models can now run
+    # as far back as their target reaches rather than as far back as their shortest
+    # feature reaches.
+    full_index = pd.period_range(PANEL_START, PANEL_END, freq="M")
 
     frames = [
+        _read_monthly("nclimdiv_monthly.csv"),
         _read_monthly("azpop_monthly.csv"),
         _read_monthly("irrigation_monthly.csv"),
         _read_monthly("public_supply_monthly.csv"),
@@ -168,6 +224,12 @@ def build_annual_panel(monthly: pd.DataFrame) -> pd.DataFrame:
             annual["precipitation_mm_day_annual_sum"]
         )
 
+    # The same, on the long-record nClimDiv series, so pre-2000 rows have one too.
+    if "nclimdiv_precipitation_mm_day_annual_sum" in annual.columns:
+        annual["nclimdiv_log_precip_annual"] = np.log1p(
+            annual["nclimdiv_precipitation_mm_day_annual_sum"]
+        )
+
     # Linear year index
     annual["year_linear"] = annual.index - ANNUAL_WINDOW_START
 
@@ -181,6 +243,12 @@ def build_annual_panel(monthly: pd.DataFrame) -> pd.DataFrame:
             "route_count": "bbs_route_count",
             "total_abundance": "bbs_total_abundance",
             "species_richness": "bbs_species_richness",
+            # The target. Per-route log-abundance anomaly — effort-corrected.
+            "abundance_anomaly": "bbs_abundance_anomaly",
+            # LEGACY. A sum over whichever routes were surveyed, so it correlates +0.94
+            # with route_count over 1968-2024: a survey-effort index, not a bird index.
+            # Kept for comparison only. Never model on it. See
+            # scripts/phase1/wildlife.py.
             "abundance_index": "bbs_abundance_index",
         }
     )

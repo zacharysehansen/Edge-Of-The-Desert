@@ -3,13 +3,22 @@ model_groundwater.py
 --------------------
 Model 3: Groundwater Well Levels — monthly regression.
 
-Multi-model competition with residual-over-lag1:
-  - Formulations: direct vs residual-over-lag1
-  - Algorithms: Ridge, ElasticNet, XGBoost (6 candidates)
-  - Feature selection: drops low-importance features after initial fit
+Residual-over-lag1, with an in-fold competition between Ridge, ElasticNet, XGBoost,
+a tightly-regularised XGBoost, and an XGB+EN blend.
 
-TimeSeriesSplit(n_splits=5) cross-validation.
-Export: ONNX + artifacts to model/.
+Scoring is **nested** (see scripts/phase2/metrics.py): feature selection, the choice
+of candidate, and the hyperparameter search all happen inside `_fit_predict`, which
+only ever sees the training fold. An earlier version made all three choices on the
+full panel and then cross-validated over the same folds, which reports a max over
+noisy draws rather than an out-of-sample score.
+
+The direct formulation is not a candidate. It was tested and lost decisively (CV R²
+of -2.2 to -20 versus +0.6 for residual), so it is treated as a settled design
+decision rather than something to re-pick from the data on every fold.
+
+Read `cv_target_r2` (R² on the residual) before `cv_mean_r2` (R² on the reconstructed
+level). The level score is dominated by the lag1 anchor, which this model does not
+predict; the residual score is the part it is responsible for.
 
 Usage
 -----
@@ -39,14 +48,45 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.phase2.features import build_all
+from scripts.phase2.metrics import nested_cv_evaluate, persistence_r2, skill_score
 
 MODEL_DIR = REPO_ROOT / "model"
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
 MODEL_ID = "groundwater"
 N_SPLITS = 5
+INNER_SPLITS = 3
 CV = TimeSeriesSplit(n_splits=N_SPLITS)
 RANDOM_STATE = 42
+
+# Candidates for the in-fold competition. Fixed configs are used to pick a winner;
+# the winner is then hyperparameter-tuned on the same inner split.
+CANDIDATES = ("xgb", "xgb_tight", "blend", "ridge", "elastic")
+
+COMPETITION_CONFIGS = {
+    "xgb": {
+        "n_estimators": 200,
+        "max_depth": 2,
+        "learning_rate": 0.02,
+        "min_child_weight": 30,
+        "reg_lambda": 30,
+        "reg_alpha": 2.0,
+        "subsample": 0.6,
+        "colsample_bytree": 0.4,
+    },
+    "xgb_tight": {
+        "n_estimators": 150,
+        "max_depth": 2,
+        "learning_rate": 0.02,
+        "min_child_weight": 20,
+        "reg_lambda": 20,
+        "reg_alpha": 1.0,
+        "subsample": 0.6,
+        "colsample_bytree": 0.5,
+    },
+    "ridge": {"alpha": 1.0},
+    "elastic": {"alpha": 0.05, "l1_ratio": 0.5},
+}
 
 XGB_PARAM_SPACE = {
     "n_estimators": [100, 150, 200],
@@ -105,112 +145,117 @@ def _select_features(x: pd.DataFrame, y: pd.Series, threshold: float) -> list[st
     return selected[:MAX_FEATURES]
 
 
-def _evaluate_candidate(  # noqa: PLR0913
-    name: str,
-    x_train: pd.DataFrame,
-    y_train: pd.Series,
-    y_actual: pd.Series,
-    lag1: pd.Series | None,
-    formulation: str,
-) -> dict:
-    """Evaluate a single model candidate via CV. Returns scores dict."""
-    fold_r2, fold_mae = [], []
+class _Blend:
+    """XGBoost + ElasticNet convex blend, with the surface of a single estimator."""
 
-    for train_idx, test_idx in CV.split(x_train):
-        x_tr, x_te = x_train.iloc[train_idx], x_train.iloc[test_idx]
-        y_tr = y_train.iloc[train_idx]
-        y_te_actual = y_actual.iloc[test_idx]
+    def __init__(
+        self,
+        xgb_params: dict,
+        en_params: dict,
+        weight: float = BLEND_WEIGHT_XGB,
+    ) -> None:
+        self.weight = weight
+        self.xgb = XGBRegressor(
+            **xgb_params,
+            objective="reg:squarederror",
+            tree_method="hist",
+            random_state=RANDOM_STATE,
+            verbosity=0,
+        )
+        self.en = Pipeline(
+            [
+                ("scaler", StandardScaler()),
+                ("model", ElasticNet(**en_params, max_iter=5000)),
+            ]
+        )
 
-        if "blend" in name:
-            xgb_model = XGBRegressor(
-                n_estimators=150,
-                max_depth=2,
-                learning_rate=0.02,
-                min_child_weight=40,
-                reg_lambda=50,
-                reg_alpha=2.0,
-                subsample=0.5,
-                colsample_bytree=0.3,
-                random_state=RANDOM_STATE,
-                verbosity=0,
+    def fit(self, x: pd.DataFrame, y: pd.Series) -> _Blend:
+        self.xgb.fit(x, y)
+        self.en.fit(x, y)
+        return self
+
+    def predict(self, x: pd.DataFrame) -> np.ndarray:
+        xgb_pred = self.xgb.predict(x)
+        en_pred = self.en.predict(x)
+        return self.weight * xgb_pred + (1 - self.weight) * en_pred
+
+
+def _build(name: str, params: dict | None = None) -> XGBRegressor | Pipeline | _Blend:
+    """Instantiate one candidate. `params=None` uses the fixed competition config."""
+    if name == "blend":
+        if params is None:
+            return _Blend(
+                COMPETITION_CONFIGS["xgb_tight"], COMPETITION_CONFIGS["elastic"]
             )
-            xgb_model.fit(x_tr, y_tr)
-            pred_xgb = xgb_model.predict(x_te)
+        return _Blend(params["xgb_params"], params["en_params"])
 
-            en_pipe = Pipeline(
-                [
-                    ("scaler", StandardScaler()),
-                    ("model", ElasticNet(alpha=0.05, l1_ratio=0.5, max_iter=5000)),
-                ]
-            )
-            en_pipe.fit(x_tr, y_tr)
-            pred_en = en_pipe.predict(x_te)
+    cfg = params if params is not None else COMPETITION_CONFIGS[name]
+    if name in ("xgb", "xgb_tight"):
+        return XGBRegressor(
+            **cfg,
+            objective="reg:squarederror",
+            tree_method="hist",
+            random_state=RANDOM_STATE,
+            verbosity=0,
+        )
+    if name == "ridge":
+        return Pipeline([("scaler", StandardScaler()), ("model", Ridge(**cfg))])
+    if name == "elastic":
+        return Pipeline(
+            [("scaler", StandardScaler()), ("model", ElasticNet(**cfg, max_iter=5000))]
+        )
+    raise ValueError(f"Unknown candidate '{name}'")
 
-            pred = BLEND_WEIGHT_XGB * pred_xgb + (1 - BLEND_WEIGHT_XGB) * pred_en
-        elif "xgb_tight" in name:
-            model = XGBRegressor(
-                n_estimators=150,
-                max_depth=2,
-                learning_rate=0.02,
-                min_child_weight=20,
-                reg_lambda=20,
-                reg_alpha=1.0,
-                subsample=0.6,
-                colsample_bytree=0.5,
-                random_state=RANDOM_STATE,
-                verbosity=0,
-            )
-            model.fit(x_tr, y_tr)
-            pred = model.predict(x_te)
-        elif "xgb" in name:
-            model = XGBRegressor(
-                n_estimators=200,
-                max_depth=2,
-                learning_rate=0.02,
-                min_child_weight=30,
-                reg_lambda=30,
-                reg_alpha=2.0,
-                subsample=0.6,
-                colsample_bytree=0.4,
-                random_state=RANDOM_STATE,
-                verbosity=0,
-            )
-            model.fit(x_tr, y_tr)
-            pred = model.predict(x_te)
-        elif "ridge" in name:
-            pipe = Pipeline([("scaler", StandardScaler()), ("model", Ridge(alpha=1.0))])
-            pipe.fit(x_tr, y_tr)
-            pred = pipe.predict(x_te)
-        elif "elastic" in name:
-            pipe = Pipeline(
-                [
-                    ("scaler", StandardScaler()),
-                    ("model", ElasticNet(alpha=0.05, l1_ratio=0.5, max_iter=5000)),
-                ]
-            )
-            pipe.fit(x_tr, y_tr)
-            pred = pipe.predict(x_te)
-        else:
-            continue
 
-        if formulation == "residual" and lag1 is not None:
-            pred_actual = pred + lag1.iloc[test_idx].values
-        else:
-            pred_actual = pred
+def _compete(x: pd.DataFrame, y: pd.Series, cv: TimeSeriesSplit) -> list[dict]:
+    """Score every candidate on `cv` in residual space. Returns results best-first."""
+    results = []
+    for name in CANDIDATES:
+        scores = []
+        for train_idx, test_idx in cv.split(x):
+            model = _build(name)
+            model.fit(x.iloc[train_idx], y.iloc[train_idx])
+            pred = model.predict(x.iloc[test_idx])
+            scores.append(r2_score(y.iloc[test_idx], pred))
+        results.append(
+            {
+                "name": name,
+                "mean_r2": float(np.mean(scores)),
+                "std_r2": float(np.std(scores)),
+            }
+        )
+    return sorted(results, key=lambda c: c["mean_r2"], reverse=True)
 
-        r2 = r2_score(y_te_actual, pred_actual)
-        mae = mean_absolute_error(y_te_actual, pred_actual)
-        fold_r2.append(r2)
-        fold_mae.append(mae)
 
-    return {
-        "name": name,
-        "formulation": formulation,
-        "mean_r2": float(np.mean(fold_r2)),
-        "std_r2": float(np.std(fold_r2)),
-        "mean_mae": float(np.mean(fold_mae)),
-        "std_mae": float(np.std(fold_mae)),
-    }
+def _tune(name: str, x: pd.DataFrame, y: pd.Series, cv: TimeSeriesSplit) -> tuple:
+    """Hyperparameter-tune one candidate on `cv`."""
+    if name == "blend":
+        return _tune_blend(x, y, cv)
+    if name in ("xgb", "xgb_tight"):
+        return _tune_xgboost(x, y, cv)
+    if name == "ridge":
+        return _tune_ridge(x, y, cv)
+    return _tune_elasticnet(x, y, cv)
+
+
+def _fit_predict(x_tr: pd.DataFrame, y_tr: pd.Series, x_te: pd.DataFrame) -> np.ndarray:
+    """
+    The whole model-building procedure, applied to one training fold.
+
+    Everything that looks at data happens here — feature selection, the candidate
+    competition, and the hyperparameter search — so none of it can see the outer
+    test fold. Inner scoring is in residual space, which is the target being fit.
+    """
+    inner = TimeSeriesSplit(n_splits=INNER_SPLITS)
+
+    selected = _select_features(x_tr, y_tr, IMPORTANCE_THRESHOLD)
+    x_tr_sel = x_tr[selected]
+
+    winner = _compete(x_tr_sel, y_tr, inner)[0]["name"]
+    model, _ = _tune(winner, x_tr_sel, y_tr, inner)
+    model.fit(x_tr_sel, y_tr)
+
+    return model.predict(x_te[selected])
 
 
 def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
@@ -218,146 +263,51 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
     datasets = build_all()
     x, y = datasets[MODEL_ID]
 
-    lag1_col = "depth_to_water_ft_mean_lag1"
+    lag1_col = "depth_to_water_anomaly_ft_lag1"
     lag1 = x[lag1_col].copy()
     x_full = x.drop(columns=[lag1_col])
 
     y_residual = y - lag1
 
+    # ----- Honest score: every data-dependent choice is made inside the fold -----
+    scores = nested_cv_evaluate(
+        fit_predict=_fit_predict,
+        x=x_full,
+        y_level=y,
+        y_target=y_residual,
+        cv=CV,
+        anchor=lag1,
+    )
+    baseline_r2 = persistence_r2(y_level=y, lag1_level=lag1, cv=CV)
+
+    mean_r2 = scores["cv_mean_r2"]
+    std_r2 = scores["cv_std_r2"]
+    mean_mae = scores["cv_mean_mae"]
+    std_mae = scores["cv_std_mae"]
+    fold_details = scores["folds"]
+
+    # ----- Final model for export: refit the same procedure on the full panel -----
+    # Selecting/competing/tuning on everything is correct here (we want the best model
+    # to ship); the cost of doing so is already priced into the nested score above.
     selected = _select_features(x_full, y_residual, IMPORTANCE_THRESHOLD)
     x_selected = x_full[selected]
     n_dropped = len(x_full.columns) - len(selected)
+    feature_names = list(x_selected.columns)
     print(f"  Feature selection: {len(selected)} kept, {n_dropped} dropped")
 
-    candidates = []
+    candidates = _compete(x_selected, y_residual, CV)
+    for c in candidates:
+        print(f"    {c['name']:<12} residual R²={c['mean_r2']:.4f} ± {c['std_r2']:.4f}")
 
-    for model_name in ["xgb_direct", "ridge_direct", "elastic_direct"]:
-        result = _evaluate_candidate(model_name, x_selected, y, y, None, "direct")
-        candidates.append(result)
-        print(
-            f"    {model_name:<20} R²={result['mean_r2']:.4f} ± {result['std_r2']:.4f}"
-        )
+    best_name = candidates[0]["name"]
+    is_blend = best_name == "blend"
+    print(f"\n  Winner: {best_name}")
 
-    for model_name in [
-        "xgb_residual",
-        "xgb_tight_residual",
-        "blend_residual",
-        "ridge_residual",
-        "elastic_residual",
-    ]:
-        result = _evaluate_candidate(
-            model_name, x_selected, y_residual, y, lag1, "residual"
-        )
-        candidates.append(result)
-        print(
-            f"    {model_name:<20} R²={result['mean_r2']:.4f} ± {result['std_r2']:.4f}"
-        )
+    best_model, best_params = _tune(best_name, x_selected, y_residual, CV)
+    best_model.fit(x_selected, y_residual)
 
-    best_candidate = max(candidates, key=lambda c: c["mean_r2"])
-    print(f"\n  Winner: {best_candidate['name']} (R²={best_candidate['mean_r2']:.4f})")
-
-    is_residual = best_candidate["formulation"] == "residual"
-    is_blend = "blend" in best_candidate["name"]
-    y_final = y_residual if is_residual else y
-    feature_names = list(x_selected.columns)
-
-    if is_blend:
-        best_model, best_params = _tune_blend(x_selected, y_final)
-    elif "xgb" in best_candidate["name"]:
-        best_model, best_params = _tune_xgboost(x_selected, y_final)
-    elif "ridge" in best_candidate["name"]:
-        best_model, best_params = _tune_ridge(x_selected, y_final)
-    else:
-        best_model, best_params = _tune_elasticnet(x_selected, y_final)
-
-    # ----- Fold-level evaluation -----
-    fold_r2, fold_mae = [], []
-    fold_details = []
-
-    for fold_i, (train_idx, test_idx) in enumerate(CV.split(x_selected)):
-        x_tr = x_selected.iloc[train_idx]
-        y_tr = y_final.iloc[train_idx]
-        x_te = x_selected.iloc[test_idx]
-        y_te_actual = y.iloc[test_idx]
-
-        if is_blend:
-            xgb_p = best_params["xgb_params"]
-            en_p = best_params["en_params"]
-            fold_xgb = XGBRegressor(
-                **xgb_p,
-                objective="reg:squarederror",
-                tree_method="hist",
-                random_state=RANDOM_STATE,
-                verbosity=0,
-            )
-            fold_xgb.fit(x_tr, y_tr)
-            fold_en = Pipeline(
-                [
-                    ("scaler", StandardScaler()),
-                    ("model", ElasticNet(**en_p, max_iter=5000)),
-                ]
-            )
-            fold_en.fit(x_tr, y_tr)
-            pred = BLEND_WEIGHT_XGB * fold_xgb.predict(x_te) + (
-                1 - BLEND_WEIGHT_XGB
-            ) * fold_en.predict(x_te)
-        elif "xgb" in best_candidate["name"]:
-            fold_model = XGBRegressor(
-                **best_params,
-                objective="reg:squarederror",
-                tree_method="hist",
-                random_state=RANDOM_STATE,
-                verbosity=0,
-            )
-            fold_model.fit(x_tr, y_tr)
-            pred = fold_model.predict(x_te)
-        elif "ridge" in best_candidate["name"]:
-            fold_model = Pipeline(
-                [("scaler", StandardScaler()), ("model", Ridge(**best_params))]
-            )
-            fold_model.fit(x_tr, y_tr)
-            pred = fold_model.predict(x_te)
-        else:
-            fold_model = Pipeline(
-                [
-                    ("scaler", StandardScaler()),
-                    ("model", ElasticNet(**best_params, max_iter=5000)),
-                ]
-            )
-            fold_model.fit(x_tr, y_tr)
-            pred = fold_model.predict(x_te)
-
-        pred_actual = pred + lag1.iloc[test_idx].values if is_residual else pred
-
-        r2 = r2_score(y_te_actual, pred_actual)
-        mae = mean_absolute_error(y_te_actual, pred_actual)
-        fold_r2.append(r2)
-        fold_mae.append(mae)
-        fold_details.append(
-            {
-                "fold": fold_i,
-                "test_start": str(y.index[test_idx[0]]),
-                "test_end": str(y.index[test_idx[-1]]),
-                "test_size": len(test_idx),
-                "r2": float(r2),
-                "mae": float(mae),
-            }
-        )
-
-    mean_r2 = float(np.mean(fold_r2))
-    std_r2 = float(np.std(fold_r2))
-    mean_mae = float(np.mean(fold_mae))
-    std_mae = float(np.std(fold_mae))
-
-    if is_blend:
-        xgb_m, en_m = best_model
-        train_pred = BLEND_WEIGHT_XGB * xgb_m.predict(x_selected) + (
-            1 - BLEND_WEIGHT_XGB
-        ) * en_m.predict(x_selected)
-    else:
-        train_pred = best_model.predict(x_selected)
-
-    train_pred_actual = train_pred + lag1.values if is_residual else train_pred
+    train_pred = best_model.predict(x_selected)
+    train_pred_actual = train_pred + lag1.values
     train_r2 = float(r2_score(y, train_pred_actual))
     train_mae = float(mean_absolute_error(y, train_pred_actual))
 
@@ -370,14 +320,13 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
     )
 
     if is_blend:
-        xgb_m, en_m = best_model
-        xgb_imp = xgb_m.feature_importances_
-        en_coefs = np.abs(en_m.named_steps["model"].coef_)
+        xgb_imp = best_model.xgb.feature_importances_
+        en_coefs = np.abs(best_model.en.named_steps["model"].coef_)
         en_total = en_coefs.sum() if en_coefs.sum() > 0 else 1.0
         en_imp = en_coefs / en_total
         blended_imp = BLEND_WEIGHT_XGB * xgb_imp + (1 - BLEND_WEIGHT_XGB) * en_imp
         importance = dict(zip(feature_names, blended_imp.tolist(), strict=False))
-    elif "xgb" in best_candidate["name"]:
+    elif best_name.startswith("xgb"):
         importance = dict(
             zip(feature_names, best_model.feature_importances_.tolist(), strict=False)
         )
@@ -401,13 +350,12 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
     }
 
     if is_blend:
-        xgb_m, _ = best_model
-        _export_onnx_xgb(xgb_m, feature_names)
+        _export_onnx_xgb(best_model.xgb, feature_names)
         print(
             "  [INFO] Blend: exported XGBoost component to ONNX"
             " (ElasticNet component requires skl2onnx separately)"
         )
-    elif "xgb" in best_candidate["name"]:
+    elif best_name.startswith("xgb"):
         _export_onnx_xgb(best_model, feature_names)
     else:
         _export_onnx_sklearn(best_model, feature_names)
@@ -416,8 +364,9 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
 
     cv_results = {
         "model_id": MODEL_ID,
-        "formulation": best_candidate["formulation"],
-        "winner": best_candidate["name"],
+        "formulation": "residual_over_lag1",
+        "cv_method": f"nested TimeSeriesSplit({N_SPLITS} outer / {INNER_SPLITS} inner)",
+        "winner": best_name,
         "competition": candidates,
         "window_start": str(y.index[0]),
         "window_end": str(y.index[-1]),
@@ -429,6 +378,9 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
         "cv_std_r2": std_r2,
         "cv_mean_mae": mean_mae,
         "cv_std_mae": std_mae,
+        "cv_target_r2": scores["cv_target_r2"],
+        "baseline_lag1_r2": baseline_r2,
+        "skill_r2": skill_score(mean_r2, baseline_r2),
         "train_r2": train_r2,
         "train_mae": train_mae,
         "folds": fold_details,
@@ -443,18 +395,19 @@ def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
     return cv_results
 
 
-def _tune_blend(x: pd.DataFrame, y: pd.Series) -> tuple:
-    """Tune both XGBoost and ElasticNet for the blend."""
-    xgb_model, xgb_params = _tune_xgboost(x, y)
-    en_model, en_params = _tune_elasticnet(x, y)
-    return (xgb_model, en_model), {
+def _tune_blend(x: pd.DataFrame, y: pd.Series, cv: TimeSeriesSplit) -> tuple:
+    """Tune both arms of the blend, then hand back a single fitted-able _Blend."""
+    _, xgb_params = _tune_xgboost(x, y, cv)
+    _, en_params = _tune_elasticnet(x, y, cv)
+    params = {
         "xgb_params": xgb_params,
         "en_params": en_params,
         "blend_weight_xgb": BLEND_WEIGHT_XGB,
     }
+    return _Blend(xgb_params, en_params), params
 
 
-def _tune_xgboost(x: pd.DataFrame, y: pd.Series) -> tuple:
+def _tune_xgboost(x: pd.DataFrame, y: pd.Series, cv: TimeSeriesSplit) -> tuple:
     base = XGBRegressor(
         objective="reg:squarederror",
         tree_method="hist",
@@ -465,7 +418,7 @@ def _tune_xgboost(x: pd.DataFrame, y: pd.Series) -> tuple:
         base,
         XGB_PARAM_SPACE,
         n_iter=60,
-        cv=CV,
+        cv=cv,
         scoring="r2",
         random_state=RANDOM_STATE,
         n_jobs=-1,
@@ -475,13 +428,13 @@ def _tune_xgboost(x: pd.DataFrame, y: pd.Series) -> tuple:
     return search.best_estimator_, search.best_params_
 
 
-def _tune_ridge(x: pd.DataFrame, y: pd.Series) -> tuple:
+def _tune_ridge(x: pd.DataFrame, y: pd.Series, cv: TimeSeriesSplit) -> tuple:
     pipe = Pipeline([("scaler", StandardScaler()), ("model", Ridge())])
     search = RandomizedSearchCV(
         pipe,
         RIDGE_PARAM_SPACE,
         n_iter=5,
-        cv=CV,
+        cv=cv,
         scoring="r2",
         random_state=RANDOM_STATE,
         n_jobs=-1,
@@ -492,7 +445,7 @@ def _tune_ridge(x: pd.DataFrame, y: pd.Series) -> tuple:
     return search.best_estimator_, {"alpha": best_alpha}
 
 
-def _tune_elasticnet(x: pd.DataFrame, y: pd.Series) -> tuple:
+def _tune_elasticnet(x: pd.DataFrame, y: pd.Series, cv: TimeSeriesSplit) -> tuple:
     pipe = Pipeline(
         [("scaler", StandardScaler()), ("model", ElasticNet(max_iter=5000))]
     )
@@ -500,7 +453,7 @@ def _tune_elasticnet(x: pd.DataFrame, y: pd.Series) -> tuple:
         pipe,
         ELASTICNET_PARAM_SPACE,
         n_iter=20,
-        cv=CV,
+        cv=cv,
         scoring="r2",
         random_state=RANDOM_STATE,
         n_jobs=-1,
@@ -586,17 +539,31 @@ def main() -> None:
 
     results = train_and_evaluate()
 
-    print(f"\n  Winner     : {results['winner']} ({results['formulation']})")
-    print(f"  Window     : {results['window_start']} → {results['window_end']}")
-    print(f"  Rows       : {results['n_rows']}")
+    print(f"\n  Winner       : {results['winner']} ({results['formulation']})")
+    print(f"  Window       : {results['window_start']} → {results['window_end']}")
+    print(f"  Rows         : {results['n_rows']}")
     print(
-        f"  Features   : {results['n_features']}"
+        f"  Features     : {results['n_features']}"
         f" (dropped {results['n_features_dropped']})"
     )
-    print(f"  CV R²      : {results['cv_mean_r2']:.4f} ± {results['cv_std_r2']:.4f}")
-    print(f"  CV MAE     : {results['cv_mean_mae']:.4f} ± {results['cv_std_mae']:.4f}")
-    print(f"  Train R²   : {results['train_r2']:.4f}")
-    print(f"  Train MAE  : {results['train_mae']:.4f}")
+    print(f"  CV R² (level): {results['cv_mean_r2']:.4f} ± {results['cv_std_r2']:.4f}")
+    print(
+        f"  CV MAE       : {results['cv_mean_mae']:.4f}"
+        f" ± {results['cv_std_mae']:.4f}"
+    )
+    print(
+        f"  Persistence  : {results['baseline_lag1_r2']:.4f}   (lag1, same folds)"
+    )
+    print(f"  SKILL        : {results['skill_r2']:+.4f}   (level R² − persistence)")
+    print(
+        f"  CV R² resid  : {results['cv_target_r2']:.4f}"
+        "   (the part the model predicts)"
+    )
+    print(f"  Train R²     : {results['train_r2']:.4f}")
+    if results["skill_r2"] is not None and results["skill_r2"] <= 0:
+        print(
+            "\n  *** NO SKILL: this model does not beat copying last month's value. ***"
+        )
     print(f"\n  Best params: {results['best_params']}")
     print(f"\n  Artifacts saved to {MODEL_DIR}/")
 
