@@ -1,41 +1,34 @@
 {
   "model_id": "wildlife",
-  "model_type": "ElasticNet",
+  "model_type": "Ridge",
   "formulation": "direct",
-  "cv_method": "LeaveOneOut",
-  "window_start": 2000,
-  "window_end": 2019,
-  "n_rows": 20,
-  "n_features": 22,
+  "cv_method": "nested LeaveOneOut (tuning + model choice inside each fold)",
+  "window_start": 1968,
+  "window_end": 2024,
+  "n_rows": 56,
+  "n_features": 12,
   "best_params": {
-    "model__alpha": 0.5,
-    "model__l1_ratio": 0.1
+    "model__alpha": 100.0
   },
-  "loo_r2": 0.208638007787039,
-  "loo_mae": 0.16168383754466936,
-  "spearman_corr": 0.5009402385096332,
-  "spearman_p": 0.02445688074109887,
-  "train_r2": 0.5103073228115664,
-  "train_mae": 0.13065900047319895,
+  "loo_r2": 0.21252680926613066,
+  "loo_mae": 0.08649123138271594,
+  "spearman_corr": 0.5068352699931647,
+  "spearman_p": 6.718449589080892e-05,
+  "train_r2": 0.3342600387246689,
+  "train_mae": 0.07968874872786531,
   "all_candidates": [
     {
       "name": "Ridge",
-      "loo_r2": 0.18134992138509698,
-      "loo_mae": 0.16179720536855138,
-      "spearman_corr": 0.4836405005430842
+      "inner_cv_r2": -0.2813331988136594
     },
     {
       "name": "ElasticNet",
-      "loo_r2": 0.208638007787039,
-      "loo_mae": 0.16168383754466936,
-      "spearman_corr": 0.5009402385096332
+      "inner_cv_r2": -0.3574787718597407
     },
     {
       "name": "XGBoost",
-      "loo_r2": 0.11888918091449707,
-      "loo_mae": 0.17134383282852172,
-      "spearman_corr": 0.2572395819373792
+      "inner_cv_r2": -0.3563078164362488
     }
   ],
-  "note": "Wildlife model trained on <25 rows. Multi-model competition: Ridge, ElasticNet, XGBoost. Treat Spearman rank correlation as primary reliability indicator."
+  "note": "Wildlife model trained on 56 rows. Ridge/ElasticNet/XGBoost competition, with both the tuning and the model choice made inside each LOO fold. Treat Spearman rank correlation as the primary reliability indicator: at this sample size R\u00b2 is dominated by a handful of points."
 }

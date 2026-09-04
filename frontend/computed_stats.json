@@ -6,9 +6,9 @@
       "default": 5723559.05
     },
     "irrigation_total_withdrawal_mgd": {
-      "min": 53377831.8885,
-      "max": 55800203.8318,
-      "default": 54135574.4972
+      "min": 256.2366,
+      "max": 4814.9981,
+      "default": 2720.5625
     },
     "public_supply_groundwater_mgd": {
       "min": 28962.0194,
@@ -35,6 +35,11 @@
       "max": 378.885,
       "default": 194.31
     },
+    "nclimdiv_pdsi": {
+      "min": -3.641,
+      "max": 4.6316,
+      "default": -0.6818
+    },
     "temperature_2m_c": {
       "min": 7.8824,
       "max": 29.9466,
@@ -53,24 +58,24 @@
       "baseline": 0.2167
     },
     "groundwater": {
-      "min": 82.596,
-      "max": 173.7612,
-      "baseline": 104.8476
+      "min": -8.872,
+      "max": 10.3609,
+      "baseline": 0.2701
     },
     "surface_water": {
-      "min": 47.6769,
-      "max": 212.2415,
-      "baseline": 80.4578
+      "min": -0.6481,
+      "max": 1.0591,
+      "baseline": -0.0788
     },
     "wildfire": {
-      "min": 0.1135,
-      "max": 0.5602,
-      "baseline": 0.3345
+      "min": 0.0,
+      "max": 0.5366,
+      "baseline": 0.0
     },
     "wildlife": {
-      "min": 0.3911,
-      "max": 0.9997,
-      "baseline": 0.775
+      "min": -0.1818,
+      "max": 0.1868,
+      "baseline": 0.0161
     }
   }
 }
