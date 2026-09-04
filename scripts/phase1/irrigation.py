@@ -36,8 +36,20 @@ Columns in output:
         (a) A HUC12 shapefile to derive centroids, OR
         (b) A crosswalk table mapping HUC12 to county FIPS
 
-    If neither is available, the script falls back to using all Arizona
-    HUC12s that intersect the bounding box, with a clear warning.
+    If neither is available the script RAISES. It used to fall back to
+    summing every column, which is how a national total shipped for the
+    life of the project labelled as an eight-county one -- the source
+    file is not Arizona-scoped, it spans HUC regions 01-18.
+
+    Build the shapefile from the WBD geodatabases for HUC regions 14 and
+    15 (the two covering Arizona), layer WBDHU12, into data/raw/wbd/:
+        https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/WBD/HU2/GDB/
+    That yields 7,558 polygons, of which 1,133 have centroids inside the
+    eight counties.
+
+Two nodata sentinels (999 and 888) are masked before summing; see
+NODATA_SENTINELS. They accounted for 70.4% of the regional cells and,
+unmasked, dominated the output by roughly four orders of magnitude.
 
 Date range: 2000-01 to 2020-12. Will need to extrapolate
 """
@@ -74,6 +86,41 @@ HUC12_COUNTY_CROSSWALK = RAW_DIR / "wbd" / "huc12_county_crosswalk.csv"
 
 YEAR_COL = "Year"
 MONTH_COL = "Month"
+
+# Nodata sentinels in the source matrix. These are NOT withdrawals and must be
+# masked before summing.
+#
+# The file encodes missing data as literal numbers, which is why this went
+# unnoticed: the columns parse as clean floats and sum without complaint.
+#
+#   999 - "no data for this HUC12". 73.2% of all cells in the Arizona regions
+#         (14/15). 5,179 of 7,558 AZ columns are 999 for every single month;
+#         another 938 are 999 for part of the record.
+#   888 - "no data for this month". Intermittent, never a whole column, present
+#         in 1,163 AZ columns (7,133 cells, 1.4%). It is simultaneously the most
+#         common non-zero value in the file AND its maximum, in a variable with
+#         189,456 distinct values -- a continuous physical quantity does not land
+#         on exactly 888.000 seven thousand times.
+#
+# Summing without masking produced a regional "withdrawal" of 5.43e7 MGD, about
+# four orders of magnitude above Arizona's entire water use, that was really a
+# count of missing watersheds. It was near-constant (std/mean 0.014 vs 1.81 for
+# the real signal) and therefore behaved as a disguised time trend, which is
+# worse than useless: it correlated -0.37 with well depth and -0.52 with GRACE
+# purely by trend-matching, while carrying no month-specific information.
+NODATA_SENTINELS = (999, 888)
+
+# Plausibility bounds for the regional total, used by _sanity_checks. Arizona's
+# total water withdrawal across all sectors is roughly 6,000-7,000 MGD, so an
+# eight-county irrigation figure has no business approaching five digits.
+MAX_PLAUSIBLE_REGIONAL_MGD = 20_000.0
+# The real signal's std/mean is ~1.8; a sentinel sum's is ~0.01.
+MIN_PLAUSIBLE_CV = 0.10
+
+# An equal-area projection for centroid computation. Taking a centroid in a
+# geographic CRS (EPSG:4326) is not well defined; this follows the same
+# convention nclimdiv.py uses for its area weights.
+EQUAL_AREA_CRS = "EPSG:5070"
 
 
 def _load_raw(path: Path) -> pd.DataFrame:
@@ -188,12 +235,15 @@ def _filter_huc12s_with_shapefile(
         )
         return None
 
-    # Compute centroids
-    huc12_gdf = huc12_gdf.to_crs("EPSG:4326")
-    huc12_gdf["centroid"] = huc12_gdf.geometry.centroid
+    # Compute centroids in an equal-area projection, then return to WGS84 for
+    # the point-in-polygon test. Taking .centroid on geographic coordinates is
+    # not a well-defined operation and emits a warning.
+    centroid_geom = (
+        huc12_gdf.to_crs(EQUAL_AREA_CRS).geometry.centroid.to_crs("EPSG:4326")
+    )
     centroids = gpd.GeoDataFrame(
-        huc12_gdf[[huc_col]],
-        geometry=huc12_gdf["centroid"],
+        huc12_gdf[[huc_col]].copy(),
+        geometry=centroid_geom,
         crs="EPSG:4326",
     )
 
@@ -268,30 +318,38 @@ def _filter_huc12s_bbox_fallback(
     huc12_cols: list[str],
 ) -> list[str]:
     """
-    Fallback: if no shapefile or crosswalk is available, return ALL
-    HUC12 columns with a warning. Since the source file is already
-    Arizona-scoped [3], this may be acceptable but imprecise.
+    No spatial filter is available -- raise.
 
-    Returns
-    -------
-    All HUC12 columns from the input file.
+    This used to return ALL HUC12 columns with a warning, on the stated
+    assumption that "the source file is already Arizona-scoped". It is not:
+    the file spans HUC regions 01-18 (Maine to Oregon), so the fallback
+    silently produced a national sum labelled as an eight-county total.
+
+    A warning that nobody reads is not a safeguard. Failing here is the
+    same discipline as wildfire_monthly._validate_seasonality() and
+    wildlife._effort_confound_check(): refuse to write a wrong number.
+
+    Raises
+    ------
+    FileNotFoundError
+        Always. The caller must supply a shapefile or crosswalk.
     """
-    log.warning(
-        "NO HUC12 SPATIAL FILTER AVAILABLE.\n"
-        "  Neither the WBD shapefile (%s) nor the crosswalk file (%s) "
-        "was found.\n"
-        "  Using ALL %d HUC12 columns from the input file.\n"
-        "  This includes watersheds outside the eight-county boundary.\n"
-        "  For a precise filter, provide either:\n"
-        "    - WBD HUC12 shapefile at %s\n"
-        "    - HUC12-to-county crosswalk CSV at %s",
-        HUC12_SHAPEFILE,
-        HUC12_COUNTY_CROSSWALK,
-        len(huc12_cols),
-        HUC12_SHAPEFILE,
-        HUC12_COUNTY_CROSSWALK,
+    raise FileNotFoundError(
+        "NO HUC12 SPATIAL FILTER AVAILABLE -- refusing to write a regional total.\n"
+        f"  Neither the WBD shapefile ({HUC12_SHAPEFILE}) nor the crosswalk file "
+        f"({HUC12_COUNTY_CROSSWALK}) was found.\n"
+        f"  The input carries {len(huc12_cols)} HUC12 columns spanning the entire\n"
+        "  continental US (HUC regions 01-18, Maine to Oregon). The docstring's\n"
+        "  assumption that the source file is 'already Arizona-scoped' is false.\n"
+        "  Summing them all produces a national figure labelled as an eight-county\n"
+        "  one -- which is exactly what this script used to do, silently, for the\n"
+        "  entire life of the project.\n"
+        "  Provide one of:\n"
+        f"    - WBD HUC12 shapefile at {HUC12_SHAPEFILE}\n"
+        "      (build it from WBD_14_HU2_GDB.zip + WBD_15_HU2_GDB.zip, layer WBDHU12,\n"
+        "       at https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/WBD/HU2/GDB/)\n"
+        f"    - HUC12-to-county crosswalk CSV at {HUC12_COUNTY_CROSSWALK}"
     )
-    return huc12_cols
 
 
 def _get_regional_huc12_columns(huc12_cols: list[str]) -> list[str]:
@@ -336,8 +394,26 @@ def _aggregate_to_monthly(
     -------
     DataFrame with columns: year_month, irrigation_total_withdrawal_mgd.
     """
+    # Mask the nodata sentinels BEFORE any arithmetic. fillna(0) after masking is
+    # correct -- a missing watershed-month contributes no withdrawal to the
+    # regional total -- but filling *before* masking would have summed the
+    # sentinels themselves.
+    sentinel_cells = 0
+    total_cells = 0
     for col in regional_cols:
-        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+        values = pd.to_numeric(df[col], errors="coerce")
+        is_sentinel = values.isin(NODATA_SENTINELS)
+        sentinel_cells += int(is_sentinel.sum())
+        total_cells += int(len(values))
+        df[col] = values.mask(is_sentinel).fillna(0)
+
+    log.info(
+        "Masked %d of %d watershed-month cells (%.1f%%) as nodata sentinels %s.",
+        sentinel_cells,
+        total_cells,
+        100.0 * sentinel_cells / total_cells if total_cells else 0.0,
+        NODATA_SENTINELS,
+    )
 
     df[YEAR_COL] = pd.to_numeric(df[YEAR_COL], errors="coerce").astype(int)
     df[MONTH_COL] = pd.to_numeric(df[MONTH_COL], errors="coerce").astype(int)
@@ -378,6 +454,36 @@ def _sanity_checks(df: pd.DataFrame) -> None:
     negatives = (df["irrigation_total_withdrawal_mgd"] < 0).sum()
     if negatives:
         log.warning("%d negative withdrawal values.", negatives)
+
+    # Magnitude guard. Arizona's *entire* water use across all sectors is roughly
+    # 6,000-7,000 MGD, and the eight-county irrigation share is a fraction of that.
+    # The sentinel-summed version of this file reported 5.43e7 MGD and nothing
+    # caught it, because no check ever asked whether the number was physical.
+    mean_mgd = df["irrigation_total_withdrawal_mgd"].mean()
+    if mean_mgd > MAX_PLAUSIBLE_REGIONAL_MGD:
+        raise ValueError(
+            f"Regional irrigation withdrawal averages {mean_mgd:,.0f} MGD, above the "
+            f"{MAX_PLAUSIBLE_REGIONAL_MGD:,.0f} MGD plausibility ceiling.\n"
+            "  Arizona's total water use across every sector is roughly 6,000-7,000 MGD.\n"
+            "  This almost certainly means nodata sentinels (999/888) were summed as "
+            "data, or the spatial filter selected watersheds outside the region."
+        )
+    log.info("Magnitude check passed: mean %.1f MGD.", mean_mgd)
+
+    # Variability guard. The real signal swings by more than its own mean
+    # (std/mean ~1.8). A near-constant series is the signature of a sentinel sum,
+    # and a near-constant feature is a disguised time trend rather than a pressure.
+    ratio = df["irrigation_total_withdrawal_mgd"].std() / mean_mgd if mean_mgd else 0.0
+    if ratio < MIN_PLAUSIBLE_CV:
+        log.warning(
+            "Irrigation series is nearly constant (std/mean = %.4f, expected > %.2f). "
+            "This is the signature of a nodata sum and makes the feature a time "
+            "trend rather than a pressure.",
+            ratio,
+            MIN_PLAUSIBLE_CV,
+        )
+    else:
+        log.info("Variability check passed: std/mean = %.3f.", ratio)
 
     # Row count — 2000-01 through 2020-12 = 21 years × 12 months = 252
     expected = 21 * 12
