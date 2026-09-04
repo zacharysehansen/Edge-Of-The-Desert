@@ -21,7 +21,7 @@ about it. Companion to [PHASE2_REPORT.md](PHASE2_REPORT.md) (what the models sco
 | Surface water | **+0.6830** | **works** ✅ | ~~target was 45% one dam-regulated gage~~ **FIXED**; extended to 1980–2025 | **done — see [M2](#m2-surface-water--the-target-was-mostly-one-regulated-river-fixed)** |
 | Wildfire | **+0.3716** | **works** ✅ | ~~month came from a DB edit date~~ **FIXED**; extended to 1984–2023 | **done — see [M3](#m3-wildfire--the-target-was-not-measuring-wildfire-fixed)** |
 | NDVI | **+0.2653** | **works** | none — at MODIS instrument floor | already healthy |
-| Groundwater | **+0.0058** | no skill, but no longer harmful ✅ | ~~compositional artifact~~ **FIXED**; now [P5](#p5-monthly-pumping-is-weakly-observed-not-unobserved-measured) | target fixed — **now stop** |
+| Groundwater | **+0.0086** | no skill, but no longer harmful ✅ | ~~compositional artifact~~ **FIXED**; now [P5](#p5-monthly-pumping-is-weakly-observed-not-unobserved-measured) | target fixed — **now stop** |
 | GRACE | −0.0349 | no skill | the observable pumping signal is too weak | **stop tuning.** Irrigation trade re-tested 2026-09-04: **null**. Only acquisitions left: [CAP](#option-b--cap-deliveries-as-a-monthly-pumping-proxy-untested--worth-one-probe) / [GLDAS](#option-c--gldas-land-surface-state-as-features-not-a-new-target-untested) / OpenET |
 | Wildlife | **+0.2046** | **works** ✅ | ~~the target was a survey-effort index~~ **FIXED** | **done — see [M6](#m6-wildlife--the-target-was-a-survey-effort-index-fixed)** |
 
@@ -41,7 +41,7 @@ is missing data, not a missing model.
 > built (1,133 of 7,558 HUC12 centroids inside the eight counties), fallback now **raises**, and
 > magnitude/variability guards added. The series is now **2,560 MGD, std/mean 0.622**, peaking in
 > June and troughing in January. **This is the first bug found on the feature side rather than the
-> target side** — see [P7](#p7-feature-side-data-is-unaudited-measured--now-fixed-for-irrigation)
+> target side** — see [P7](#p7-feature-side-data-was-unaudited-measured--audit-complete-two-bugs-fixed)
 > — and it forces a revision of both [P4](#p4-most-inputs-carry-no-monthly-information-measured)
 > (whose irrigation row was measuring the bug) and
 > [P5](#p5-monthly-pumping-is-weakly-observed-not-unobserved-measured).
@@ -130,7 +130,7 @@ is missing data, not a missing model.
 
 > **Four of the five fixes were target bugs, found the same way, and none needed a paid or
 > credentialed download.** The fifth was a *feature* bug
-> ([P7](#p7-feature-side-data-is-unaudited-measured--now-fixed-for-irrigation)) and went unfound for
+> ([P7](#p7-feature-side-data-was-unaudited-measured--audit-complete-two-bugs-fixed)) and went unfound for
 > far longer, because the audit discipline was only ever pointed at targets.
 > See [the rules](#the-three-rules-worth-keeping).
 
@@ -317,7 +317,7 @@ year, and (b) how much of that is just an identical month-of-year template repea
 > **⚠ The irrigation row above was re-measured on 2026-09-04 and it changed completely.** The
 > original numbers (11.5% within-year, 19.6% template, "some genuine signal") were computed on the
 > **sentinel-corrupted** series described in
-> [P7](#p7-feature-side-data-is-unaudited-measured--now-fixed-for-irrigation) — a near-constant
+> [P7](#p7-feature-side-data-was-unaudited-measured--audit-complete-two-bugs-fixed) — a near-constant
 > whose 11.5% "within-year variance" was nodata churn, not irrigation. The corrected series is
 > **99.3% within-year, 95.2% of it a repeating template**: physically right (June peak, January
 > trough) and, on this table's own taxonomy, a calendar. **The fix moved irrigation from a disguised
@@ -340,14 +340,14 @@ magnitude and the sign first.
 > **Revised 2026-09-04.** This section used to be titled "Monthly pumping is unobserved" and
 > tagged `UNTESTED`. It rested substantially on the P4 table's irrigation row — and that row was
 > **measuring a bug**, not the data
-> ([P7](#p7-feature-side-data-is-unaudited-measured--now-fixed-for-irrigation)). With a correct
+> ([P7](#p7-feature-side-data-was-unaudited-measured--audit-complete-two-bugs-fixed)). With a correct
 > irrigation series the claim needs weakening in one specific way, and it survives everywhere else.
 
-**Symptom.** GRACE (skill −0.0349) and groundwater (+0.0058) both fail, and neither responds
+**Symptom.** GRACE (skill −0.0349) and groundwater (+0.0086) both fail, and neither responds
 to modeling effort.
 
 **What is now measured.** The corrected monthly irrigation series
-([P7](#p7-feature-side-data-is-unaudited-measured--now-fixed-for-irrigation)) *does* carry
+([P7](#p7-feature-side-data-was-unaudited-measured--audit-complete-two-bugs-fixed)) *does* carry
 information about both targets' month-to-month change, with the correct physical sign, and it
 **survives controlling for the calendar**. Projecting out month-of-year harmonics (1st–3rd, i.e.
 what `month_sin`/`month_cos` already encode) from both differenced series:
@@ -516,7 +516,7 @@ the fill was hiding it. DATA.md now documents all 23 blocks.
 
 ---
 
-## P7. Feature-side data is unaudited `MEASURED` — *now fixed for irrigation*
+## P7. Feature-side data was unaudited `MEASURED` — *audit complete, two bugs fixed*
 
 **Symptom.** None. That is the point — a corrupt feature produces no failing test, no implausible
 score, and no warning. `irrigation_total_withdrawal_mgd` shipped for the life of the project as a
@@ -581,17 +581,75 @@ model rejected the bug and accepts the fix — and still gets no skill from it, 
 available evidence for
 [P5](#p5-monthly-pumping-is-weakly-observed-not-unobserved-measured).
 
-**The generalisable problem.** Every audit this project has run was pointed at **targets**. The two
+**The generalisable problem.** Every audit this project had run was pointed at **targets**. The two
 rules in [the rules](#the-three-rules-worth-keeping) — "what is the target a mean *of*?" and "does
 the target correlate with physics?" — are equally valid questions about features, and nobody had
-asked them. **The remaining features are still unaudited.** Known suspects:
+asked them.
 
-- **`public_supply_groundwater_mgd`** — no sentinels (checked, 0 of 831,348) and correlates 0.92
-  with its HUC12 source, but its magnitude is **44× the source sum**, which means it is almost
-  certainly aggregating statewide rather than to the eight counties. Same class of scope error,
-  much smaller blast radius. **Now cheap to fix — the WBD shapefile exists.**
-- Everything else in the panel: nobody has checked magnitudes or units against a physical
-  plausibility range.
+## The full feature audit `MEASURED` — 2026-09-04
+
+All 31 panel columns across 14 sources, checked for magnitude against a published physical
+reference, nodata sentinels, spatial scope, and sign. **Two bugs, one of them live.**
+
+### (1) `public_supply_groundwater_mgd` — the same bug in the same cloned function `FIXED`
+
+`public_supply.py` is a near-clone of `irrigation.py`: same `_filter_huc12s_bbox_fallback`, same
+missing `data/raw/wbd/`, so it was also summing **all 87,020 national HUC12 columns** instead of
+1,133. It shipped **34,817 MGD — 5.4× Arizona's entire water use across every sector**, and 44× its
+own Arizona source.
+
+Unlike irrigation this source is sentinel-free: all 7,558 Arizona columns scan clean (min 0, max
+141.2, no 999/888). One bug, not two. Corrected to **761 MGD**, and the script's pre-existing
+seasonal check now passes meaningfully (summer 946 > winter 536 MGD).
+
+**Effect: groundwater skill +0.0058 → +0.0086, residual R² −0.0474 → −0.0364 — within fold noise**
+(per-fold Δ `[+0.064, −0.020, −0.001, +0.002, +0.010]`, mean +0.011 against a spread of 0.064). All
+five other models unchanged to four decimal places.
+
+**The selection result mirrors irrigation's, in the opposite direction.** Corrected irrigation was
+*promoted* from never-selected to #2 by importance; corrected public supply was **dropped entirely**
+(it had been carrying 0.0691). That is the right call — a national public-supply sum is a near-pure
+seasonal template ([P4](#p4-most-inputs-carry-no-monthly-information-measured): 96.8% within-year,
+97.6% of it a repeating clock) and the model already has `month_sin`/`month_cos`. **The corrupt
+version was being selected and the correct one is not.**
+
+### (2) nClimDiv's missing-value constant was wrong for two of three elements `FIXED (latent)`
+
+`nclimdiv.py` had a single `MISSING = -99.99`. The codes are not uniform:
+
+| element | real code | caught? | what it became |
+|---|---|---|---|
+| `pdsi` | −99.99 | ✅ | — |
+| `tmpc` | **−99.90** | ❌ | (−99.90−32)×5/9 = **−73.28 °C** |
+| `pcpn` | **−9.99** | ❌ | −9.99×25.4/30 = **−8.46 mm/day** |
+
+The constant was correct for exactly one of the three, which is why PDSI passed the audit and the
+other two did not.
+
+**No model was ever contaminated.** All six affected months were 2026-07 onward and the panel
+ceiling is 2025-12 — six months of margin. This was checked rather than assumed: re-running the
+script also shifted twelve *in-panel* 2025 months, which looked alarming until the arithmetic ruled
+it out. A single missing division carries at least an 11.1% area weight, so blending one sentinel
+into the regional mean would move it by **≥9.8 °C**; the observed 2025 shifts are **≤0.11 °C**, i.e.
+90× too small. They are nClimDiv's own revisions to recent months, picked up by the re-download —
+NOAA revises the last year or so as late station reports arrive. The surface-water model's score
+moved by 1.1e-05 as a result, which is that revision and nothing else. But nClimDiv feeds **three of the four working models**
+(surface water, wildfire, wildlife) and this would have activated silently the first time any window
+advanced. Fixed with per-element codes plus `_validate_physical_bounds()`, which refuses to write
+−73 °C or negative rainfall regardless of what the source's convention does next. The MERRA-2
+cross-check still passes (r = +0.9992 / +0.9202).
+
+### What passed
+
+| Check | Result |
+|---|---|
+| `population` vs Census 8-county sums | **0.996× (2000), 1.013× (2020)** — strong validation |
+| `mead_pool_elevation` / `mead_storage` | 1042–1214 ft, ≤25.0M af — inside the 895–1229 ft / 26.1M af envelope |
+| `nclimdiv_pdsi` outliers >7 | **real** — 1905, 1915, 1941, 1979, 1993, every one a known AZ pluvial |
+| temperature, precipitation, NDVI, impervious %, DSCI, water stress | all in physical range |
+| Spatial scope of every other script | sound — `region.py` API, or county FIPS in the query (`groundwater_levels`, `water_surface`); `lake_mead` correctly needs no filter |
+
+**Only the two HUC12 clones ever had the silent fallback**, and both are now fixed and fail loud.
 
 ---
 
@@ -911,7 +969,7 @@ observed. It is also at its instrument floor (2002-04), so it gains nothing from
 **The irrigation trade was re-tested on 2026-09-04 and the answer is: keep the 2023 window
 `MEASURED`.** GRACE dropped irrigation and the other 2020-capped features to reach 2023, and that
 decision was made when irrigation was
-[99.9% nodata sentinel](#p7-feature-side-data-is-unaudited-measured--now-fixed-for-irrigation). With
+[99.9% nodata sentinel](#p7-feature-side-data-was-unaudited-measured--audit-complete-two-bugs-fixed). With
 a correct feature the trade was measured properly — identical test rows, 168 common months, five
 folds, training strictly before each test fold, varying only the feature set:
 
@@ -942,10 +1000,11 @@ probes with modest, honest expectations, not rescues. See
 
 ## M5. Groundwater — target fixed; now at its data-limited ceiling `FIXED (correctness)`
 
-**Status: no skill, but no longer harmful.** Skill **+0.0058** (was −0.0791), residual
-R² **−0.0474** (was −0.3179). *(The +0.0107 / −0.0259 first reported for the anomaly-target fix
-became +0.0091 / −0.0290 on re-run, then these after the irrigation fix
-([P7](#p7-feature-side-data-is-unaudited-measured--now-fixed-for-irrigation)); all four sit inside
+**Status: no skill, but no longer harmful.** Skill **+0.0086** (was −0.0791), residual
+R² **−0.0364** (was −0.3179). *(The +0.0107 / −0.0259 first reported for the anomaly-target fix
+became +0.0091 / −0.0290 on re-run, then +0.0058 / −0.0474 after the irrigation fix and these
+after the public-supply fix
+([P7](#p7-feature-side-data-was-unaudited-measured--audit-complete-two-bugs-fixed)); all four sit inside
 fold noise of each other.)* It no longer predicts month-to-month change *worse than predicting
 no change*, which is where it started.
 
@@ -1064,7 +1123,7 @@ landed, which unblocked everything below them.
 | ~~**2b**~~ | ~~**Fix the irrigation feature** (sentinels + national-scope sum)~~ | P7, P4, P5 | ✅ **DONE** — 5.43e7 → **2,560 MGD**. Five models unchanged; groundwater within noise. Revised P4 and P5 |
 | ~~**3**~~ | ~~**GRACE: re-test the irrigation trade now the feature is correct**~~ | P5, M4 | ✅ **DONE — null.** On identical test rows, irrigation adds **+0.0098** target R² (2/5 folds, t=0.57); the whole 2020-capped block adds **+0.0259** (3/5 folds, t=1.13). Both ≈0.1× the fold-to-fold spread. **Keep the 2023 window.** See [M4](#m4-grace--data-limited-at-its-instrument-floor) |
 | **4** | **Wildlife: revisit the NDVI trade-off** | M6 | n≈23 with NDVI vs n=56 without. Now that the target is sound, worth measuring |
-| **4b** | **Audit the remaining features** the way targets were audited | P7 | Nobody has checked magnitudes or units. First suspect: `public_supply_groundwater_mgd` is **44× its HUC12 source**, i.e. probably statewide not eight-county. Cheap now the WBD shapefile exists |
+| ~~**4b**~~ | ~~**Audit the remaining features** the way targets were audited~~ | P7 | ✅ **DONE — all 31 columns.** Two bugs: public supply was the same national sum (34,817 → **761 MGD**); nClimDiv's `MISSING` constant matched 1 of 3 elements, leaking **−73.28 °C** and **−8.46 mm/day** (latent, outside the panel). Everything else passed — population validates to Census within 1.3% |
 | ~~**4c**~~ | ~~Audit the NDVI and GRACE targets~~ | — | ✅ **DONE — both clean.** NDVI: pixel turnover↔jump **0.000**, signs all right. GRACE: no cell churn, strong depletion trend (r **−0.84**), right drought/Mead signs — target sound, failure is data ([P5](#p5-monthly-pumping-is-weakly-observed-not-unobserved-measured)), not a target bug |
 | **5** | **Probe CAP monthly deliveries via Reclamation HydroData** | P5, M4 | the one remaining *monthly* pumping proxy. Cheap — `lake_mead.py` already ingests from this endpoint. Aimed at **GRACE**, not groundwater |
 | ~~**6**~~ | ~~**Acquire ADWR monthly pumping**~~ | — | ❌ **DEAD.** ADWR pumpage is **annual and AMA-only**; annual data cannot move a monthly residual model. See [P5](#adwr-is-not-the-answer-this-document-used-to-say-it-was-verified) |
@@ -1190,13 +1249,24 @@ under three corrections, and each lower number was truer than the one before it.
 **Ask the target questions of the features too.** Four target bugs were found by asking what a
 column was a mean *of* and whether it correlated with physics. Nobody pointed those questions at the
 *inputs* until 2026-09-04, and the first one examined —
-[irrigation](#p7-feature-side-data-is-unaudited-measured--now-fixed-for-irrigation) — turned out to
+[irrigation](#p7-feature-side-data-was-unaudited-measured--audit-complete-two-bugs-fixed) — turned out to
 be 99.9% nodata sentinel, summed over the entire United States, and four orders of magnitude too
 large. It had sat in the variance table labelled "some genuine signal" the whole time. **A variance
 decomposition tells you how an input varies, not whether it is correct. Check the magnitude against
 a physical range first, then the sign, then the variance.**
 
-**A silent fallback is a bug, not a safeguard.** The national sum shipped because
+**Check the magnitude against a physical range before anything else.** It is the cheapest audit
+available and it caught both feature bugs in one pass. 5.43e7 MGD of irrigation and 34,817 MGD of
+public supply are, respectively, four orders of magnitude and 5.4x Arizona's entire water budget —
+neither needed a model, a correlation, or a variance decomposition to spot, only the question "is
+this number possible?" Nobody had asked it in the life of the project.
+
+**A constant that is right once is not right.** `nclimdiv.py` had a single `MISSING = -99.99` while
+the source uses three different codes; it happened to match PDSI, so PDSI was clean and temperature
+and precipitation silently carried -73 C and negative rainfall. Per-element conventions need
+per-element handling, with a physical-bounds backstop underneath in case the convention changes.
+
+**A silent fallback is a bug, not a safeguard.** Both national sums shipped because
 `_filter_huc12s_bbox_fallback` logged a warning and carried on. Every guard this project has added
 since — `_validate_seasonality()`, `_effort_confound_check()`, and now irrigation's magnitude
 check — **refuses to write** instead. Prefer a crash to a plausible-looking number.
@@ -1212,6 +1282,8 @@ of target auditing:
 | Surface water | a dam release schedule (45% one gage) | per-gage log anomaly | skill +0.147 → **+0.708** |
 | Wildlife | how many people went birdwatching | per-route anomaly | LOO R² −0.211 → **+0.213** |
 | *(feature)* **Irrigation** | *how many watersheds were missing, nationwide* | mask 999/888, filter to 8 counties | 5.43e7 → **2,560 MGD**; no model moved |
+| *(feature)* **Public supply** | *national public-supply pumping* | filter to 8 counties | 34,817 → **761 MGD**; no model moved |
+| *(feature)* **nClimDiv temp/precip** | *unmasked missing codes* | per-element codes + bounds guard | −73 °C and negative rain removed; latent, no model affected |
 
 Not one was a modeling problem. Not one needed new data that had to be bought or credentialed. In
 every case the *name of the column* was a claim about the world that nobody had checked, and in
@@ -1222,7 +1294,7 @@ specifically, ask what the target is a mean or a sum *of*, and whether that deno
 because a *model was failing* and someone went looking. Irrigation was not attached to a failing
 model — it was a feature in six of them — so nothing ever prompted the check, and it survived four
 rounds of increasingly careful auditing. It was found only because someone finally asked whether
-5.43e7 MGD was a physically possible number. **The other features have still not been asked.**
+5.43e7 MGD was a physically possible number. **They have now all been asked** — see the audit above; two more bugs, both magnitude-detectable.
 
 **Check that the target correlates with physics *before* touching the estimator.** Every driver
 of the wildfire target had the wrong sign — it was anti-correlated with heat and positively

@@ -103,7 +103,33 @@ ELEMENTS = {
     "pcpn": "nclimdiv_precipitation_mm_day",
 }
 
-MISSING = -99.99
+# nClimDiv missing-value codes are NOT uniform across elements. This was a single
+# MISSING = -99.99, which matches exactly one of the three series we read:
+#
+#   pdsi  -99.99  <- the only one the old constant caught
+#   tmpc  -99.90  passed straight through and became (-99.90-32)*5/9 = -73.28 C
+#   pcpn   -9.99  passed straight through and became -9.99*25.4/30 = -8.46 mm/day
+#
+# Both leaks were confined to unpublished months at the end of the current
+# calendar year (2026-07 onward at the time of the audit), which is outside the
+# panel's 2025-12 ceiling -- so no model was ever contaminated. It was six months
+# of margin from being a live bug, and would have activated silently the moment
+# any window advanced.
+MISSING_CODES = {
+    "pdsi": (-99.99,),
+    "tmpc": (-99.90, -99.99),
+    "pcpn": (-9.99, -99.99),
+}
+
+# Physical bounds, checked after conversion. A sentinel that slips past the codes
+# above should still not survive to the output: -73 C is Antarctic and negative
+# precipitation does not exist. Belt and braces, because the codes are the source's
+# convention and conventions change.
+PHYSICAL_BOUNDS = {
+    "nclimdiv_pdsi": (-15.0, 15.0),
+    "nclimdiv_temperature_c": (-40.0, 55.0),
+    "nclimdiv_precipitation_mm_day": (0.0, 100.0),
+}
 
 # Divisions clipping the region boundary by less than this are boundary slivers
 # (two AZ divisions touch it at ~3e-5 and ~6e-6 of the area) — drop them.
@@ -159,9 +185,13 @@ def _latest_filename(element: str) -> str:
     return matches[-1]
 
 
-def _parse_climdiv(text: str, value_name: str) -> pd.DataFrame:
+def _parse_climdiv(text: str, value_name: str, element: str) -> pd.DataFrame:
     """
     Parse one fixed-width nClimDiv element file down to Arizona's divisions.
+
+    `element` selects the missing-value codes: they differ per element and a
+    single shared constant silently let two of the three through (see
+    MISSING_CODES).
 
     Record layout, per the nClimDiv README:
         cols 0-1   state code (nClimDiv numbering)
@@ -170,6 +200,7 @@ def _parse_climdiv(text: str, value_name: str) -> pd.DataFrame:
         cols 6-9   year
         then 12 right-justified values of width 7, Jan..Dec
     """
+    missing_codes = MISSING_CODES[element]
     rows = []
     for line in text.splitlines():
         if not line.startswith(AZ_STATE_CODE) or len(line) < 10:  # noqa: PLR2004
@@ -182,7 +213,7 @@ def _parse_climdiv(text: str, value_name: str) -> pd.DataFrame:
             if not raw:
                 continue
             value = float(raw)
-            if value == MISSING:
+            if value in missing_codes:
                 continue
             rows.append(
                 {
@@ -327,6 +358,31 @@ def _validate_against_merra(df: pd.DataFrame) -> None:
             )
 
 
+def _validate_physical_bounds(out: pd.DataFrame) -> None:
+    """
+    Refuse to write physically impossible values.
+
+    The missing-value codes in MISSING_CODES are the source's convention, and a
+    convention can change or gain a variant. This is the backstop: a temperature
+    of -73 C or a negative precipitation rate is a sentinel that got through,
+    not weather. Both of those actually shipped -- see MISSING_CODES.
+    """
+    for col, (lo, hi) in PHYSICAL_BOUNDS.items():
+        if col not in out.columns:
+            continue
+        bad = out[(out[col] < lo) | (out[col] > hi)]
+        if not bad.empty:
+            raise ValueError(
+                f"{col} has {len(bad)} value(s) outside the physical range "
+                f"[{lo}, {hi}]: {sorted(bad[col].round(4).unique())[:5]} "
+                f"in months {bad['year_month'].tolist()[:5]}.\n"
+                "  This is almost certainly an unmasked nClimDiv missing-value "
+                "code. Check MISSING_CODES against the current README. "
+                "Refusing to write."
+            )
+    log.info("Physical-bounds check passed for %d rows.", len(out))
+
+
 def main() -> None:
     log.info("=== nclimdiv.py start ===")
 
@@ -339,7 +395,7 @@ def main() -> None:
         log.info("  %s -> %s", element, filename)
         resp = _get(BASE_URL + filename)
 
-        per_division = _parse_climdiv(resp.text, value_name)
+        per_division = _parse_climdiv(resp.text, value_name, element)
         frames.append(_weighted_regional_mean(per_division, value_name, weights))
 
     df = frames[0]
@@ -363,6 +419,7 @@ def main() -> None:
     out = df[["year_month", *ELEMENTS.values()]].copy()
     out = out.dropna(how="all", subset=list(ELEMENTS.values()))
 
+    _validate_physical_bounds(out)
     _validate_against_merra(out)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

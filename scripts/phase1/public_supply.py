@@ -69,6 +69,23 @@ HUC12_COUNTY_CROSSWALK = RAW_DIR / "wbd" / "huc12_county_crosswalk.csv"
 YEAR_COL = "Year"
 MONTH_COL = "Month"
 
+# Plausibility bounds for the regional total, used by _sanity_checks.
+#
+# This script previously shipped a mean of 34,817 MGD, which is 5.4x Arizona's
+# *entire* water use across every sector (~6,000-7,000 MGD). The cause was the
+# spatial fallback below returning all 87,020 HUC12 columns -- the input matrix
+# is national (HUC regions 01-18, Maine to Oregon), not Arizona-scoped -- so the
+# "eight-county" figure was a national sum, 44x its own Arizona source.
+#
+# Eight-county public-supply groundwater withdrawal is a few hundred MGD.
+# Unlike irrigation.py, this source carries no nodata sentinels: the raw AZ
+# cells run 0..141 MGD with no 999/888 codes (verified).
+MAX_PLAUSIBLE_REGIONAL_MGD = 5_000.0
+
+# An equal-area projection for centroid computation, matching irrigation.py
+# and nclimdiv.py. Taking a centroid in a geographic CRS is not well defined.
+EQUAL_AREA_CRS = "EPSG:5070"
+
 
 def _load_raw(path: Path) -> pd.DataFrame:
     """
@@ -174,12 +191,14 @@ def _filter_huc12s_with_shapefile(
         )
         return None
 
-    # Compute centroids
-    huc12_gdf = huc12_gdf.to_crs("EPSG:4326")
-    huc12_gdf["centroid"] = huc12_gdf.geometry.centroid
+    # Compute centroids in an equal-area projection, then return to WGS84 for
+    # the point-in-polygon test.
+    centroid_geom = (
+        huc12_gdf.to_crs(EQUAL_AREA_CRS).geometry.centroid.to_crs("EPSG:4326")
+    )
     centroids = gpd.GeoDataFrame(
-        huc12_gdf[[huc_col]],
-        geometry=huc12_gdf["centroid"],
+        huc12_gdf[[huc_col]].copy(),
+        geometry=centroid_geom,
         crs="EPSG:4326",
     )
 
@@ -257,26 +276,36 @@ def _filter_huc12s_bbox_fallback(
     huc12_cols: list[str],
 ) -> list[str]:
     """
-    Fallback: if no shapefile or crosswalk is available, return ALL
-    HUC12 columns with a warning. Since the source file is already
-    Arizona-scoped [3], this may be acceptable but imprecise.
+    No spatial filter is available -- raise.
+
+    This used to return ALL HUC12 columns with a warning, on the stated
+    assumption that "the source file is already Arizona-scoped". It is not:
+    the file spans HUC regions 01-18 (Maine to Oregon), so the fallback
+    silently produced a national sum labelled as an eight-county total --
+    34,817 MGD, or 5.4x Arizona's entire water budget.
+
+    A warning that nobody reads is not a safeguard. Failing here is the
+    same discipline as irrigation.py, wildfire_monthly._validate_seasonality()
+    and wildlife._effort_confound_check(): refuse to write a wrong number.
+
+    Raises
+    ------
+    FileNotFoundError
+        Always. The caller must supply a shapefile or crosswalk.
     """
-    log.warning(
-        "NO HUC12 SPATIAL FILTER AVAILABLE.\n"
-        "  Neither the WBD shapefile (%s) nor the crosswalk file (%s) "
-        "was found.\n"
-        "  Using ALL %d HUC12 columns from the input file.\n"
-        "  This includes watersheds outside the eight-county boundary.\n"
-        "  For a precise filter, provide either:\n"
-        "    - WBD HUC12 shapefile at %s\n"
-        "    - HUC12-to-county crosswalk CSV at %s",
-        HUC12_SHAPEFILE,
-        HUC12_COUNTY_CROSSWALK,
-        len(huc12_cols),
-        HUC12_SHAPEFILE,
-        HUC12_COUNTY_CROSSWALK,
+    raise FileNotFoundError(
+        "NO HUC12 SPATIAL FILTER AVAILABLE -- refusing to write a regional total.\n"
+        f"  Neither the WBD shapefile ({HUC12_SHAPEFILE}) nor the crosswalk file "
+        f"({HUC12_COUNTY_CROSSWALK}) was found.\n"
+        f"  The input carries {len(huc12_cols)} HUC12 columns spanning the entire\n"
+        "  continental US (HUC regions 01-18). Summing them all produces a national\n"
+        "  figure labelled as an eight-county one.\n"
+        "  Provide one of:\n"
+        f"    - WBD HUC12 shapefile at {HUC12_SHAPEFILE}\n"
+        "      (build it from WBD_14_HU2_GDB.zip + WBD_15_HU2_GDB.zip, layer WBDHU12,\n"
+        "       at https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/WBD/HU2/GDB/)\n"
+        f"    - HUC12-to-county crosswalk CSV at {HUC12_COUNTY_CROSSWALK}"
     )
-    return huc12_cols
 
 
 def _get_regional_huc12_columns(huc12_cols: list[str]) -> list[str]:
@@ -371,6 +400,21 @@ def _sanity_checks(df: pd.DataFrame) -> None:
     negatives = (df["public_supply_groundwater_mgd"] < 0).sum()
     if negatives:
         log.warning("%d negative withdrawal values.", negatives)
+
+    # Magnitude guard. Arizona's entire water use across all sectors is roughly
+    # 6,000-7,000 MGD; eight-county public-supply groundwater is a few hundred.
+    # The national-sum version of this file reported 34,817 MGD and nothing
+    # caught it, because no check ever asked whether the number was physical.
+    mean_mgd = df["public_supply_groundwater_mgd"].mean()
+    if mean_mgd > MAX_PLAUSIBLE_REGIONAL_MGD:
+        raise ValueError(
+            f"Regional public-supply groundwater averages {mean_mgd:,.0f} MGD, above "
+            f"the {MAX_PLAUSIBLE_REGIONAL_MGD:,.0f} MGD plausibility ceiling.\n"
+            "  Arizona's total water use across every sector is roughly 6,000-7,000 MGD.\n"
+            "  This almost certainly means the spatial filter selected watersheds "
+            "outside the region."
+        )
+    log.info("Magnitude check passed: mean %.1f MGD.", mean_mgd)
 
     # Row count — 2000-01 through 2020-12 = 21 years × 12 months = 252
     expected = 21 * 12

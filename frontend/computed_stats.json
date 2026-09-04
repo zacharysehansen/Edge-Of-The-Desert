@@ -11,9 +11,9 @@
       "default": 2720.5625
     },
     "public_supply_groundwater_mgd": {
-      "min": 28962.0194,
-      "max": 42309.2337,
-      "default": 33551.9634
+      "min": 467.2779,
+      "max": 1002.6492,
+      "default": 804.4008
     },
     "impervious_pct": {
       "min": 0.8253,
@@ -36,9 +36,9 @@
       "default": 194.31
     },
     "nclimdiv_pdsi": {
-      "min": -3.641,
-      "max": 4.6316,
-      "default": -0.6818
+      "min": -3.6426,
+      "max": 4.6309,
+      "default": -0.684
     },
     "temperature_2m_c": {
       "min": 7.8824,

@@ -61,11 +61,11 @@ happen inside each training fold. See [scripts/phase2/metrics.py](scripts/phase2
 | **Wildfire** | Wildfire risk index | **1984-02 → 2023-12** | **479** | 26 | **OK** | **+0.3716** | 0.2819 | −0.0898 | 0.2819 |
 | **NDVI** | Vegetation health | 2002-10 → 2023-12 | 255 | 46 | **OK** | **+0.2653** | 0.7928 | 0.5274 | **0.5584** |
 | **Wildlife** | Bird abundance anomaly | **1968 → 2024** (annual) | **56** | 12 | **OK** | **+0.2046** | 0.2125 (LOO) | 0.0080 | — |
-| Groundwater | Well depth anomaly (ft) | 2002-10 → 2020-12 | 219 | 16 | **NO SKILL** | +0.0058 | 0.4053 | 0.3995 | −0.0474 |
+| Groundwater | Well depth anomaly (ft) | 2002-10 → 2020-12 | 219 | 16 | **NO SKILL** | +0.0086 | 0.4081 | 0.3995 | −0.0364 |
 | GRACE | Groundwater anomaly | 2002-10 → 2023-12 | 204 | 45 | **NO SKILL** | −0.0349 | 0.3300 | 0.3649 | 0.0302 |
 
 Sorted by skill. Groundwater clears both baselines arithmetically but lands at ~zero — it is
-listed as no skill because +0.006 is not a result, and its residual R² is still slightly
+listed as no skill because +0.009 is not a result, and its residual R² is still slightly
 negative. It is, however, **no longer actively harmful**, which is where it started.
 
 ---
@@ -200,11 +200,11 @@ productivity tracking *last* year's rain, through vegetation and insect abundanc
 known ecology — and not something a model reading a survey roster could ever have found. The real
 signal survives the correction: per-route abundance declines **~23% across the record (p < 0.0001)**.
 
-### Groundwater (Well Depth) — skill +0.0058 ⚠
+### Groundwater (Well Depth) — skill +0.0086 ⚠
 
 - **Formulation:** residual-over-lag1, in-fold competition of 5 candidates, winner **XGBoost**
 - **Window 2002-10 → 2020-12 · 219 rows · 16 features** (47 dropped in-fold)
-- **R² (level) 0.4053 · persistence 0.3995 · R² (residual) −0.0474**
+- **R² (level) 0.4081 · persistence 0.3995 · R² (residual) −0.0364**
 
 **This model used to be worse than doing nothing** (residual R² −0.3179) and is now at
 approximately zero. That is a **correctness fix, not a performance fix**, and it was always going
@@ -218,7 +218,21 @@ what the column was "measuring" was its own roster. Phase 1 now emits `depth_to_
 (each well centered on its own mean, 24-month minimum record) plus an `n_wells` diagnostic — which
 is the artifact, not a predictor, and is excluded from `X`.
 
-**It is also the only model that could see the irrigation fix**, and the result is worth recording.
+**It is also the only model that could see either feature fix**, and the results mirror each other.
+`public_supply_groundwater_mgd` had the same national-scope bug as irrigation — 34,817 MGD, **5.4×
+Arizona's entire water use across every sector**, summed over 87,020 watersheds instead of 1,133.
+Corrected to **761 MGD** it moved groundwater skill +0.0058 → **+0.0086** and residual R² −0.0474 →
+**−0.0364**, again within fold noise (per-fold Δ `[+0.064, −0.020, −0.001, +0.002, +0.010]`, mean
++0.011 against a spread of 0.064).
+
+**The two fixes had opposite effects on selection, and both are informative.** Corrected irrigation
+was *promoted* from never-selected to #2 by importance. Corrected public supply was **dropped
+entirely** (it had been carrying 0.0691) — which is the right call, because a national public-supply
+sum is a near-pure seasonal template and the model already has `month_sin`/`month_cos`. The corrupt
+version was being selected; the correct one is not. Two features became more honest and the score
+did not move either time.
+
+**And the irrigation result specifically is worth recording.**
 `irrigation_total_withdrawal_mgd` was **~99.9% nodata sentinel** summed over **87,020 watersheds
 nationwide** — 5.43e7 MGD, four orders of magnitude too large, and near-constant. Corrected to
 **2,560 MGD** it became physical (June peak, January trough) and, for the first time, in-fold
@@ -405,8 +419,9 @@ cross-checks against MERRA-2 on the 288-month overlap, refusing to write if they
 **Three regression guards now ship with Phase 1**, each closing a bug class that actually bit:
 `_validate_seasonality()` refuses to write the wildfire CSV if the peak ignition month falls
 outside April–August; `_effort_confound_check()` refuses to write a wildlife target whose
-correlation with survey effort exceeds ±0.6; and `irrigation.py` refuses to write a regional total
-above 20,000 MGD, or to run at all without a HUC12 spatial filter. That last one replaced a
+correlation with survey effort exceeds ±0.6; and `irrigation.py`, `public_supply.py` and `nclimdiv.py`
+refuse to write physically impossible values — a regional total above 20,000 / 5,000 MGD, a
+temperature below −40 °C, negative rainfall — or to run at all without a HUC12 spatial filter. That last one replaced a
 `log.warning` that had been silently emitting a national sum for the life of the project — **a
 warning nobody reads is not a safeguard.**
 
@@ -425,7 +440,7 @@ that within-year wiggle is just an identical month-of-year template repeating:
 | `irrigation_total_withdrawal_mgd` | **99.3%** | **95.2%** | **mostly a calendar** (was: a corrupt time trend) |
 | `mead_pool_elevation` | 7.7% | 42.4% | some genuine signal |
 | `temperature_2m_c` | 98.8% | 96.8% | mostly a calendar |
-| `public_supply_groundwater_mgd` | 96.8% | **97.6%** | **a calendar in disguise** |
+| `public_supply_groundwater_mgd` | 96.8% | **97.6%** | **a calendar in disguise** (measured on the pre-fix national sum) |
 | `population` | **0.4%** | — | **a time trend** |
 | `impervious_pct` | **0.6%** | — | **a time trend** |
 
@@ -453,6 +468,13 @@ extend NDVI cost **−0.0075 skill**, measured. They were templates.
 >
 > The lesson for this table: **a variance decomposition tells you how an input varies, not whether
 > it is correct.** Check magnitude against a physical range, then sign, then variance.
+>
+> **The full feature audit (2026-09-04) found one more of these**, and it was the same bug in the
+> same cloned function: `public_supply_groundwater_mgd` was also a national sum, at **34,817 MGD —
+> 5.4× Arizona's entire water use across every sector**, and 44× its own Arizona source. Corrected
+> to 761 MGD. Its row above is still the pre-fix measurement. Everything else in the panel passed:
+> population validates against the Census to within 1.3%, Mead sits inside its physical envelope,
+> and PDSI's apparent outliers are the real 1905/1941/1993 pluvials.
 
 It also explains why groundwater and GRACE resist better modeling: the human pressures that drive
 month-to-month aquifer change are **weakly** observed. That phrasing is deliberate and is a
@@ -483,12 +505,15 @@ comparison structured in its favour. See the GRACE section above.
 Ordered by expected gain per unit of effort, and reflecting what was **empirically tested**, not
 what sounds plausible.
 
-1. **Audit the remaining features.** Every audit this project has run was pointed at *targets*. The
-   first feature ever examined was 99.9% sentinel, summed nationwide, four orders of magnitude too
-   large, and had sat in the variance table labelled "some genuine signal" for the life of the
-   project. Nothing else in the panel has had its magnitude checked against a physical range. First
-   suspect: `public_supply_groundwater_mgd` is **44× its own HUC12 source**, which points at the
-   same statewide-vs-eight-county scope error. Now cheap — the WBD shapefile exists.
+1. ~~**Audit the remaining features.**~~ ✅ **Done.** All 31 panel columns checked for magnitude,
+   sentinels, scope and sign. Two bugs: `public_supply_groundwater_mgd` had the same national-scope
+   sum as irrigation (34,817 → **761 MGD**), and `nclimdiv.py`'s single `MISSING = -99.99` matched
+   only one of its three elements, leaking −99.90 °F as **−73.28 °C** and −9.99 in/month as
+   **−8.46 mm/day**. The nClimDiv leak never reached a model — confined to unpublished 2026
+   months, six months beyond the panel ceiling, and verified by arithmetic rather than assumed
+   (blending one missing division would move the regional mean ≥9.8 °C; the only in-panel shifts
+   are ≤0.11 °C, which are NOAA's own revisions to recent months) — but it feeds three of the four
+   working models and would have activated silently on any window advance. Everything else passed.
 
 2. **Wildlife: revisit the NDVI trade-off.** Reaching 1968 cost NDVI as a feature — the
    food-availability proxy you would most want for birds. A 2000–2023 feature set *with* NDVI is
