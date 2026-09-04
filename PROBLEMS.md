@@ -1100,9 +1100,40 @@ birds. **What it buys is significance.** ρ = 0.53 at n=20 (p = 0.017) is a sugg
 *last* year's rain — through vegetation and insect abundance — is exactly the known ecology, and
 it is not something a model reading a survey roster could ever have found.
 
-**Still open.** The NDVI trade-off is real and worth revisiting: a 2000–2023 feature set with NDVI
-is still buildable at n≈23 now that the target is sound. It was not learnable at n=20 before,
-which is why it was not tried.
+## The NDVI trade-off was tested, and the rows win decisively `MEASURED`
+
+Reaching 1968 costs NDVI: MODIS Terra launched 2000-02, and one NDVI column in `X` makes the
+`notna().all()` mask delete every pre-2000 row. So the model must choose **n=56 without NDVI** or
+**n=23 with it**. The mechanism argued for NDVI — the top non-autoregressive driver is prior-year
+precipitation, but the causal chain is rain → vegetation → food → birds, and NDVI *is* the middle
+link measured directly.
+
+Pre-registered design, all three variants scored on the **identical 23 common years** (2000–2023,
+2020 dropped), nested LOO reusing `model_wildlife._fit_predict`, decision rule the permutation test
+on Spearman ρ rather than R²:
+
+| variant | window | n | feat | LOO R² | ρ | perm p | null 95th |ρ| |
+|---|---|---|---|---|---|---|---|
+| **A — shipped** | 1968–2024 | 56 | 12 | **+0.0956** | **+0.409** | 0.054 | 0.414 |
+| B — short, no NDVI | 2000–2023 | 23 | 12 | −0.1702 | +0.110 | 0.618 | 0.416 |
+| C — short, **+ NDVI** | 2000–2023 | 23 | 15 | −0.2107 | +0.150 | 0.495 | 0.416 |
+
+**Primary test (C vs B — NDVI's contribution, same rows and window): ΔR² −0.041, Δρ +0.041,
+p = 0.495.** Nothing.
+
+**But the real finding is B.** Cutting to 23 years *without changing a single feature* takes the
+model from R² +0.0956 to **−0.1702** — below a flat line — and ρ from 0.409 to 0.110, well under its
+own null 95th percentile of 0.416. **Both short-window variants are indistinguishable from noise.**
+
+So the question "does NDVI help?" turns out to be unanswerable rather than answered: at n=23 there
+is no working model for NDVI to improve. The 33 rows are doing all of the work, and no feature
+recovers them. **Keep the 1968 window; do not add NDVI.** The mechanism was never refuted — it was
+swamped, and the only configuration that could test it properly (long record *and* NDVI) cannot
+exist, because the satellite does not go back to 1968.
+
+*(A scores ρ = 0.409 / p = 0.054 here against 0.5068 / p = 0.0001 in the shipped model. That is not
+a discrepancy: this is a 23-point subset of its 56, and 23 points carry far less power. The shipped
+number remains the headline.)*
 
 ---
 
@@ -1122,7 +1153,7 @@ landed, which unblocked everything below them.
 | ~~**2**~~ | ~~**Wildfire: extend to 1984**~~ | M3, P1 | ✅ **DONE** — n 255 → **479**. On identical test rows, R² **+0.3618 → +0.4100 (ΔR² +0.0483)** |
 | ~~**2b**~~ | ~~**Fix the irrigation feature** (sentinels + national-scope sum)~~ | P7, P4, P5 | ✅ **DONE** — 5.43e7 → **2,560 MGD**. Five models unchanged; groundwater within noise. Revised P4 and P5 |
 | ~~**3**~~ | ~~**GRACE: re-test the irrigation trade now the feature is correct**~~ | P5, M4 | ✅ **DONE — null.** On identical test rows, irrigation adds **+0.0098** target R² (2/5 folds, t=0.57); the whole 2020-capped block adds **+0.0259** (3/5 folds, t=1.13). Both ≈0.1× the fold-to-fold spread. **Keep the 2023 window.** See [M4](#m4-grace--data-limited-at-its-instrument-floor) |
-| **4** | **Wildlife: revisit the NDVI trade-off** | M6 | n≈23 with NDVI vs n=56 without. Now that the target is sound, worth measuring |
+| ~~**4**~~ | ~~**Wildlife: revisit the NDVI trade-off**~~ | M6 | ✅ **DONE — null, and the rows win decisively.** On identical rows NDVI adds Δρ +0.041 (p=0.495); but cutting to n=23 alone drops R² **+0.0956 → −0.1702**, below a flat line. **Keep the 1968 window.** See [M6](#m6-wildlife--the-target-was-a-survey-effort-index-fixed) |
 | ~~**4b**~~ | ~~**Audit the remaining features** the way targets were audited~~ | P7 | ✅ **DONE — all 31 columns.** Two bugs: public supply was the same national sum (34,817 → **761 MGD**); nClimDiv's `MISSING` constant matched 1 of 3 elements, leaking **−73.28 °C** and **−8.46 mm/day** (latent, outside the panel). Everything else passed — population validates to Census within 1.3% |
 | ~~**4c**~~ | ~~Audit the NDVI and GRACE targets~~ | — | ✅ **DONE — both clean.** NDVI: pixel turnover↔jump **0.000**, signs all right. GRACE: no cell churn, strong depletion trend (r **−0.84**), right drought/Mead signs — target sound, failure is data ([P5](#p5-monthly-pumping-is-weakly-observed-not-unobserved-measured)), not a target bug |
 | **5** | **Probe CAP monthly deliveries via Reclamation HydroData** | P5, M4 | the one remaining *monthly* pumping proxy. Cheap — `lake_mead.py` already ingests from this endpoint. Aimed at **GRACE**, not groundwater |
@@ -1146,6 +1177,12 @@ and worth running, but it is no longer true that it "has never once come back cl
 
 Recorded so nobody spends the effort twice.
 
+- **Trading wildlife's 1968 record for NDVI.** Mechanistically well-motivated — NDVI is the
+  vegetation link that prior-year precipitation only proxies — and it failed twice over. NDVI adds
+  Δρ +0.041 (p = 0.495) on identical rows, and the window cut it would require takes the model from
+  R² +0.0956 to **−0.1702** on its own. At n=23 there is no model left for a feature to improve.
+  **Sample size is the binding constraint here, which is the opposite of what was true for the
+  target bug** — the target fix worked at n=20 unchanged, but the *feature* question needs rows.
 - **Giving GRACE the corrected irrigation feature, at the cost of its 2023 window.** Motivated by a
   real, correctly-signed, significant partial correlation (**−0.260**, p<0.001, calendar removed)
   and it still failed: on identical test rows irrigation adds **+0.0098** target R² and wins 2/5

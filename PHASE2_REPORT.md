@@ -197,7 +197,24 @@ NDVI as a food-availability proxy, genuinely the mechanism you would most want f
 Behind the autoregressive lag, the top driver is **prior-year precipitation**
 (`nclimdiv_precipitation_mm_day_annual_sum_lag1`), then annual and summer PDSI. Desert bird
 productivity tracking *last* year's rain, through vegetation and insect abundance, is exactly the
-known ecology — and not something a model reading a survey roster could ever have found. The real
+known ecology — and not something a model reading a survey roster could ever have found.
+
+**The NDVI trade-off was tested and the rows win decisively `MEASURED`.** Reaching 1968 costs NDVI
+(MODIS Terra launched 2000-02, and one NDVI column deletes every pre-2000 row), so the model must
+choose n=56 without it or n=23 with it. Scored on the identical 23 common years, nested LOO,
+judged on a 20,000-shuffle permutation test:
+
+| variant | n | feat | LOO R² | ρ | perm p |
+|---|---|---|---|---|---|
+| **A — shipped, 1968–2024** | 56 | 12 | **+0.0956** | **+0.409** | 0.054 |
+| B — short 2000–2023, no NDVI | 23 | 12 | −0.1702 | +0.110 | 0.618 |
+| C — short 2000–2023, **+ NDVI** | 23 | 15 | −0.2107 | +0.150 | 0.495 |
+
+NDVI's own contribution (C vs B, same rows) is **Δρ +0.041, p = 0.495** — nothing. The decisive
+result is B: cutting to 23 years *without changing a feature* drops R² below a flat line and puts ρ
+under its own permutation null. **At n=23 there is no working model for NDVI to improve**, so the
+mechanism was swamped rather than refuted — and the configuration that could test it properly, long
+record *and* NDVI, cannot exist. Keep the 1968 window. The real
 signal survives the correction: per-route abundance declines **~23% across the record (p < 0.0001)**.
 
 ### Groundwater (Well Depth) — skill +0.0086 ⚠
@@ -515,10 +532,10 @@ what sounds plausible.
    are ≤0.11 °C, which are NOAA's own revisions to recent months) — but it feeds three of the four
    working models and would have activated silently on any window advance. Everything else passed.
 
-2. **Wildlife: revisit the NDVI trade-off.** Reaching 1968 cost NDVI as a feature — the
-   food-availability proxy you would most want for birds. A 2000–2023 feature set *with* NDVI is
-   buildable at n≈23 now that the target is sound; it was not learnable at n=20 before, which is
-   why it was never tried. Cheap, and pure Phase 2.
+2. ~~**Wildlife: revisit the NDVI trade-off.**~~ ✅ **Done — null.** On identical rows NDVI adds
+   Δρ +0.041 (p = 0.495). More decisively, the window cut it requires takes the model from
+   R² +0.0956 to **−0.1702** on its own, with ρ falling below its permutation null. Keep the 1968
+   window. See the wildlife section above.
 
 3. **Groundwater: extend the NWIS pull to 1980–2025.** Not for skill — there is no reason to expect
    any. For **deployability**: it is the only model that cannot be scored against current
