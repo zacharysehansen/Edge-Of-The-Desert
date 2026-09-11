@@ -14,6 +14,10 @@ groundwater lever by 7.7), and
 [§15a](#15a-parameter-bands-on-the-cards-measured) (the cards now show each lever's range over the
 declared parameter bands, and which constants drive its width).
 
+For the readable version of what the finished model *does* — every path from a slider to an
+output, and the reasoning behind each — see [DISCUSSION.md](DISCUSSION.md). This document is the
+record of what was measured and when.
+
 This document is about a defect that is invisible in [PHASE2_REPORT.md](PHASE2_REPORT.md) and
 [PROBLEMS.md](PROBLEMS.md) because both are scored on forecast accuracy, and the defect does not
 touch forecast accuracy. It touches the entire point of the project.
@@ -1444,7 +1448,7 @@ XGBoost coefficient whose sign flipped with the month legible to whoever is usin
 Layer 4 answered *where did this number come from*. It did not answer *how well is it known*, and
 after [§12a](#12a-the-spreading-cone-test-measured) that gap was no longer defensible: every Layer 2
 number is a product of constants, **twelve of which ship with a declared band**. Ten of those still
-feed a lever path: eight still `UNTESTED`, and the dominant one now `MEASURED` but at t = +1.78.
+feed a lever path: seven still `UNTESTED`, and the dominant one now `MEASURED` but at t = +1.78.
 (`specific_yield` and `alluvial_fraction` are the other two, vestigial since §12a measured
 `storage_af_per_ft` directly rather than deriving it from their product — the relevance scan finds
 them irrelevant to every scenario rather than being told to skip them.) A card printing `−36.1` and
@@ -1532,7 +1536,7 @@ follows from one observation that took the whole of Layers 2-4 to make legible:
 **Layer 1 is finished and Layer 2 is not.** Four of six models forecast honestly and the two that
 do not (GRACE, groundwater) fail on missing data rather than on modelling — PROBLEMS.md says *stop
 tuning* both, and §11.5 confirmed it for the last plausible feature-set change. Layer 2 is the
-opposite: it works, every sign holds, and **14 of its 16 levers are `structural-only`** with eight
+opposite: it works, every sign holds, and **13 of its 16 levers are `structural-only`** with seven
 live parameter bands still `UNTESTED`. So the remaining leverage is in *narrowing what Layer 2
 claims*, not in improving what Layer 1 predicts.
 
@@ -1569,7 +1573,7 @@ retire the first of them. Cheap: `lake_mead.py` already ingests from that endpoi
 lever against the project's own panel with climate and trend controls, Newey-West — and it is what
 earned irrigation its `corroborated` badge and what §12a extended to horizons. The obvious next
 candidates are `stream_capture_fraction` (0.05–0.25, and the widest band on the surface-water card)
-and `effluent_return_fraction` (0.45–0.70). Not all eight live UNTESTED bands are estimable from
+and `effluent_return_fraction` (0.45–0.70). Not all seven live UNTESTED bands are estimable from
 this panel — some are land-cover constants with no time variation to regress — but these two are,
 and the harness exists.
 

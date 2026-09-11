@@ -23,6 +23,10 @@ The project is organized into three phases:
 See [PHASE1_SETUP.md](PHASE1_SETUP.md) for the dataset inventory and
 [PHASE2_REPORT.md](PHASE2_REPORT.md) for full model-training results.
 
+**[DISCUSSION.md](DISCUSSION.md) is the place to start if you have the app open and are asking
+why a slider did what it did** — it walks through every input-to-output path, what is measured
+versus assumed, and the three results that look wrong at first and are not.
+
 ---
 
 ## Repository layout
@@ -272,7 +276,7 @@ Then open <http://localhost:8000/frontend/index.html>.
 - `ui.js` renders the controls and updates the output cards. Each lever row carries its
   **range over the declared parameter bands** alongside the point estimate, and its tooltip
   names the constants that drive that width — twelve of Layer 2's constants ship with a
-  band — ten of which still feed a lever path, eight of those still `UNTESTED`
+  band — ten of which still feed a lever path, seven of those still `UNTESTED`
   ([PHASE3_PLAN.md](PHASE3_PLAN.md) §15a). The range is Layer 2 parameter uncertainty only;
   the learned climate term on the same card carries its own error, which is not in it.
 

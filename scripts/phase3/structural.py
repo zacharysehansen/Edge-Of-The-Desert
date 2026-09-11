@@ -167,7 +167,7 @@ class Structural:
     #
     # Every Layer 2 number the UI renders is a product of constants, and twelve of
     # those constants ship with a declared `band`. Ten of the twelve still feed a lever
-    # path: eight UNTESTED, and since
+    # path: seven UNTESTED, and since
     # PHASE3_PLAN.md §12a the dominant one (`storage_af_per_ft`, 184,023..289,336)
     # MEASURED but with t = +1.78 at the horizon it is used. A card showing only the
     # point estimate is claiming a precision the parameters do not have, which is the
