@@ -299,11 +299,15 @@ if (process?.argv?.includes('--dump')) {
 // ── Parameter bands ───────────────────────────────────────────────────────────
 //
 // Every Layer 2 number rendered on a card is a product of constants, and twelve of
-// those ship with a declared `band` — eight UNTESTED, and since PHASE3_PLAN.md §12a
-// the dominant one (`storage_af_per_ft`, 184,023..289,336) MEASURED but with
-// t = +1.78 at the horizon it is used. Showing only the point estimate claims a
-// precision the parameters do not have, which is the same failure this whole layer
-// exists to fix, in miniature.
+// those ship with a declared `band`. Ten of the twelve still feed a lever path: eight
+// UNTESTED, and since PHASE3_PLAN.md §12a the dominant one (`storage_af_per_ft`,
+// 184,023..289,336) MEASURED but with t = +1.78 at the horizon it is used. Showing
+// only the point estimate claims a precision the parameters do not have, which is the
+// same failure this whole layer exists to fix, in miniature.
+//
+// `specific_yield` and `alluvial_fraction` are the other two, vestigial since §12a
+// measured `storage_af_per_ft` directly instead of deriving it from their product.
+// The relevance scan discovers that rather than being told it.
 //
 // The envelope is taken over the CORNERS of the relevant bands rather than by
 // propagating derivatives: every path is a product, quotient or difference of

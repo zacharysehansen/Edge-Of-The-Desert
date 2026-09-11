@@ -1443,8 +1443,11 @@ XGBoost coefficient whose sign flipped with the month legible to whoever is usin
 
 Layer 4 answered *where did this number come from*. It did not answer *how well is it known*, and
 after [§12a](#12a-the-spreading-cone-test-measured) that gap was no longer defensible: every Layer 2
-number is a product of constants, **twelve of which ship with a declared band** — eight still
-`UNTESTED`, and the dominant one now `MEASURED` but at t = +1.78. A card printing `−36.1` and
+number is a product of constants, **twelve of which ship with a declared band**. Ten of those still
+feed a lever path: eight still `UNTESTED`, and the dominant one now `MEASURED` but at t = +1.78.
+(`specific_yield` and `alluvial_fraction` are the other two, vestigial since §12a measured
+`storage_af_per_ft` directly rather than deriving it from their product — the relevance scan finds
+them irrelevant to every scenario rather than being told to skip them.) A card printing `−36.1` and
 nothing else claims a precision the parameters do not have, which is this document's own opening
 complaint in miniature.
 

@@ -166,11 +166,19 @@ class Structural:
     # ── parameter bands ──────────────────────────────────────────────────────
     #
     # Every Layer 2 number the UI renders is a product of constants, and twelve of
-    # those constants ship with a declared `band` — eight UNTESTED, and since
+    # those constants ship with a declared `band`. Ten of the twelve still feed a lever
+    # path: eight UNTESTED, and since
     # PHASE3_PLAN.md §12a the dominant one (`storage_af_per_ft`, 184,023..289,336)
     # MEASURED but with t = +1.78 at the horizon it is used. A card showing only the
     # point estimate is claiming a precision the parameters do not have, which is the
     # same failure mode in miniature as the one this whole layer exists to fix.
+    #
+    # The other two — `specific_yield` and `alluvial_fraction` — went vestigial in §12a:
+    # `storage_af_per_ft` used to be their product with the region area and is now
+    # measured directly, so they survive only as inputs to structural_params.py's
+    # comparison note. `response_band` finds them irrelevant to every scenario rather
+    # than being told to skip them, which is the property that makes the perturbation
+    # scan worth having over a hardcoded map.
     #
     # The range is computed by evaluating the corners of the relevant bands rather
     # than by propagating derivatives: every path here is a product, quotient or
