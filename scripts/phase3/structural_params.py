@@ -667,7 +667,10 @@ LEVERS = [
         "sign": -1,
         "tier": "structural-only",
         "mechanism": "ΔNDVI = (Δimpervious/100) × (NDVI_impervious − NDVI_natural). Pavement is not green.",
-        "evidence": "None. PHASE3_PLAN.md §10 finds an effect of -0.010 sd — no effect to have a sign.",
+        # evidence, tier and local_effect are filled in from model/ndvi_endpoints.json
+        # by _apply_ndvi_measurement() so the numbers on the card cannot drift from the
+        # measurement that produced them.
+        "evidence": None,
     },
     {
         "id": "irrigation_to_ndvi",
@@ -727,8 +730,65 @@ TRANSFERS = [
 CLIMATE_ONLY_OUTPUTS = ["wildfire"]
 
 
+def _apply_ndvi_measurement(levers: list[dict], endpoints: dict) -> None:
+    """Fill the urbanization -> NDVI lever in from the raster measurement.
+
+    Two things change beyond the coefficient. The lever's `evidence` used to read "None.
+    PHASE3_PLAN.md §10 finds an effect of -0.010 sd" — that was the panel's verdict, and
+    the panel could not see this: an eight-county monthly mean has no way to separate a
+    2%-of-area land-cover change from weather. The rasters can, because they resolve the
+    change where it happens. So the tier goes to `corroborated`: §11.1 defines that as a
+    structural mechanism plus an independent empirical check that agrees on the sign
+    after climate and trend controls, and a difference-in-differences across 130,833
+    cells with regional drift in the intercept is exactly that check.
+
+    `local_effect` exists because the regional number is honest and useless on its own.
+    -0.97 points region-wide is what a 2%-of-area change does to a regional mean; it says
+    nothing about what happens to the land that was actually paved, which is the thing a
+    person moving an urbanization slider is picturing.
+    """
+    did = endpoints["difference_in_differences"]
+    strata = did["by_prior_land_cover"]
+    natural = endpoints["ndvi_natural_in_repo"]
+    for lever in levers:
+        if lever["id"] != "urbanization_to_ndvi":
+            continue
+        lever["tier"] = "corroborated"
+        lever["evidence"] = (
+            f"Difference-in-differences on the project's own MOD13A3 and NLCD rasters: "
+            f"{did['n_cells']:,} MODIS cells differenced against themselves "
+            f"({did['early_years'][0]}-{did['early_years'][1]} vs "
+            f"{did['late_years'][0]}-{did['late_years'][1]}), slope {did['slope']:+.4f} "
+            f"NDVI per unit impervious fraction, HC1 t = {did['t']:+.1f}. A cross-sectional "
+            f"fit over {endpoints['n_months']} months agrees at "
+            f"{endpoints['slope']['median']:+.4f}."
+        )
+        lever["local_effect"] = {
+            "value": did["slope"],
+            "as_percent_of_baseline": did["slope"] / natural * 100,
+            "headline": (
+                f"On the land actually paved, NDVI falls "
+                f"{abs(did['slope'] / natural * 100):.0f}%."
+            ),
+            "detail": (
+                "The region-wide number is small because the paving is small: the slider's "
+                "full range is about 2% of the eight counties, and a regional mean is built "
+                "to average that away. The same coefficient applied to the whole region "
+                "would be about 40 score points. What the pavement REPLACED is most of the "
+                f"story — paving dry desert costs "
+                f"{strata['dry_desert']['slope']:+.4f} NDVI, which is not distinguishable "
+                f"from zero because desert is already near what pavement reads, while paving "
+                f"cropland or riparian land costs "
+                f"{strata['very_green_cropland_riparian']['slope']:+.4f}, about "
+                f"{abs(strata['very_green_cropland_riparian']['slope'] / natural * 100):.0f}% "
+                "of the region's whole vegetation signal."
+            ),
+        }
+
+
 def main() -> None:
     constants, pumping, slider_stats, calibration = build()
+    _apply_ndvi_measurement(LEVERS, json.loads(NDVI_ENDPOINTS_PATH.read_text()))
 
     # Mean-reversion rates from PHASE3_PLAN.md §4b, fitted on the observed panel by
     # `slider_sensitivity.py --mode lambda`. These bound the rate levers: a sustained

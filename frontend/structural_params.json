@@ -428,9 +428,15 @@
       "kind": "level",
       "path": "landcover_impervious",
       "sign": -1,
-      "tier": "structural-only",
+      "tier": "corroborated",
       "mechanism": "\u0394NDVI = (\u0394impervious/100) \u00d7 (NDVI_impervious \u2212 NDVI_natural). Pavement is not green.",
-      "evidence": "None. PHASE3_PLAN.md \u00a710 finds an effect of -0.010 sd \u2014 no effect to have a sign."
+      "evidence": "Difference-in-differences on the project's own MOD13A3 and NLCD rasters: 130,833 MODIS cells differenced against themselves (2000-2004 vs 2019-2023), slope -0.0356 NDVI per unit impervious fraction, HC1 t = -14.7. A cross-sectional fit over 287 months agrees at -0.0250.",
+      "local_effect": {
+        "value": -0.03556435543830342,
+        "as_percent_of_baseline": -16.41179300337029,
+        "headline": "On the land actually paved, NDVI falls 16%.",
+        "detail": "The region-wide number is small because the paving is small: the slider's full range is about 2% of the eight counties, and a regional mean is built to average that away. The same coefficient applied to the whole region would be about 40 score points. What the pavement REPLACED is most of the story \u2014 paving dry desert costs -0.0027 NDVI, which is not distinguishable from zero because desert is already near what pavement reads, while paving cropland or riparian land costs -0.1792, about 83% of the region's whole vegetation signal."
+      }
     },
     {
       "id": "irrigation_to_ndvi",

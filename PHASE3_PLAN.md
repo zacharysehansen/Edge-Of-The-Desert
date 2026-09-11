@@ -1711,6 +1711,55 @@ why urbanization's honest signature in this application is not NDVI at all: the 
 **surface water +3.30** through storm runoff, four times its NDVI effect, because runoff integrates
 over the same small area without diluting it.
 
+### The slider range and the score scale were checked too, and neither is the problem
+
+Before concluding that a one-point lever is correct, the two things that could have made it
+artificially small were checked:
+
+- **The slider range is already generous.** Regional impervious cover moved from 0.797% to 1.292%
+  across the whole 2000–2023 record — **0.495 points in 24 years**. The slider's range is −0.4 to
+  **+2.0** points, so its maximum is **four times the entire observed 24-year change**. Widening it
+  would not be more honest, it would be less.
+- **The score scale is climate's yardstick.** The NDVI bar spans 0.0879 NDVI — the p5–p95 of the
+  regional monthly mean, which is the distance from a drought month to a monsoon month. Urbanization
+  at four decades' worth of growth moves it 0.00071.
+
+```
+  climate : urbanization  on eight-county mean NDVI  ≈  123 : 1
+```
+
+Three independent measurements (cross-section, difference-in-differences, matched contrast) and two
+calibration checks all say the same thing, so the coefficient is not what is wrong.
+
+### What was actually wrong was the card
+
+A row reading `Urbanization −0.97` states something true and leaves the reader with something false.
+It is the regional mean's answer to a 2%-of-area question, and it says nothing about the land that
+was actually paved — which is what a person moving an urbanization slider is picturing.
+
+So the lever now declares a **`local_effect`**, and the card states both scales:
+
+```
+NDVI Vegetation Health
+  human levers (structural)                              −0.8
+      Urbanization              CORROBORATED             −0.8    −0.8 to −0.6
+          On the land actually paved, NDVI falls 16%.
+```
+
+with the full explanation — the area dilution, the 40-point whole-region equivalent, and the
+desert-versus-cropland split — on hover. The local figure is deliberately **not** added into any
+total: it is context for the regional number, not a competing one.
+
+The lever also moves from `structural-only` to **`corroborated`**, taking the application from two
+corroborated levers to three. Its `evidence` field used to read *"None. §10 finds an effect of
+−0.010 sd — no effect to have a sign."* That was the panel's verdict and the panel could not see
+this: an eight-county monthly mean has no way to separate a 2%-of-area land-cover change from
+weather. The rasters can, because they resolve the change where it happens.
+[§11.1](#111-layer-2-is-two-tiers-not-one--and-layer-4-needs-three-provenance-categories) defines
+`corroborated` as a structural mechanism plus an independent empirical check agreeing on the sign
+after climate and trend controls, and a DiD across 130,833 cells with regional drift in the
+intercept is that check.
+
 ### One caveat on the cropland row
 
 Pinal County fallowed farmland under CAP cuts over the same period in which it urbanized. Those two

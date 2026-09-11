@@ -480,6 +480,20 @@ function updateProvenance(key, provenance) {
       badge,
       lever.pointsBand,
     ));
+
+    // Some levers are honest and useless at the same time. Urbanization moves the
+    // eight-county mean NDVI by about a point, because the slider's whole range is ~2%
+    // of the region's area and a regional mean is built to average that away — while on
+    // the land that actually got paved, NDVI falls 16%. Reporting only the regional
+    // number reads as "urbanization does nothing", which is the opposite of what was
+    // measured. Where a lever declares a local effect, the card states both scales.
+    if (info.local_effect) {
+      const note = document.createElement('div');
+      note.className = 'prov-local';
+      note.textContent = info.local_effect.headline;
+      note.title = info.local_effect.detail;
+      list.appendChild(note);
+    }
   }
   host.appendChild(list);
 }

@@ -415,6 +415,17 @@ select:focus {
 
 .prov-human .prov-band { opacity: 0.7; }
 
+/* The at-the-source effect for levers whose regional number understates them. Indented
+   under its lever and set quieter than the row, because it is context for that number
+   rather than a competing one — it is not added into any total. */
+.prov-local {
+  margin: 0.05rem 0 0.25rem 0.9rem;
+  font-size: 0.68rem;
+  opacity: 0.72;
+  font-style: italic;
+  cursor: help;
+}
+
 .prov-climate { opacity: 0.72; }
 .prov-human   { font-weight: 500; }
 .prov-idle    { opacity: 0.5; font-style: italic; }
