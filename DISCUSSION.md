@@ -303,6 +303,13 @@ are `UNTESTED`.** The four that are measured are the four that were argued about
 | `runoff_coefficient_impervious` / `_natural` | 0.85 / 0.15 | 0.75–0.95 / 0.05–0.25 | UNTESTED | urbanization → streamflow |
 | `transfer_surface_water_to_wildlife` | 0.0536 | 0.0536 – 0.1953 | MEASURED | the entire wildlife column |
 
+**Six of these cannot currently be narrowed, and it is worth knowing which six.** Two
+(`region_share_of_az_reduction`, `groundwater_substitution_fraction`) need CAP delivery data by
+county, which is an acquisition. The other four are the streamflow group, and
+[PHASE3_PLAN.md §21](PHASE3_PLAN.md) established that the monthly panel cannot identify any of them
+— not because the mechanisms are not real, but because a regional monthly mean over a changing gage
+network cannot see them. They stay wide, honestly.
+
 **Where the assumptions hurt most:**
 
 - **Lake Mead is the best-documented mechanism and the weakest lever in the app**, because its two
@@ -356,8 +363,15 @@ Ranked, with the reasoning, in [PHASE3_PLAN.md §16](PHASE3_PLAN.md). In short:
 1. **CAP monthly deliveries** — one acquisition that serves two unrelated problems: the only
    remaining monthly pumping proxy for GRACE, and the county-level data
    `region_share_of_az_reduction` explicitly asks for.
-2. **Corroborate `stream_capture_fraction` and `effluent_return_fraction`** with the method that
-   already worked for irrigation. These are the widest bands on the streamflow card.
+2. ~~**Corroborate the streamflow constants** with the method that worked for irrigation.~~
+   **Tried; all three return nulls** ([PHASE3_PLAN.md §21](PHASE3_PLAN.md)). Population and
+   impervious cover are pure trends (99.8% and 99.9% of their variance survives deseasonalising),
+   and the gage network moved 73 → 110 over the record, so a trend control is mandatory and absorbs
+   them. `stream_capture_fraction` failed for a different and more interesting reason: it *does*
+   have usable anomaly variance, but streamflow's 2.8-month memory makes discharge nearly a weather
+   variable, and climate alone already explains half of it. **The replacement is a per-gage design**
+   — 204 gages and 1.6 M daily records are already on disk, and gages below heavy-pumping HUC12s can
+   be differenced against gages that are not.
 3. **An urban-footprint NDVI output** — proposed, not built. It would move hard under the
    urbanization slider because it removes the area dilution that flattens the regional number. The
    blockers are real: no learned model predicts it, a moving mask changes the denominator, and

@@ -1568,7 +1568,17 @@ county."* That constant and `groundwater_substitution_fraction` are why Lake Mea
 spans 7× ([§15a](#15a-parameter-bands-on-the-cards-measured)); CAP deliveries by county would
 retire the first of them. Cheap: `lake_mead.py` already ingests from that endpoint.
 
-### 3. Corroborate more levers with the method that already worked
+### 3. ~~Corroborate more levers with the method that already worked~~ ❌ **tried, and it fails**
+
+**Superseded by [§21](#21-the-streamflow-constants-cannot-be-identified-from-this-panel-measured).**
+All three estimable streamflow quantities return nulls, including `stream_capture_fraction`, which
+was the one with usable anomaly variance. Streamflow's 2.8-month memory makes discharge nearly a
+weather variable, and a pumping signal does not survive climate explaining half its variance.
+The replacement is a **per-gage** design — 204 gages and 1.6 M daily records are already on disk,
+and gages below heavy-pumping HUC12s can be differenced against gages that are not, which is the
+design that worked twice for NDVI. The original text follows.
+
+#### Original recommendation, kept for the record
 
 [`aquifer_calibration.py`](scripts/phase3/aquifer_calibration.py) is a general pattern — regress the
 lever against the project's own panel with climate and trend controls, Newey-West — and it is what
@@ -2107,5 +2117,91 @@ The honest weaknesses, none of which the band expresses:
 The lever also moves `structural-only` → **`corroborated`**, taking the application to **four**
 corroborated levers. Its `evidence` used to read *"None. §10 finds 1/5 folds, wrong-signed"* — the
 panel's verdict, and the panel could not see a 2.5%-of-area land-cover effect against weather.
+
+---
+
+## 21. The streamflow constants cannot be identified from this panel `MEASURED`
+
+[§16](#16-paths-forward) item 3, attempted and **failed — all three estimable quantities return
+nulls.** [`scripts/phase3/streamflow_calibration.py`](scripts/phase3/streamflow_calibration.py) →
+`model/streamflow_calibration.json`. This section exists because the recommendation was mine, and a
+recommendation that does not survive contact with the data should say so where it was made.
+
+### What was tried
+
+The four widest remaining bands, inverted from Layer 2's own arithmetic. Since Layer 2 converts an
+added flow as `ln(1 + Δcfs / baseline_cfs)`, a regression on a physically-scaled regressor inverts
+straight back to the constant:
+
+| constant | regressor | inversion |
+|---|---|---|
+| `stream_capture_fraction` | pumping anomaly, AF/month | `β = −capture × cfs_per_af_month / baseline_cfs` |
+| `effluent_return_fraction` | population anomaly | `β = +return × (gpcd/1e6) × cfs_per_mgd / baseline_cfs` |
+| `runoff_coefficient_*` | impervious × rain depth × area, in cfs | `β = +(c_imp − c_nat) / baseline_cfs` |
+
+Only the runoff **contrast** is ever identifiable, never the two coefficients separately — they
+enter the physics solely as a difference, which is a property of the model rather than a limit of
+the data.
+
+### Two of the three were predicted to fail, before any fit
+
+Decomposing each regressor's variance on the panel:
+
+| regressor | variance surviving deseasonalising | |
+|---|---|---|
+| irrigation withdrawal | **5.4%** | has usable anomaly variance |
+| population | **99.8%** | a pure trend — no seasonal cycle at all |
+| impervious cover | **99.9%** | likewise |
+
+A regressor that is a pure trend cannot be separated from a trend control, and the trend control is
+not optional: **the gage network itself moved from 73 to 110 gages** over the record, so anything
+identified off slow secular change is identified off a changing denominator as much as off the
+lever. That is why `n_gages` is a control here and is not elsewhere.
+
+### The results, including the one that was supposed to work
+
+| constant | + climate | + trend | + trend + gages | verdict |
+|---|---|---|---|---|
+| `stream_capture_fraction` | 0.6150 (t = −0.57) | −0.1616 (t = 0.15) | **−0.0025 (t = 0.00)** | NULL |
+| `effluent_return_fraction` | −3.03 (t = −1.36) | 15.44 (t = 0.98) | **1.24 (t = 0.07)** | NULL — trend |
+| `runoff_contrast` | −8.81 (t = −1.57) | 9.13 (t = 1.23) | **4.86 (t = 0.56)** | NULL — trend |
+
+**The implied values swinging from 0.615 to −0.162 to −0.0025 across specifications is the
+diagnosis, not a detail.** A quantity that is actually identified does not move like that when a
+control is added. Two of them imply values outside [0, 1] entirely, which is impossible for a
+fraction.
+
+**`stream_capture_fraction` is the informative failure**, because it was the one with usable
+anomaly variance and it still returned t = 0.00. The reason is streamflow's memory: λ = 0.3511, a
+2.8-month half-life, which makes discharge very nearly a weather variable. Climate alone already
+explains R² ≈ 0.47–0.50 of it, and a pumping signal worth a couple of score points does not survive
+that. The aquifer could be calibrated ([§12](#12-layer-2-step-1--the-aquifer-calibration-measured))
+precisely because it integrates for 64 months; the river forgets.
+
+### What a null does and does not mean here
+
+It does **not** mean stream capture is zero, effluent does not reach the river, or pavement does not
+shed water. All three mechanisms are real and two are documented in sources this repo carries. It
+means **the eight-county monthly panel cannot see them**, which is the same verdict
+[§10](#10-the-5-cross-check-result-measured) reached for human coefficients generally, now
+established specifically for the four constants someone would most want to narrow.
+
+So the four stay `UNTESTED` at their sourced values, and their bands stay wide. That is the correct
+outcome: a band that is wide because the quantity is genuinely unknown is honest, and narrowing it
+on an unidentified regression would have been the worst available option.
+
+### What would actually work, and it is not another panel regression
+
+**The panel throws away the spatial variation that identifies these.** `discharge_log_anomaly` is a
+mean over ~103 gages; the repo also holds **1,643,528 daily records from 204 distinct gages across
+all eight counties** (`data/Final/water_surface_daily_8county_1980_2025.csv`). Gages downstream of
+heavy-pumping HUC12s can be differenced against gages that are not — the same cell-differenced
+design that worked twice for NDVI ([§17](#17-ndvi_impervious-measured-measured),
+[§20](#20-ndvi_irrigated_crop-measured--and-the-assumption-was-right-measured)), applied to gages
+instead of pixels. That is a real route and it is in the repo already.
+
+For the runoff contrast specifically, the identification wants **event scale, not monthly means** —
+the rainfall-runoff response to a storm, which is where impervious cover actually shows. Daily
+discharge is on disk; **daily precipitation is not**, only monthly. That one needs an acquisition.
 
 ---

@@ -1,0 +1,101 @@
+{
+  "stream_capture_fraction": {
+    "regressor": "irrigation_total_withdrawal_mgd",
+    "expected_sign": -1,
+    "nonseasonal_share": 0.05428436291293835,
+    "specifications": {
+      "+ climate": {
+        "beta": -9.76959025712403e-07,
+        "se": 1.7217095261488984e-06,
+        "t": -0.5674354534691195,
+        "implied": 0.6150235151921366,
+        "r2": 0.4701891698638897,
+        "n": 246
+      },
+      "+ climate + trend": {
+        "beta": 2.566933650047524e-07,
+        "se": 1.6688558253612485e-06,
+        "t": 0.15381398506919394,
+        "implied": -0.16159577988094198,
+        "r2": 0.49403838781415843,
+        "n": 246
+      },
+      "+ climate + trend + gages": {
+        "beta": 4.0417225058226666e-09,
+        "se": 1.664605562065842e-06,
+        "t": 0.0024280361654004856,
+        "implied": -0.0025443793624298663,
+        "r2": 0.503324763750757,
+        "n": 246
+      }
+    },
+    "verdict": "NULL \u2014 |t| = 0.00, below 2.0",
+    "shipped": 0.1
+  },
+  "effluent_return_fraction": {
+    "regressor": "population",
+    "expected_sign": 1,
+    "nonseasonal_share": 0.9983487723952577,
+    "specifications": {
+      "+ climate": {
+        "beta": -5.797746607404456e-08,
+        "se": 4.263725422187142e-08,
+        "t": -1.3597842340491089,
+        "implied": -3.025921390504193,
+        "r2": 0.6013222968068898,
+        "n": 282
+      },
+      "+ climate + trend": {
+        "beta": 2.957611427980258e-07,
+        "se": 3.016200752205077e-07,
+        "t": 0.9805751244568235,
+        "implied": 15.436169068333323,
+        "r2": 0.6052101070166367,
+        "n": 282
+      },
+      "+ climate + trend + gages": {
+        "beta": 2.3785695428976426e-08,
+        "se": 3.6577851178842196e-07,
+        "t": 0.06502759091199659,
+        "implied": 1.241407213185863,
+        "r2": 0.6111995491411526,
+        "n": 282
+      }
+    },
+    "verdict": "NULL \u2014 regressor is a trend, not identifiable from this panel",
+    "shipped": 0.55
+  },
+  "runoff_contrast": {
+    "regressor": "impervious_pct",
+    "expected_sign": 1,
+    "nonseasonal_share": 0.9988125250344343,
+    "specifications": {
+      "+ climate": {
+        "beta": -0.0008447621152737824,
+        "se": 0.0005364239667409508,
+        "t": -1.5748030804927362,
+        "implied": -8.808939572305025,
+        "r2": 0.5124521083812832,
+        "n": 282
+      },
+      "+ climate + trend": {
+        "beta": 0.0008758557593819727,
+        "se": 0.0007128753643809204,
+        "t": 1.2286239687109806,
+        "implied": 9.133175267868902,
+        "r2": 0.5249557890288905,
+        "n": 282
+      },
+      "+ climate + trend + gages": {
+        "beta": 0.0004657285612018465,
+        "se": 0.0008317218776901036,
+        "t": 0.5599570886547909,
+        "implied": 4.85648525016301,
+        "r2": 0.5289202953847798,
+        "n": 282
+      }
+    },
+    "verdict": "NULL \u2014 regressor is a trend, not identifiable from this panel",
+    "shipped": 0.7
+  }
+}
