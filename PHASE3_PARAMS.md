@@ -64,6 +64,17 @@ Both scale the lever linearly. State them in the UI with the band.
 
 ## 2. Groundwater storage balance `UNTESTED` — the weak link
 
+> **Superseded outright, 2026-09-10 — `A_eff` is now MEASURED, and it is neither limit.**
+> [PHASE3_PLAN.md §12a](PHASE3_PLAN.md) ran the spreading-cone test §12 called for and measured
+> the storage coefficient at each horizon. The cone does spread (809,419 → 1,627,214 acres from
+> 1 to 12 months) but it **plateaus at 1.23–1.93 M acres — two to three times the *irrigated*
+> area — and never approaches the 12.5 M alluvial acres assumed below.** The long-run figure is
+> 7.7× past the end of the evidence at any horizon out to 24 months, so it is **not** the
+> "correct long-horizon anchor" the note below claims. What ships is the value measured at the
+> scenario's own duration: **244,082 AF/ft at 12 months** (t = +1.78), band 184,023–289,336,
+> `status: MEASURED`. The arithmetic below is retained only as the derivation of a bound that
+> turned out not to bind.
+
 > **Superseded in part, 2026-09-08.** `A_eff` below has been measured against the panel
 > — see [PHASE3_PLAN.md §12](PHASE3_PLAN.md). A climate- and trend-controlled
 > distributed-lag regression gives `S_y · A = 110,891 AF/ft` (t = +3.16, n = 246),
@@ -96,7 +107,8 @@ Both scale the lever linearly. State them in the UI with the band.
     **0.45** → `A_eff ≈ 19,530 mi² ≈ 12.5 M acres`, giving `S_y·A ≈ 1.87 M AF per foot`.
   - Sanity check: a sustained ±50% swing on 2,600 MGD irrigation ≈ ±1.46 MAF/yr → **±0.78 ft/yr**.
     (Measured short-run equivalent, PHASE3_PLAN.md §12: **±13.2 ft/yr**. The gap is the
-    16.9× above, and is why Layer 2 cannot ship without the mean-reverting integration.)
+    16.9× above, and is why Layer 2 cannot ship without the mean-reverting integration.
+    §12a's measurement at a 12-month horizon lands at **±6.0 ft/yr**, between the two.)
     Against the `depth_to_water_anomaly_ft` output range (−8.87 … +10.36, i.e. 19.2 ft = 100
     score points) that is **~4 score points at 12 months, ~12 at 36 months.** So the acceptance
     criterion in §7 (≥5 points at 12 months) is **marginal for irrigation and will be missed
@@ -192,7 +204,7 @@ its min→max range at a 12-month duration." With honestly-sourced coefficients:
 
 | Lever | Best path | Est. 12-mo effect | Meets ≥5? |
 |---|---|---|---|
-| Irrigation | groundwater depth | ~4 pts (±factor 2 on `A_eff`) — **measured: 5.1 pts at the long-run limit, saturating at the short-run limit** (PHASE3_PLAN.md §12) | at the line |
+| Irrigation | groundwater depth | ~4 pts estimated (±factor 2 on `A_eff`) — **measured: 60.1 pts, band 51–80**, at the coefficient measured for a 12-month horizon (PHASE3_PLAN.md §12a) | **yes, by 12×** |
 | Lake Mead | groundwater depth via tiers | depends on re-ranging; 0 if the slider cannot reach 1,075 | only if re-ranged |
 | Population | groundwater depth via GPCD | small | likely no |
 | Public supply | groundwater depth | small | likely no |

@@ -4,6 +4,14 @@
 and each output card states where its number came from. The §7 gate passes on all 20
 lever/output pairs.**
 
+**Addenda since, each closing an item this document left open:**
+[§11.3](#113-a-double-counting-hazard-the-plan-does-not-cover-verified) (the double-count was eight
+paths, not one; now gated), [§11.5](#115-one-open-question-and-the-experiment-that-settles-it-measured)
+(GRACE's human-block retrain is a null — a one-fold sample-size effect), and
+[§12a](#12a-the-spreading-cone-test-measured) (the aquifer storage coefficient was shipping at the
+long-run limit, 7.7× past the evidence; measuring it at the scenario horizon multiplies every
+groundwater lever by 7.7).
+
 This document is about a defect that is invisible in [PHASE2_REPORT.md](PHASE2_REPORT.md) and
 [PROBLEMS.md](PROBLEMS.md) because both are scored on forecast accuracy, and the defect does not
 touch forecast accuracy. It touches the entire point of the project.
@@ -804,14 +812,16 @@ a mechanism rather than being an absence of evidence.
 | | score points |
 |---|---|
 | learned irrigation → groundwater (counterfactual, pre-fix) | +0.36 |
-| structural irrigation → groundwater (shipped) | **+7.82** |
-| combined, had both been counted | +8.18 |
-| **learned share** | **4.4%** |
+| structural irrigation → groundwater (shipped) | **+60.11** |
+| combined, had both been counted | +60.47 |
+| **learned share** | **0.6%** |
 
 `MEASURED`. The ~9% figure assumed ~4 structural points from
-[PHASE3_PARAMS.md §2](PHASE3_PARAMS.md); §12's calibrated lever came in at 7.82, nearly double, so
-the learned share is ~4.4%. Both terms carry the same sign, so it would have been a genuine
-inflation rather than a cancellation — which is what made it worth gating even at 4.4%.
+[PHASE3_PARAMS.md §2](PHASE3_PARAMS.md); after
+[§12a](#12a-the-spreading-cone-test-measured) recalibrated the lever to 60.11 the learned share is
+**0.6%**. Both terms carry the same sign, so it would have been a genuine inflation rather than a
+cancellation. The share is now small enough that magnitude is no longer the argument for the gate —
+the argument is the wiring, which is why the gate asserts exact equality rather than a threshold.
 
 #### What the decision actually is
 
@@ -1013,6 +1023,11 @@ So:
 - The reported band spans both limits — roughly an order of magnitude — because the honest
   statement is that the answer depends on how long the scenario runs.
 
+> ⚠ **The third bullet was tested and it fails — see
+> [§12a](#12a-the-spreading-cone-test-measured) for what ships.** The first implementation also did
+> not follow the first bullet: it shipped the long-run limit, not the short-run one. Both are now
+> superseded by a measurement at the scenario's own horizon.
+
 This also settles [PHASE3_PARAMS.md §5](PHASE3_PARAMS.md)'s worry that irrigation would be
 "marginal" against the §7 ≥5-point threshold. At the long-run limit it is 5.1 points, right at the
 line; at the short-run limit it saturates. Neither was tuned to pass, and both are reported.
@@ -1041,6 +1056,93 @@ Public supply has no support from any method — §10 found 1/5 folds and no eff
 specifications here are indistinguishable from zero. It is structural-only, from the per-capita
 derivation in [PHASE3_PARAMS.md §3](PHASE3_PARAMS.md), with a wide band.
 
+
+---
+
+## 12a. The spreading-cone test `MEASURED`
+
+[§12](#12-layer-2-step-1--the-aquifer-calibration-measured) called the long-run figure *"the
+long-horizon anchor the integration should converge toward, which is a testable property rather
+than an assumption."* Nobody ran it. Running it changes the most consequential number in Layer 2.
+
+**Why it had to be run.** §12's bullets say Layer 2 uses the short-run coefficient; the shipped
+`structural_params.py` used `storage_long_run` instead, justified in its own source string as *"the
+LONG-RUN limit, which is the right one for a sustained policy slider."* Nothing in the plan recorded
+that reversal, and the two differ by **16.9×** on every pumping→groundwater path. Since
+`storage_af_per_ft` is a divisor, shipping the long-run end made every groundwater lever the
+weakest it could possibly be.
+
+### The test
+
+If a drawdown cone spreads, the storage coefficient implied by a *sustained* pumping change must
+**rise with the horizon it is measured over**. So measure it at each horizon: total drawdown
+`depth(t) − depth(t−h)` on the total volume pumped across those h months, climate and trend
+controlled, Newey-West at `h + 6` lags. One estimator, varied only by `h` — the same discipline
+[§10](#10-the-5-cross-check-result-measured) applies by holding its XGBoost config fixed.
+`horizon_sweep()` in [`aquifer_calibration.py`](scripts/phase3/aquifer_calibration.py).
+
+| horizon | β (ft/AF) | t | S_y·A (AF/ft) | implied A_eff (acres) |
+|---|---|---|---|---|
+| 1 mo | 8.24e−06 | **+3.86** | 121,413 | 809,419 |
+| 2 mo | 5.96e−06 | +3.43 | 167,780 | 1,118,536 |
+| 3 mo | 5.26e−06 | +3.21 | 189,987 | 1,266,581 |
+| 6 mo | 5.43e−06 | +2.87 | 184,023 | 1,226,821 |
+| 9 mo | 4.88e−06 | +2.26 | 204,925 | 1,366,165 |
+| **12 mo** | **4.10e−06** | **+1.78** | **244,082** | **1,627,214** |
+| 18 mo | 4.26e−06 | +1.96 | 234,956 | 1,566,376 |
+| 24 mo | 3.46e−06 | +1.66 | 289,336 | 1,928,910 |
+
+### Three findings, and only the first was expected
+
+**1. The cone does spread.** 809,419 → 1,627,214 acres from 1 to 12 months, monotone. §12's physics
+is confirmed, and the 1-month value reproduces §12's 110,891 AF/ft to within 9% under a different
+control specification — the two estimators agree.
+
+**2. It plateaus at two to three times the *irrigated* area, not at the alluvial basin.** From 3
+months on the coefficient sits between 184,023 and 289,336 AF/ft — 1.23M to 1.93M acres, against
+681,143 irrigated acres. **The physical long-run figure of 12.5M acres is 7.7× past anything the
+record supports at any horizon out to 24 months.** It is not an anchor the data converges toward;
+it is an extrapolation past the end of the evidence. §11.2 had already guessed this — it noted the
+empirical `A_eff` lands near the region's *irrigated* area because the target is a monitored-well
+index sitting in agricultural basins — but it priced that as a short-run artifact, and the sweep
+shows it holds out to two years.
+
+**3. Both of the plan's candidate values are wrong for the slider's actual duration.** §12's
+short-run figure understates a 12-month scenario by 2.2×; the shipped long-run figure overstates
+the storage — and so understates the lever — by 7.7×.
+
+### What ships
+
+`storage_af_per_ft` is now **measured at the scenario horizon**: 244,082 AF/ft, `status: MEASURED`,
+band 184,023–289,336 (the 3–24 month plateau). Neither limit is adopted, because the test says the
+answer is neither. The groundwater column of the sweep moves accordingly:
+
+| lever → groundwater | before (long-run) | after (measured) |
+|---|---|---|
+| Irrigation | +7.82 | **+60.11** |
+| Public supply | +2.35 | **+18.03** |
+| Population | +1.29 | **+9.90** |
+| Lake Mead | −0.55 | **−4.22** |
+
+Groundwater is now the most human-responsive output in the application, which is what it should be
+— it is the only output that measures pumping directly. At the band's ends, irrigation → groundwater
+spans roughly **51 to 80 points**, so the width is as load-bearing as the point estimate and
+belongs on the card.
+
+### This is a measurement that made a lever bigger, not a lever tuned bigger
+
+[PHASE3_PARAMS.md §2](PHASE3_PARAMS.md) says *"Do not tune `A_eff` to make the test pass; that
+would defeat the entire premise of the plan,"* and §11.2 repeats it. The distinction that keeps this
+on the right side of that line: the horizon sweep was specified to answer *"what is the coefficient
+at the duration the slider runs?"*, the §7 gate does not test magnitude at all
+([§11.4](#114-7s-acceptance-criteria-need-restructuring)), and the result was whatever it was — it
+happens to sit between two numbers that were both already in the plan. The t at 12 months is
+**+1.78**, which is not conventionally significant, and that is exactly why the band ships with it.
+
+**One caveat that travels with the number.** The estimate is weakest where it matters most: t falls
+from +3.86 at 1 month to +1.78 at 12, because overlapping windows leave progressively less
+independent variation. The plateau is identified by the horizons either side of 12 as much as by 12
+itself. A shorter-horizon slider would rest on firmer evidence than a longer one.
 
 ---
 
@@ -1115,6 +1217,10 @@ how the old rollout drifted.
 | Public supply | **−5.63** | 0.00 | +2.35 | 0.00 | 0.00 | 0.00 |
 | Urbanization | 0.00 | −3.73 | 0.00 | 0.00 | 0.00 | 0.00 |
 | Lake Mead | +1.32 | 0.00 | −0.55 | 0.00 | 0.00 | 0.00 |
+
+> This is the sweep **as §13 measured it**, kept as the record of that step. The groundwater
+> column was later superseded by [§12a](#12a-the-spreading-cone-test-measured)'s recalibration
+> (irrigation +7.82 → +60.11); see [§14](#where-the-app-now-stands) for the current numbers.
 | Precipitation | −3.38 | +4.96 | −0.20 | +36.70 | −14.50 | +10.37 |
 | Temperature | +0.18 | +0.47 | −0.31 | −0.28 | +9.56 | +1.05 |
 | Drought (PDSI) | −1.73 | −4.80 | −0.15 | −1.06 | +0.01 | +7.35 |
@@ -1135,13 +1241,15 @@ their declared sign in all 12 months, with magnitude reported and not gated:
 
 | lever → output | tier | points at 12 months |
 |---|---|---|
+| irrigation → groundwater | corroborated | 7.82 → **60.11** (§12a) |
 | irrigation → grace | corroborated | 18.76 |
+| public supply → groundwater | structural-only | 2.35 → **18.03** (§12a) |
+| population → groundwater | structural-only | 1.29 → **9.90** (§12a) |
 | irrigation → ndvi | structural-only | 9.30 |
-| irrigation → groundwater | corroborated | 7.82 |
 | public supply → grace | structural-only | 5.63 |
+| Lake Mead → groundwater | structural-only | 0.55 → **4.22** (§12a) |
 | urbanization → ndvi | structural-only | 3.73 |
 | population → grace | structural-only | 3.09 |
-| public supply → groundwater | structural-only | 2.35 |
 | Lake Mead → grace | structural-only | 1.32 |
 | population → groundwater | structural-only | 1.29 |
 | Lake Mead → groundwater | structural-only | 0.55 |
@@ -1253,15 +1361,23 @@ measured both at under 0.05 sd. It ships as **climate-only**, declared in
 
 | slider (policy min → max) | grace | ndvi | groundwater | surface water | wildfire | wildlife |
 |---|---|---|---|---|---|---|
-| Population | −3.09 | 0.00 | +1.29 | +1.74 | — | +0.43 |
-| Irrigation | −18.76 | +9.30 | +7.82 | −2.37 | — | −0.59 |
-| Public supply | −5.63 | 0.00 | +2.35 | −0.72 | — | −0.18 |
+| Population | −3.09 | 0.00 | **+9.90** | +1.74 | — | +0.43 |
+| Irrigation | −18.76 | +9.30 | **+60.11** | −2.37 | — | −0.59 |
+| Public supply | −5.63 | 0.00 | **+18.03** | −0.72 | — | −0.18 |
 | Urbanization | 0.00 | −3.73 | 0.00 | +3.30 | — | +0.82 |
-| Lake Mead | +1.32 | 0.00 | −0.55 | +0.17 | — | +0.04 |
+| Lake Mead | +1.32 | 0.00 | **−4.22** | +0.17 | — | +0.04 |
 
 **Every human slider now reaches four of the six outputs**, against §1's baseline where the
 largest human effect anywhere was 1.7 points and four sliders were 0.00 everywhere. All 20
 lever/output pairs hold their sign in all 12 months.
+
+The groundwater column is bold because
+[§12a](#12a-the-spreading-cone-test-measured) recalibrated it after §14 was first written: every
+number in it is 7.7× what it was, because `storage_af_per_ft` had shipped at the long-run limit and
+is now measured at the scenario's horizon. Groundwater is now the application's most
+human-responsive output, which is the right ordering — it is the only output that measures pumping
+directly. Irrigation → groundwater spans **51 to 80 points** across that coefficient's band, so
+the band is as load-bearing as the point estimate.
 
 The wildlife column is small — 0.04 to 0.82 points — because it is a second-order effect reached
 through one attenuating edge, and the conservative end of that edge's band shipped. At the band's

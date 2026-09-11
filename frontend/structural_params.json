@@ -45,14 +45,14 @@
       ]
     },
     "storage_af_per_ft": {
-      "value": 1875168.225,
-      "source": "specific_yield x alluvial_fraction x region_acres \u2014 the LONG-RUN limit, which is the right one for a sustained policy slider. The band's lower end is the measured short-run value from PHASE3_PLAN.md \u00a712 (110,891 AF/ft, t = +3.16).",
-      "status": "UNTESTED",
+      "value": 244082.08972498632,
+      "source": "measured at the {horizon['default_scenario_months']}-month scenario horizon by aquifer_calibration.py's spreading-cone sweep: total drawdown over the window regressed on total volume pumped across it, climate and trend controlled, Newey-West. 244,082 AF/ft (t = +1.78), i.e. A_eff = 1,627,214 acres. The band is the plateau across 3-24 month horizons.",
+      "status": "MEASURED",
       "band": [
-        110891.47378957487,
-        1875168.225
+        184023.082174835,
+        289336.474061503
       ],
-      "note": "Dominant uncertainty in Layer 2. The two ends of the band differ by 16.9x and are the long-run and short-run limits of a spreading drawdown cone, not rival estimates."
+      "note": "Still the dominant uncertainty in Layer 2, but no longer a choice between two assumptions. PHASE3_PLAN.md \u00a712 prescribed the short-run limit (110,891 AF/ft) and the first implementation shipped the long-run one (1,875,168); the sweep measured that the cone spreads but plateaus at two to three times the irrigated area, so the long-run figure is 7.7x past the end of the evidence and the short-run figure understates a 12-month scenario by 2.2x. See \u00a712."
     },
     "grace_units_per_af": {
       "value": 1.0971799263726346e-08,

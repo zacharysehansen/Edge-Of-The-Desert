@@ -283,7 +283,7 @@ python scripts/phase3/slider_sensitivity.py --mode sweep
 python scripts/phase3/check_catalog_parity.py
 
 # Layer 2: estimate the coefficients the structural levers run on
-python scripts/phase3/aquifer_calibration.py    # aquifer storage, for groundwater/GRACE
+python scripts/phase3/aquifer_calibration.py    # aquifer storage + the spreading-cone horizon sweep
 python scripts/phase3/transfer_calibration.py   # output-to-output transfer edges
 
 # every human lever must hold its declared sign in all 12 months

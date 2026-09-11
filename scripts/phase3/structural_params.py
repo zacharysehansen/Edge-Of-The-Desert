@@ -150,6 +150,14 @@ def build() -> dict:
     storage_short_run = calibration["irrigation"]["+ climate + trend"][
         "storage_af_per_ft"
     ]
+    # PHASE3_PLAN.md §12's spreading-cone test, run in aquifer_calibration.py. The
+    # coefficient is measured AT the scenario horizon rather than picked from either
+    # limit, because the test showed both limits are wrong for a 12-month slider: the
+    # cone does spread (809k -> 1.63M acres from 1 to 12 months) but it plateaus at
+    # two to three times the irrigated area, never approaching the alluvial basin.
+    horizon = calibration["horizon_sweep"]
+    storage_at_horizon = horizon["storage_af_per_ft_at_default"]
+    storage_band = tuple(horizon["plateau_band_af_per_ft"])
 
     # Total flow the gage network sees, from the project's own record. The surface
     # water target is the mean over gages of ln(Q/Q_normal), so a flow change
@@ -202,19 +210,27 @@ def build() -> dict:
             status="UNTESTED",
         ),
         "storage_af_per_ft": tag(
-            storage_long_run,
-            band=(storage_short_run, storage_long_run),
+            storage_at_horizon,
+            band=storage_band,
             source=(
-                "specific_yield x alluvial_fraction x region_acres — the LONG-RUN limit, "
-                "which is the right one for a sustained policy slider. The band's lower "
-                "end is the measured short-run value from PHASE3_PLAN.md §12 "
-                f"({storage_short_run:,.0f} AF/ft, t = +3.16)."
+                "measured at the {horizon['default_scenario_months']}-month scenario horizon by "
+                "aquifer_calibration.py's spreading-cone sweep: total drawdown over the "
+                "window regressed on total volume pumped across it, climate and trend "
+                f"controlled, Newey-West. {storage_at_horizon:,.0f} AF/ft "
+                f"(t = {horizon['t_at_default']:+.2f}), i.e. A_eff = "
+                f"{storage_at_horizon / specific_yield:,.0f} acres. The band is the plateau "
+                "across 3-24 month horizons."
             ),
-            status="UNTESTED",
+            status="MEASURED",
             note=(
-                "Dominant uncertainty in Layer 2. The two ends of the band differ by "
-                f"{storage_long_run / storage_short_run:.1f}x and are the long-run and "
-                "short-run limits of a spreading drawdown cone, not rival estimates."
+                "Still the dominant uncertainty in Layer 2, but no longer a choice between "
+                f"two assumptions. PHASE3_PLAN.md §12 prescribed the short-run limit "
+                f"({storage_short_run:,.0f} AF/ft) and the first implementation shipped the "
+                f"long-run one ({storage_long_run:,.0f}); the sweep measured that the cone "
+                "spreads but plateaus at two to three times the irrigated area, so the "
+                f"long-run figure is {storage_long_run / storage_at_horizon:.1f}x past the end "
+                "of the evidence and the short-run figure understates a 12-month scenario by "
+                f"{storage_at_horizon / storage_short_run:.1f}x. See §12."
             ),
         ),
         "grace_units_per_af": tag(

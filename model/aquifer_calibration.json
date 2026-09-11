@@ -203,5 +203,129 @@
         "lever_lag3": -2.340922086037319e-08
       }
     }
+  },
+  "horizon_sweep": {
+    "by_horizon": {
+      "1": {
+        "lever": "irrigation",
+        "n": 251,
+        "beta_ft_per_af_month": 8.236361485004943e-06,
+        "beta_se": 2.1320232990681523e-06,
+        "t": 3.8631667339680695,
+        "storage_af_per_ft": 121412.83524534375,
+        "implied_area_acres": 809418.901635625,
+        "r2": 0.08653123926223671,
+        "per_lag": {
+          "lever_lag0": 8.236361485004943e-06
+        },
+        "horizon_months": 1
+      },
+      "2": {
+        "lever": "irrigation",
+        "n": 250,
+        "beta_ft_per_af_month": 5.9601737254220295e-06,
+        "beta_se": 1.7397957180438426e-06,
+        "t": 3.425789397920471,
+        "storage_af_per_ft": 167780.34434377024,
+        "implied_area_acres": 1118535.6289584683,
+        "r2": 0.13481391623763173,
+        "per_lag": {
+          "lever_lag0": 5.9601737254220295e-06
+        },
+        "horizon_months": 2
+      },
+      "3": {
+        "lever": "irrigation",
+        "n": 249,
+        "beta_ft_per_af_month": 5.263514904701959e-06,
+        "beta_se": 1.6415170564339554e-06,
+        "t": 3.206494190280581,
+        "storage_af_per_ft": 189987.1128144215,
+        "implied_area_acres": 1266580.7520961433,
+        "r2": 0.1847418098250332,
+        "per_lag": {
+          "lever_lag0": 5.263514904701959e-06
+        },
+        "horizon_months": 3
+      },
+      "6": {
+        "lever": "irrigation",
+        "n": 246,
+        "beta_ft_per_af_month": 5.434100919198435e-06,
+        "beta_se": 1.8962974656279828e-06,
+        "t": 2.8656373895426075,
+        "storage_af_per_ft": 184023.082174835,
+        "implied_area_acres": 1226820.5478322334,
+        "r2": 0.27222621973516425,
+        "per_lag": {
+          "lever_lag0": 5.434100919198435e-06
+        },
+        "horizon_months": 6
+      },
+      "9": {
+        "lever": "irrigation",
+        "n": 243,
+        "beta_ft_per_af_month": 4.879840478958587e-06,
+        "beta_se": 2.1598093641429344e-06,
+        "t": 2.2593848142217996,
+        "storage_af_per_ft": 204924.73151774242,
+        "implied_area_acres": 1366164.8767849496,
+        "r2": 0.2003377561530697,
+        "per_lag": {
+          "lever_lag0": 4.879840478958587e-06
+        },
+        "horizon_months": 9
+      },
+      "12": {
+        "lever": "irrigation",
+        "n": 240,
+        "beta_ft_per_af_month": 4.096982294467923e-06,
+        "beta_se": 2.30543699237562e-06,
+        "t": 1.7770957558229423,
+        "storage_af_per_ft": 244082.08972498632,
+        "implied_area_acres": 1627213.931499909,
+        "r2": 0.14100656077958595,
+        "per_lag": {
+          "lever_lag0": 4.096982294467923e-06
+        },
+        "horizon_months": 12
+      },
+      "18": {
+        "lever": "irrigation",
+        "n": 234,
+        "beta_ft_per_af_month": 4.25610858623337e-06,
+        "beta_se": 2.1697604097660086e-06,
+        "t": 1.9615569383037812,
+        "storage_af_per_ft": 234956.41141171963,
+        "implied_area_acres": 1566376.0760781309,
+        "r2": 0.2779094091105343,
+        "per_lag": {
+          "lever_lag0": 4.25610858623337e-06
+        },
+        "horizon_months": 18
+      },
+      "24": {
+        "lever": "irrigation",
+        "n": 228,
+        "beta_ft_per_af_month": 3.4561836811055984e-06,
+        "beta_se": 2.080091142446369e-06,
+        "t": 1.661553962986845,
+        "storage_af_per_ft": 289336.474061503,
+        "implied_area_acres": 1928909.8270766868,
+        "r2": 0.28067757846651986,
+        "per_lag": {
+          "lever_lag0": 3.4561836811055984e-06
+        },
+        "horizon_months": 24
+      }
+    },
+    "default_scenario_months": 12,
+    "storage_af_per_ft_at_default": 244082.08972498632,
+    "t_at_default": 1.7770957558229423,
+    "plateau_band_af_per_ft": [
+      184023.082174835,
+      289336.474061503
+    ],
+    "spreading_confirmed": true
   }
 }

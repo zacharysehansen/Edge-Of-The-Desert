@@ -77,6 +77,21 @@ CONTROLS = [
 ]
 CONTROL_LAGS = (0, 1, 3, 6)
 
+# Horizons for the spreading-cone test (PHASE3_PLAN.md §12). A drawdown cone draws
+# from a growing area, so the storage coefficient implied by a SUSTAINED pumping
+# change should rise with the horizon it is measured over. §12 asserted that and
+# named it "a testable property rather than an assumption"; this is the test.
+HORIZONS = (1, 2, 3, 6, 9, 12, 18, 24)
+
+# The horizons over which the measured coefficient has plateaued and still carries a
+# usable standard error. Below this the cone has not spread; above it the overlapping
+# windows leave too little independent variation to identify anything.
+PLATEAU_HORIZONS = (3, 6, 9, 12, 18, 24)
+
+# The frontend's default scenario length, and so the horizon whose coefficient the
+# shipped slider should use. Mirrors SCENARIO_DURATION_OPTIONS in frontend/state.js.
+DEFAULT_SCENARIO_MONTHS = 12
+
 # PHASE3_PARAMS.md §2 / §4a, for comparison.
 PHYSICAL_SY_A = 0.15 * 12_500_000.0        # AF/ft
 # The deseasonalized 2020 baseline the policy slider scales, from computed_stats.json.
@@ -170,6 +185,75 @@ def summarize(name: str, model, design: pd.DataFrame) -> dict:
         "implied_area_acres": storage / SPECIFIC_YIELD if np.isfinite(storage) else None,
         "r2": float(model.rsquared),
         "per_lag": {c: float(model.params[c]) for c in lever_terms},
+    }
+
+
+def horizon_design(
+    panel: pd.DataFrame, lever: str, to_af_per_month: float, horizon: int
+) -> tuple[pd.DataFrame, pd.Series]:
+    """Design for the h-month response to a SUSTAINED change.
+
+    Target is the total drawdown over the window, `depth(t) - depth(t-h)`; the lever
+    is the total extra volume pumped across those same months. So beta is ft per AF
+    and 1/beta is the storage coefficient AT THAT HORIZON.
+
+    Controls enter as window means rather than the distributed lags `build_design`
+    uses, because the quantity that drives an h-month change is the climate averaged
+    over the window. One estimator, varied only by h, which is what makes the
+    horizons comparable to each other — the same discipline
+    `experiment_human_block.py` applies by holding its XGBoost config fixed. The
+    price is that h=1 here is not identical to `build_design`'s distributed-lag
+    fit; the two are reported side by side so the gap is visible.
+    """
+    frame = pd.DataFrame(index=panel.index)
+    target = panel[TARGET].diff(horizon)
+
+    anomaly = deseasonalize(panel[lever], panel["month"]) * to_af_per_month
+    frame["lever_lag0"] = anomaly.rolling(horizon).sum()
+
+    for control in CONTROLS:
+        centred = deseasonalize(panel[control], panel["month"])
+        frame[f"{control}_window"] = centred.rolling(horizon).mean()
+
+    frame["time_trend"] = np.arange(len(panel), dtype=float) / 12.0
+    angle = 2 * np.pi * (panel["month"] - 1) / 12
+    frame["month_sin"] = np.sin(angle)
+    frame["month_cos"] = np.cos(angle)
+
+    mask = frame.notna().all(axis=1) & target.notna()
+    return frame[mask], target[mask]
+
+
+def horizon_sweep(panel: pd.DataFrame) -> dict:
+    """Measure the storage coefficient at each horizon. §12's consistency test."""
+    by_horizon = {}
+    for horizon in HORIZONS:
+        design, target = horizon_design(
+            panel, "irrigation_total_withdrawal_mgd", AF_PER_MGD_MONTH, horizon
+        )
+        model = sm.OLS(target, sm.add_constant(design)).fit(
+            cov_type="HAC", cov_kwds={"maxlags": horizon + 6}
+        )
+        entry = summarize("irrigation", model, design)
+        entry["horizon_months"] = horizon
+        by_horizon[horizon] = entry
+
+    usable = [
+        by_horizon[h]["storage_af_per_ft"]
+        for h in PLATEAU_HORIZONS
+        if by_horizon[h]["beta_ft_per_af_month"] > 0
+    ]
+    at_default = by_horizon[DEFAULT_SCENARIO_MONTHS]
+    return {
+        "by_horizon": {str(h): e for h, e in by_horizon.items()},
+        "default_scenario_months": DEFAULT_SCENARIO_MONTHS,
+        "storage_af_per_ft_at_default": at_default["storage_af_per_ft"],
+        "t_at_default": at_default["t"],
+        "plateau_band_af_per_ft": [min(usable), max(usable)] if usable else None,
+        "spreading_confirmed": bool(
+            by_horizon[HORIZONS[0]]["storage_af_per_ft"]
+            < at_default["storage_af_per_ft"]
+        ),
     }
 
 
@@ -293,6 +377,58 @@ def main() -> None:
         "\n  Applying the short-run coefficient to a 12-month scenario is the same linear-ramp\n"
         "  error PHASE3_PLAN.md §4a already measured and rejected. Layer 2 must pair it with\n"
         "  the mean-reverting integration of §4b, not multiply it by the duration."
+    )
+
+    # ── §12's consistency test: does the cone actually spread? ──────────────
+    print()
+    print("-" * 78)
+    print("THE SPREADING-CONE TEST  (PHASE3_PLAN.md §12)")
+    print("-" * 78)
+    sweep = horizon_sweep(panel)
+    results["horizon_sweep"] = sweep
+    print(
+        "\n  §12 asserted that the long-run figure is 'the long-horizon anchor the\n"
+        "  integration should converge toward -- a testable property rather than an\n"
+        "  assumption.' If the cone spreads, the storage coefficient implied by a\n"
+        "  SUSTAINED change must rise with the horizon it is measured over.\n"
+    )
+    print(f"  {'horizon':>8s}{'n':>6s}{'beta (ft/AF)':>15s}{'t':>7s}{'S_y*A (AF/ft)':>16s}{'A_eff (acres)':>16s}")
+    for key, entry in sweep["by_horizon"].items():
+        storage = entry["storage_af_per_ft"]
+        ok = entry["beta_ft_per_af_month"] > 0
+        print(
+            f"  {key + ' mo':>8s}{entry['n']:>6d}{entry['beta_ft_per_af_month']:>15.3e}"
+            f"{entry['t']:>7.2f}"
+            + (f"{storage:>16,.0f}{storage / SPECIFIC_YIELD:>16,.0f}" if ok
+               else f"{'wrong sign':>16s}{'-':>16s}")
+        )
+
+    band = sweep["plateau_band_af_per_ft"]
+    at_default = sweep["storage_af_per_ft_at_default"]
+    print(
+        f"\n  spreading confirmed: {sweep['spreading_confirmed']}"
+        f"   (1 mo -> {DEFAULT_SCENARIO_MONTHS} mo,"
+        f" {sweep['by_horizon']['1']['storage_af_per_ft']:,.0f} -> {at_default:,.0f} AF/ft)"
+    )
+    print(
+        f"  at the default {DEFAULT_SCENARIO_MONTHS}-month scenario:"
+        f" {at_default:,.0f} AF/ft = {at_default / SPECIFIC_YIELD:,.0f} acres"
+        f"   (t = {sweep['t_at_default']:+.2f})"
+    )
+    if band:
+        print(
+            f"  plateau across {PLATEAU_HORIZONS} months:"
+            f" {band[0]:,.0f} .. {band[1]:,.0f} AF/ft"
+            f" = {band[0] / SPECIFIC_YIELD:,.0f} .. {band[1] / SPECIFIC_YIELD:,.0f} acres"
+        )
+    print(
+        f"\n  The physical long-run figure ({PHYSICAL_SY_A:,.0f} AF/ft ="
+        f" {PHYSICAL_SY_A / SPECIFIC_YIELD:,.0f} acres) is"
+        f" {PHYSICAL_SY_A / at_default:.1f}x larger than\n"
+        "  anything the record supports at any horizon out to 24 months. The cone spreads,\n"
+        "  which is what §12 said -- but it plateaus around two to three times the irrigated\n"
+        "  area, not at the whole alluvial basin. So the long-run value is not an anchor the\n"
+        "  data converges toward; it is an extrapolation past the end of the evidence."
     )
 
     with OUTPUT_FILE.open("w") as f:
