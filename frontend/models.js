@@ -1,12 +1,14 @@
 import * as ort from "onnxruntime-web/wasm";
 import {
     OUTPUT_STATS,
-    SLIDER_STATS,
+    ZERO_DELTAS,
     state,
-    getMonthEncoding,
+    climateOnly,
     normalizeOutput,
     computeDelta,
 } from './state.js';
+import { SEED_BASELINES, buildFeatureCatalog } from './catalog.js';
+import { structuralResponse, integrateLearnedResidual } from './structural.js';
 
 // Tell the WASM runtime where to find its binary files.
 ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.3/dist/';
@@ -35,6 +37,21 @@ const models = {};
 // shared state.featureCatalog.
 let calibrationPromise = null;
 
+// Each residual model's own output at the DEFAULT scenario — every policy delta at
+// zero, i.e. the climatological normal. Captured by calibrateBaselines().
+//
+// Layer 3 integrates the deviation from this, not the raw residual. That distinction
+// is what stops the integration manufacturing drift: at the default scenario the
+// system is by definition at rest, so a nonzero residual there is model bias, and
+// dividing a bias by a small λ is how PHASE3_PLAN.md §4b's mean-reverting rollout
+// still crept for GRACE and groundwater. Only the scenario-INDUCED change in the
+// residual is a forcing that has any business accumulating.
+//
+// null until calibration finishes, which also means calibration itself runs
+// un-integrated — correct, because its forcing is zero by construction.
+let defaultResiduals = null;
+let lastModelOutputs = {};
+
 const RESIDUAL_LAG_FEATURES = {
     grace: "grace_groundwater_anomaly_lag1",
     ndvi: "ndvi_lag1",
@@ -45,33 +62,13 @@ const RESIDUAL_LAG_FEATURES = {
 // Surface water used to carry a log1p target transform. It no longer does: the target
 // is now a per-gage log anomaly index, so the log lives inside the target itself and
 // the value is signed. Applying expm1 to it would be a domain error, not an inverse.
-const TARGET_TRANSFORMS = {};
+// The mechanism is gone rather than left empty, so nobody re-enables it by accident.
 
-// The drought slider is PDSI. NDVI, GRACE and wildfire were trained on the USDM DSCI, which
-// only exists from 2000 and correlates just -0.66 with PDSI (R² = 0.44). This is the OLS fit
-// of DSCI on PDSI over their 288-month overlap; DSCI is bounded [0, 500] so the result is
-// clamped. It is an approximation, and a lossy one — stated here rather than hidden.
-function dsciFromPdsi(pdsi) {
-    return Math.max(0, Math.min(500, 114.109 - 37.231 * pdsi));
-}
-
-const STATIC_FEATURE_BASELINES = {
-    mead_total_release: 12657,
-};
-
-// Snapshot of the historical (pre-calibration) baselines, captured at module
-// load. Residual models predict (value − lag1) and reconstruct via
-// `residual + lag1` in finalizePrediction(), where lag1 is seeded from these.
-// The seed must stay fixed at the historical reference value: calibrateBaselines()
-// overwrites OUTPUT_STATS[key].baseline with the model's own default-slider
-// prediction (used only to position the red baseline line / compute deltas), and
-// reusing that mutated value as the lag1 seed would add the residual twice.
-const SEED_BASELINES = {
-    grace:         OUTPUT_STATS.grace.baseline,
-    ndvi:          OUTPUT_STATS.ndvi.baseline,
-    groundwater:   OUTPUT_STATS.groundwater.baseline,
-    surface_water: OUTPUT_STATS.surface_water.baseline,
-};
+// SEED_BASELINES is defined in catalog.js, which owns the scenario reconstruction.
+// It must stay pinned to the historical reference value: calibrateBaselines()
+// overwrites OUTPUT_STATS[key].baseline with the model's own normal-scenario
+// prediction (used only to position the red baseline line and compute deltas),
+// and reusing that mutated value as the lag1 seed would add the residual twice.
 
 // ── Tensor helpers ────────────────────────────────────────────────────────────
 
@@ -256,168 +253,18 @@ function canRun(modelKey) {
     return result;
 }
 
-// ── Inference ─────────────────────────────────────────────────────────────────
-
-function durationFraction(durationMonths, fullEffectMonths) {
-    return Math.max(0, Math.min(1, durationMonths / fullEffectMonths));
-}
-
-function blendByDuration(current, baseline, durationMonths, fullEffectMonths) {
-    return baseline + (current - baseline) * durationFraction(durationMonths, fullEffectMonths);
-}
-
+// Response-variable feedback only. The four residual models predict a one-step
+// change against a fixed anchor, so after a model runs its own lag/roll features
+// are pulled part-way toward the fresh prediction rather than snapping to it.
+// This is the placeholder Layer 3 (PHASE3_PLAN.md §4b) replaces with a real
+// mean-reverting integration; it is NOT how the driver features are built.
 function lagByDuration(current, baseline, durationMonths, lagMonths) {
     return durationMonths >= lagMonths ? current : baseline;
 }
 
 function rollByDuration(current, baseline, durationMonths, windowMonths) {
-    return blendByDuration(current, baseline, durationMonths, windowMonths);
-}
-
-function annualMeanByDuration(current, baseline, durationMonths) {
-    return blendByDuration(current, baseline, durationMonths, 12);
-}
-
-function annualSumByDuration(currentMonthly, baselineMonthly, durationMonths) {
-    return baselineMonthly * 12
-        + (currentMonthly - baselineMonthly) * Math.min(Math.max(durationMonths, 0), 12);
-}
-
-function priorAnnualByDuration(current, baseline, durationMonths) {
-    if (durationMonths <= 12) return baseline;
-    return blendByDuration(current, baseline, durationMonths - 12, 12);
-}
-
-function sliderBaseline(key) {
-    return SLIDER_STATS[key]?.default ?? 0;
-}
-
-function addMonthlyTemporalFeatures(catalog, baseName, current, baseline, durationMonths) {
-    catalog[`${baseName}_lag1`] = lagByDuration(current, baseline, durationMonths, 1);
-    catalog[`${baseName}_lag3`] = lagByDuration(current, baseline, durationMonths, 3);
-    catalog[`${baseName}_roll3`] = rollByDuration(current, baseline, durationMonths, 3);
-    catalog[`${baseName}_roll6`] = rollByDuration(current, baseline, durationMonths, 6);
-    catalog[`${baseName}_roll12`] = rollByDuration(current, baseline, durationMonths, 12);
-}
-
-function buildFeatureCatalog(sliderValues, month, durationMonths = state.scenarioDurationMonths) {
-
-    const { month_sin, month_cos } = getMonthEncoding(month);
-    const baselinePrecip = sliderBaseline('precipitation_mm_day');
-    const baselineTemperature = sliderBaseline('temperature_2m_c');
-    const baselineIrrigation = sliderBaseline('irrigation_total_withdrawal_mgd');
-    const baselinePublicSupply = sliderBaseline('public_supply_groundwater_mgd');
-    const currentPrecipAnnual = annualSumByDuration(
-        sliderValues.precipitation_mm_day,
-        baselinePrecip,
-        durationMonths,
-    );
-    const annualNdviBaseline = SEED_BASELINES.ndvi;
-    const graceBaseline = SEED_BASELINES.grace;
-    const groundwaterBaseline = SEED_BASELINES.groundwater;
-    const surfaceWaterBaseline = SEED_BASELINES.surface_water;
-    const wildlifeBaseline = 0.0;   // the target is an anomaly: 0 == an average year
-
-    const catalog = {
-        population:                      sliderValues.population,
-        irrigation_total_withdrawal_mgd: sliderValues.irrigation_total_withdrawal_mgd,
-        public_supply_groundwater_mgd:   sliderValues.public_supply_groundwater_mgd,
-        impervious_pct:                  sliderValues.impervious_pct,
-        mead_pool_elevation:             sliderValues.mead_pool_elevation,
-        mead_total_release:              STATIC_FEATURE_BASELINES.mead_total_release,
-        precipitation_mm_day:            sliderValues.precipitation_mm_day,
-        temperature_2m_c:                sliderValues.temperature_2m_c,
-        usdm_dsci:                       dsciFromPdsi(sliderValues.nclimdiv_pdsi),
-        // nClimDiv climate block — what surface water actually runs on. Temperature and
-        // precipitation are the same physical quantities as the MERRA-2 sliders (they
-        // correlate +0.999 and +0.920 over the overlap), so the sliders drive both.
-        nclimdiv_pdsi:                   sliderValues.nclimdiv_pdsi,
-        nclimdiv_temperature_c:          sliderValues.temperature_2m_c,
-        nclimdiv_precipitation_mm_day:   sliderValues.precipitation_mm_day,
-        nclimdiv_precip_x_temperature:   sliderValues.precipitation_mm_day * sliderValues.temperature_2m_c,
-        grace_available:                 1,
-        grace_groundwater_anomaly:       graceBaseline,
-        grace_groundwater_anomaly_lag1:  graceBaseline,
-        grace_groundwater_anomaly_lag3:  graceBaseline,
-        grace_groundwater_anomaly_roll3: graceBaseline,
-        grace_groundwater_anomaly_roll6: graceBaseline,
-        ndvi:                            annualNdviBaseline,
-        ndvi_lag1:                       annualNdviBaseline,
-        ndvi_lag3:                       annualNdviBaseline,
-        ndvi_roll3:                      annualNdviBaseline,
-        ndvi_roll6:                      annualNdviBaseline,
-        depth_to_water_anomaly_ft:       groundwaterBaseline,
-        depth_to_water_anomaly_ft_lag1:  groundwaterBaseline,
-        depth_to_water_anomaly_ft_lag3:  groundwaterBaseline,
-        depth_to_water_anomaly_ft_roll3: groundwaterBaseline,
-        depth_to_water_anomaly_ft_roll6: groundwaterBaseline,
-        discharge_log_anomaly:           surfaceWaterBaseline,
-        discharge_log_anomaly_lag1:      surfaceWaterBaseline,
-        discharge_log_anomaly_lag3:      surfaceWaterBaseline,
-        discharge_log_anomaly_roll3:     surfaceWaterBaseline,
-        discharge_log_anomaly_roll6:     surfaceWaterBaseline,
-        population_annual_mean:                      annualMeanByDuration(sliderValues.population, sliderBaseline('population'), durationMonths),
-        irrigation_total_withdrawal_mgd_annual_sum: annualSumByDuration(sliderValues.irrigation_total_withdrawal_mgd, baselineIrrigation, durationMonths),
-        public_supply_groundwater_mgd_annual_sum:   annualSumByDuration(sliderValues.public_supply_groundwater_mgd, baselinePublicSupply, durationMonths),
-        mead_pool_elevation_annual_mean:             annualMeanByDuration(sliderValues.mead_pool_elevation, sliderBaseline('mead_pool_elevation'), durationMonths),
-        mead_pool_elevation_june:                    durationMonths >= 6 ? sliderValues.mead_pool_elevation : sliderBaseline('mead_pool_elevation'),
-        mead_total_release_annual_sum:               STATIC_FEATURE_BASELINES.mead_total_release * 12,
-        usdm_dsci_annual_mean:                       annualMeanByDuration(dsciFromPdsi(sliderValues.nclimdiv_pdsi), dsciFromPdsi(sliderBaseline('nclimdiv_pdsi')), durationMonths),
-        nclimdiv_pdsi_annual_mean:                   annualMeanByDuration(sliderValues.nclimdiv_pdsi, sliderBaseline('nclimdiv_pdsi'), durationMonths),
-        nclimdiv_pdsi_jja_mean:                      sliderValues.nclimdiv_pdsi,
-        nclimdiv_temperature_c_annual_mean:          annualMeanByDuration(sliderValues.temperature_2m_c, sliderBaseline('temperature_2m_c'), durationMonths),
-        nclimdiv_temperature_c_jja_mean:             sliderValues.temperature_2m_c,
-        nclimdiv_precipitation_mm_day_annual_sum:    annualSumByDuration(sliderValues.precipitation_mm_day, sliderBaseline('precipitation_mm_day'), durationMonths),
-        nclimdiv_log_precip_annual:                  Math.log1p(Math.max(0, annualSumByDuration(sliderValues.precipitation_mm_day, sliderBaseline('precipitation_mm_day'), durationMonths))),
-        temperature_2m_c_annual_mean:                annualMeanByDuration(sliderValues.temperature_2m_c, baselineTemperature, durationMonths),
-        temperature_2m_c_jja_mean:                   durationMonths >= 3 ? sliderValues.temperature_2m_c : baselineTemperature,
-        precipitation_mm_day_annual_sum:             currentPrecipAnnual,
-        log_precip_annual:                           Math.log1p(Math.max(0, currentPrecipAnnual)),
-        ndvi_annual_mean:                            annualNdviBaseline,
-        ndvi_jja_mean:                               annualNdviBaseline,
-        ndvi_annual_mean_lag1:                       annualNdviBaseline,
-        grace_groundwater_anomaly_annual_mean:       graceBaseline,
-        impervious_pct_annual_mean:                  annualMeanByDuration(sliderValues.impervious_pct, sliderBaseline('impervious_pct'), durationMonths),
-        bbs_abundance_anomaly_lag1:                  wildlifeBaseline,
-        bbs_abundance_anomaly_lag2:                 wildlifeBaseline,
-        bbs_abundance_anomaly_roll3:                wildlifeBaseline,
-        year_linear:                                 19,
-        precipitation_mm_day_annual_sum_lag1:        priorAnnualByDuration(currentPrecipAnnual, baselinePrecip * 12, durationMonths),
-        usdm_dsci_annual_mean_lag1:                  priorAnnualByDuration(dsciFromPdsi(sliderValues.nclimdiv_pdsi), dsciFromPdsi(sliderBaseline('nclimdiv_pdsi')), durationMonths),
-        nclimdiv_pdsi_annual_mean_lag1:              priorAnnualByDuration(sliderValues.nclimdiv_pdsi, sliderBaseline('nclimdiv_pdsi'), durationMonths),
-        nclimdiv_precipitation_mm_day_annual_sum_lag1: priorAnnualByDuration(sliderValues.precipitation_mm_day, sliderBaseline('precipitation_mm_day'), durationMonths),
-        month_sin,
-        month_cos,
-        precip_x_impervious:  sliderValues.precipitation_mm_day * sliderValues.impervious_pct,
-        precip_x_temperature: sliderValues.precipitation_mm_day * sliderValues.temperature_2m_c,
-    };
-
-    for (const key of Object.keys(SLIDER_STATS)) {
-        addMonthlyTemporalFeatures(
-            catalog,
-            key,
-            sliderValues[key],
-            sliderBaseline(key),
-            durationMonths,
-        );
-    }
-
-    const temperatureAnomaly = sliderValues.temperature_2m_c - baselineTemperature;
-    const precipitationAnomaly = sliderValues.precipitation_mm_day - baselinePrecip;
-    catalog.temperature_2m_c_anomaly = temperatureAnomaly;
-    catalog.precipitation_mm_day_anomaly = precipitationAnomaly;
-    addMonthlyTemporalFeatures(catalog, 'temperature_2m_c_anomaly', temperatureAnomaly, 0, durationMonths);
-    addMonthlyTemporalFeatures(catalog, 'precipitation_mm_day_anomaly', precipitationAnomaly, 0, durationMonths);
-    addMonthlyTemporalFeatures(
-        catalog,
-        'mead_total_release',
-        STATIC_FEATURE_BASELINES.mead_total_release,
-        STATIC_FEATURE_BASELINES.mead_total_release,
-        durationMonths,
-    );
-
-    console.log('[EotD]   catalog =', catalog);
-    return catalog;
+    const fraction = Math.max(0, Math.min(1, durationMonths / windowMonths));
+    return baseline + (current - baseline) * fraction;
 }
 
 function getFeatureValueForModel(modelKey, name) {
@@ -431,29 +278,42 @@ function getFeatureValueForModel(modelKey, name) {
     return value;
 }
 
-function finalizePrediction(modelKey, modelOutput) {
+function finalizePrediction(modelKey, modelOutput, durationMonths, structural) {
     let value = modelOutput;
     const residualLagFeature = RESIDUAL_LAG_FEATURES[modelKey];
 
     if (residualLagFeature) {
         const lagValue = getFeatureValueForModel(modelKey, residualLagFeature);
-        if (TARGET_TRANSFORMS[modelKey] === 'log1p') {
-            value = Math.expm1(modelOutput + Math.log1p(Math.max(0, lagValue)));
+
+        if (defaultResiduals) {
+            // Layer 3 (PHASE3_PLAN.md §4b). The bias term is added once and never
+            // integrated; only the forcing accumulates, and it does so against the
+            // empirical mean-reversion rate so it converges instead of ramping.
+            // At durationMonths = 1 this is arithmetically identical to the old
+            // single-step reconstruction.
+            const bias = defaultResiduals[modelKey] ?? 0;
+            const forcing = modelOutput - bias;
+            value = lagValue + bias
+                + integrateLearnedResidual(modelKey, forcing, durationMonths);
         } else {
             value = modelOutput + lagValue;
         }
-    } else if (TARGET_TRANSFORMS[modelKey] === 'log1p') {
-        value = Math.expm1(modelOutput);
+
     }
 
-    return value;
+    // Layer 2 (PHASE3_PLAN.md §4). The human-lever response the learned models cannot
+    // carry — four of six have no human feature at all — added in the output's own
+    // units, already integrated over the scenario duration by structural.js.
+    const contribution = structural?.[modelKey]?.total ?? 0;
+    return value + contribution;
 }
 
-async function safePredict(modelKey, featureRow) {
+async function safePredict(modelKey, featureRow, durationMonths, structural) {
     console.log(`[EotD] safePredict("${modelKey}") called with featureRow keys:`, Object.keys(featureRow));
     try {
         const modelOutput = await models[modelKey].predictScore(featureRow);
-        const result = finalizePrediction(modelKey, modelOutput);
+        lastModelOutputs[modelKey] = modelOutput;
+        const result = finalizePrediction(modelKey, modelOutput, durationMonths, structural);
         console.log(`[EotD] safePredict("${modelKey}") returned:`, result, '(model output:', modelOutput, ')');
         return result;
     } catch (err) {
@@ -463,17 +323,24 @@ async function safePredict(modelKey, featureRow) {
     }
 }
 
-async function runPipeline(sliderValues, month, durationMonths) {
+async function runPipeline(sliderDeltas, month, durationMonths) {
 
-    // Build the shared catalog once
-    state.featureCatalog = buildFeatureCatalog(sliderValues, month, durationMonths);
+    // Layer 1 sees climate only — the human levers are held at their climatological
+    // normal, because Layer 2 owns that response (see climateOnly() in state.js).
+    state.featureCatalog = buildFeatureCatalog(
+        climateOnly(sliderDeltas), month, durationMonths,
+    );
+
+    // Layer 2, computed once for the whole pipeline and exposed for the provenance UI.
+    const structural = structuralResponse(sliderDeltas, month, durationMonths);
+    state.structural = structural;
     const graceBaseline = SEED_BASELINES.grace;
     const annualNdviBaseline = SEED_BASELINES.ndvi;
     const groundwaterBaseline = SEED_BASELINES.groundwater;
     const surfaceWaterBaseline = SEED_BASELINES.surface_water;
 
     const graceWarmup = canRun('grace')
-        ? await safePredict('grace', {})
+        ? await safePredict('grace', {}, durationMonths, structural)
         : null;
     if (graceWarmup !== null) {
         state.featureCatalog.grace_groundwater_anomaly_lag1 = graceWarmup;
@@ -482,7 +349,7 @@ async function runPipeline(sliderValues, month, durationMonths) {
     // GRACE runs first.
     console.log('[EotD] --- Running GRACE ---');
     const graceRaw = canRun('grace')
-        ? await safePredict('grace', {})
+        ? await safePredict('grace', {}, durationMonths, structural)
         : null;
     console.log('[EotD] graceRaw =', graceRaw);
     if (graceRaw !== null) {
@@ -492,14 +359,13 @@ async function runPipeline(sliderValues, month, durationMonths) {
             grace_groundwater_anomaly_lag3:  lagByDuration(graceRaw, graceBaseline, durationMonths, 3),
             grace_groundwater_anomaly_roll3: rollByDuration(graceRaw, graceBaseline, durationMonths, 3),
             grace_groundwater_anomaly_roll6: rollByDuration(graceRaw, graceBaseline, durationMonths, 6),
-            grace_groundwater_anomaly_annual_mean: annualMeanByDuration(graceRaw, graceBaseline, durationMonths),
         });
     }
 
     // NDVI runs second
     console.log('[EotD] --- Running NDVI ---');
     const ndviRaw = canRun('ndvi')
-        ? await safePredict('ndvi', { grace_groundwater_anomaly: graceRaw ?? 0 })
+        ? await safePredict('ndvi', { grace_groundwater_anomaly: graceRaw ?? 0 }, durationMonths, structural)
         : null;
     console.log('[EotD] ndviRaw =', ndviRaw);
     if (ndviRaw !== null) {
@@ -509,19 +375,18 @@ async function runPipeline(sliderValues, month, durationMonths) {
             ndvi_lag3:         lagByDuration(ndviRaw, annualNdviBaseline, durationMonths, 3),
             ndvi_roll3:        rollByDuration(ndviRaw, annualNdviBaseline, durationMonths, 3),
             ndvi_roll6:        rollByDuration(ndviRaw, annualNdviBaseline, durationMonths, 6),
-            ndvi_annual_mean:  annualMeanByDuration(ndviRaw, annualNdviBaseline, durationMonths),
-            ndvi_jja_mean:     durationMonths >= 3 ? ndviRaw : annualNdviBaseline,
-            ndvi_annual_mean_lag1: priorAnnualByDuration(ndviRaw, annualNdviBaseline, durationMonths),
         });
     }
 
     // Remaining four run in parallel
     console.log('[EotD] --- Running remaining models in parallel ---');
     const [gwRaw, swRaw, wfRaw, wlRaw] = await Promise.all([
-        canRun('groundwater')   ? safePredict('groundwater',   {})                     : null,
-        canRun('surface_water') ? safePredict('surface_water', {})                     : null,
-        canRun('wildfire')      ? safePredict('wildfire',      {})                     : null,
-        canRun('wildlife')      ? safePredict('wildlife',      { ndvi: ndviRaw ?? 0 }) : null,
+        canRun('groundwater')   ? safePredict('groundwater', {}, durationMonths, structural)                     : null,
+        canRun('surface_water') ? safePredict('surface_water', {}, durationMonths, structural)                     : null,
+        canRun('wildfire')      ? safePredict('wildfire', {}, durationMonths, structural)                     : null,
+        // No ndvi override: the wildlife model has no ndvi feature, so passing one only
+        // looked like a dependency. Its structural link is the riparian transfer edge.
+        canRun('wildlife')      ? safePredict('wildlife', {}, durationMonths, structural) : null,
     ]);
 
     console.log('[EotD] gwRaw =', gwRaw);
@@ -561,10 +426,10 @@ async function runPipeline(sliderValues, month, durationMonths) {
     return rawResults;
 }
 
-async function runAll(sliderValues, month, durationMonths = state.scenarioDurationMonths) {
+async function runAll(sliderDeltas, month, durationMonths = state.scenarioDurationMonths) {
     if (calibrationPromise) await calibrationPromise;
 
-    const rawResults = await runPipeline(sliderValues, month, durationMonths);
+    const rawResults = await runPipeline(sliderDeltas, month, durationMonths);
 
     for (const [key, rawValue] of Object.entries(rawResults)) {
         if (rawValue === null) {
@@ -572,10 +437,52 @@ async function runAll(sliderValues, month, durationMonths = state.scenarioDurati
         }
         const score = normalizeOutput(key, rawValue);
         const delta = computeDelta(key, score);
-        state.outputs[key] = { score, rawValue, delta, loading: false, error: false };
+        state.outputs[key] = {
+            score,
+            rawValue,
+            delta,
+            provenance: splitProvenance(key, rawValue),
+            loading: false,
+            error: false,
+        };
     }
 
     return state.outputs;
+}
+
+// Layer 4 (PHASE3_PLAN.md §4). Splits the change from baseline into the part the
+// learned climate model produced and the part the structural levers did, in score
+// points, with a per-lever breakdown.
+//
+// Computed from raw values rather than from the rendered score, because
+// normalizeOutput clamps to 0-100 and a clamped total would not equal the sum of its
+// parts. The card can then say WHY the number moved, which the black box never could.
+function splitProvenance(modelKey, rawValue) {
+    const stats = OUTPUT_STATS[modelKey];
+    const span = stats.max - stats.min;
+    const toPoints = (raw) => (span ? (raw / span) * 100 : 0);
+
+    const structural = state.structural?.[modelKey];
+    const humanRaw = structural?.total ?? 0;
+    const totalRaw = rawValue - stats.baseline;
+
+    const levers = Object.entries(structural?.byLever ?? {})
+        .map(([id, detail]) => ({
+            id,
+            points: toPoints(detail.displacement),
+            kind: detail.kind,
+            tier: detail.tier,
+            slider: detail.slider ?? null,
+            from: detail.from ?? null,
+        }))
+        .filter(lever => Math.abs(lever.points) >= 0.005)
+        .sort((a, b) => Math.abs(b.points) - Math.abs(a.points));
+
+    return {
+        climatePoints: toPoints(totalRaw - humanRaw),
+        humanPoints: toPoints(humanRaw),
+        levers,
+    };
 }
 
 // ── Baseline calibration ────────────────────────────────────────────────────
@@ -591,11 +498,14 @@ async function runAll(sliderValues, month, durationMonths = state.scenarioDurati
 async function calibrateBaselines(month = state.month, durationMonths = state.scenarioDurationMonths) {
     console.log('[EotD] Calibrating baselines from default slider values...');
 
-    const defaultSliderValues = Object.fromEntries(
-        Object.keys(SLIDER_STATS).map(key => [key, SLIDER_STATS[key].default]),
-    );
-
-    const rawResults = await runPipeline(defaultSliderValues, month, durationMonths);
+    // Every policy delta at 0: the climatological normal for this month, which is
+    // exactly what the red baseline line on each output card should mark.
+    // defaultResiduals stays null through this pass, so the pipeline runs
+    // un-integrated and the captured residuals are the true one-step values.
+    defaultResiduals = null;
+    lastModelOutputs = {};
+    const rawResults = await runPipeline({ ...ZERO_DELTAS }, month, durationMonths);
+    defaultResiduals = { ...lastModelOutputs };
 
     for (const [key, rawValue] of Object.entries(rawResults)) {
         if (rawValue === null) continue;

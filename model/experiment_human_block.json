@@ -1,0 +1,675 @@
+{
+  "grace": {
+    "n_test_rows": 168,
+    "target_sd": 0.015652595951595905,
+    "test_span": "2002-10..2020-12",
+    "n_folds": 5,
+    "persistence_level_r2": 0.43687182806947006,
+    "variants": {
+      "shipped": {
+        "n_train_last_fold": 140,
+        "n_features": 45,
+        "n_human_features": 15,
+        "target_r2": -0.011853144723506782,
+        "level_r2": 0.4121050432357519,
+        "skill_vs_persistence": -0.024766784833718136,
+        "human_importance_share": 0.3146779537200928,
+        "fitted_directions": {
+          "population": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 4,
+            "mean_effect": -0.0008100083097815514,
+            "effect_in_sd": -0.051749135561054635,
+            "flat_folds": 1
+          },
+          "impervious_pct": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 1,
+            "mean_effect": -8.357049664482474e-05,
+            "effect_in_sd": -0.00533908221379113,
+            "flat_folds": 4
+          },
+          "mead_pool_elevation": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 3,
+            "mean_effect": 6.146137602627277e-05,
+            "effect_in_sd": 0.003926593148915104,
+            "flat_folds": 0
+          }
+        }
+      },
+      "with_human": {
+        "n_train_last_fold": 140,
+        "n_features": 58,
+        "n_human_features": 22,
+        "target_r2": 0.036795579819293864,
+        "level_r2": 0.4410955656588566,
+        "skill_vs_persistence": 0.004223737589386545,
+        "human_importance_share": 0.3702884912490845,
+        "fitted_directions": {
+          "population": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 2,
+            "mean_effect": -0.00041597774252295495,
+            "effect_in_sd": -0.026575639198080928,
+            "flat_folds": 1
+          },
+          "irrigation_total_withdrawal_mgd": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 5,
+            "mean_effect": -0.007932778261601926,
+            "effect_in_sd": -0.5068027237228414,
+            "flat_folds": 0
+          },
+          "public_supply_groundwater_mgd": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 5,
+            "mean_effect": -0.0030981690157204866,
+            "effect_in_sd": -0.19793323901679094,
+            "flat_folds": 0
+          },
+          "impervious_pct": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 4,
+            "mean_effect": -0.0007114083040505647,
+            "effect_in_sd": -0.04544986060143149,
+            "flat_folds": 1
+          },
+          "mead_pool_elevation": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 3,
+            "mean_effect": 0.0008293352089822293,
+            "effect_in_sd": 0.05298387638362773,
+            "flat_folds": 0
+          }
+        }
+      },
+      "with_human_deseason": {
+        "n_train_last_fold": 140,
+        "n_features": 58,
+        "n_human_features": 22,
+        "target_r2": 0.05394495516770885,
+        "level_r2": 0.4461901293959043,
+        "skill_vs_persistence": 0.009318301326434242,
+        "human_importance_share": 0.25644034147262573,
+        "fitted_directions": {
+          "population": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 3,
+            "mean_effect": -0.00024123173207044602,
+            "effect_in_sd": -0.01541161177458558,
+            "flat_folds": 0
+          },
+          "irrigation_total_withdrawal_mgd": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 5,
+            "mean_effect": -0.006277460139244795,
+            "effect_in_sd": -0.4010491396224125,
+            "flat_folds": 0
+          },
+          "public_supply_groundwater_mgd": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 1,
+            "mean_effect": 0.0005640389164909721,
+            "effect_in_sd": 0.0360348480364028,
+            "flat_folds": 0
+          },
+          "impervious_pct": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 4,
+            "mean_effect": -0.00046962909400463106,
+            "effect_in_sd": -0.03000327201040085,
+            "flat_folds": 0
+          },
+          "mead_pool_elevation": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 1,
+            "mean_effect": -0.00017194857355207205,
+            "effect_in_sd": -0.010985307107128165,
+            "flat_folds": 0
+          }
+        }
+      },
+      "with_human_constrained": {
+        "n_train_last_fold": 140,
+        "n_features": 58,
+        "n_human_features": 22,
+        "target_r2": -0.0055349376111788915,
+        "level_r2": 0.40757104731152544,
+        "skill_vs_persistence": -0.029300780757944622,
+        "human_importance_share": 0.23770809173583984
+      }
+    }
+  },
+  "ndvi": {
+    "n_test_rows": 219,
+    "target_sd": 0.017901896359574468,
+    "test_span": "2002-10..2020-12",
+    "n_folds": 5,
+    "persistence_level_r2": 0.5532314259835271,
+    "variants": {
+      "shipped": {
+        "n_train_last_fold": 183,
+        "n_features": 46,
+        "n_human_features": 15,
+        "target_r2": 0.34250276487422016,
+        "level_r2": 0.7231273778178202,
+        "skill_vs_persistence": 0.16989595183429307,
+        "human_importance_share": 0.17111797630786896,
+        "fitted_directions": {
+          "population": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 2,
+            "mean_effect": -2.6003085076808928e-05,
+            "effect_in_sd": -0.0014525324331297283,
+            "flat_folds": 0
+          },
+          "impervious_pct": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 1,
+            "mean_effect": -1.409756951034069e-05,
+            "effect_in_sd": -0.0007874902874633664,
+            "flat_folds": 1
+          },
+          "mead_pool_elevation": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 1,
+            "mean_effect": -0.00043957001762464645,
+            "effect_in_sd": -0.0245543828874616,
+            "flat_folds": 0
+          }
+        }
+      },
+      "with_human": {
+        "n_train_last_fold": 183,
+        "n_features": 58,
+        "n_human_features": 22,
+        "target_r2": 0.4007645027484322,
+        "level_r2": 0.7443246919303592,
+        "skill_vs_persistence": 0.19109326594683207,
+        "human_importance_share": 0.21632006764411926,
+        "fitted_directions": {
+          "population": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 3,
+            "mean_effect": -0.0003102676244452596,
+            "effect_in_sd": -0.01733155070352752,
+            "flat_folds": 1
+          },
+          "irrigation_total_withdrawal_mgd": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 2,
+            "mean_effect": 0.00010203680722042918,
+            "effect_in_sd": 0.00569977644663644,
+            "flat_folds": 0
+          },
+          "impervious_pct": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 2,
+            "mean_effect": -3.2684975303709506e-05,
+            "effect_in_sd": -0.0018257828470908673,
+            "flat_folds": 3
+          },
+          "mead_pool_elevation": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 1,
+            "mean_effect": -0.0003652465296909213,
+            "effect_in_sd": -0.02040267256354529,
+            "flat_folds": 0
+          }
+        }
+      },
+      "with_human_deseason": {
+        "n_train_last_fold": 183,
+        "n_features": 58,
+        "n_human_features": 22,
+        "target_r2": 0.3108467060586369,
+        "level_r2": 0.7106539779845795,
+        "skill_vs_persistence": 0.15742255200105237,
+        "human_importance_share": 0.17709729075431824,
+        "fitted_directions": {
+          "population": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 4,
+            "mean_effect": -0.0005498501122929156,
+            "effect_in_sd": -0.0307146294028699,
+            "flat_folds": 0
+          },
+          "irrigation_total_withdrawal_mgd": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 1,
+            "mean_effect": -0.0012390372692607343,
+            "effect_in_sd": -0.0692126266610889,
+            "flat_folds": 0
+          },
+          "impervious_pct": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 4,
+            "mean_effect": -0.00017715097055770457,
+            "effect_in_sd": -0.009895653901658242,
+            "flat_folds": 1
+          },
+          "mead_pool_elevation": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 2,
+            "mean_effect": -0.0005328807514160871,
+            "effect_in_sd": -0.029766720838548852,
+            "flat_folds": 0
+          }
+        }
+      },
+      "with_human_constrained": {
+        "n_train_last_fold": 183,
+        "n_features": 58,
+        "n_human_features": 22,
+        "target_r2": 0.329069846262063,
+        "level_r2": 0.7174540921990515,
+        "skill_vs_persistence": 0.1642226662155244,
+        "human_importance_share": 0.18012221157550812
+      }
+    }
+  },
+  "groundwater": {
+    "n_test_rows": 219,
+    "target_sd": 1.183274724768834,
+    "test_span": "2002-10..2020-12",
+    "n_folds": 5,
+    "persistence_level_r2": 0.3994801967719197,
+    "variants": {
+      "shipped": {
+        "n_train_last_fold": 183,
+        "n_features": 16,
+        "n_human_features": 5,
+        "target_r2": -0.7172325919257059,
+        "level_r2": 0.06455215245830989,
+        "skill_vs_persistence": -0.3349280443136098,
+        "human_importance_share": 0.3253230154514313,
+        "fitted_directions": {
+          "population": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 0,
+            "mean_effect": -0.0941984586417675,
+            "effect_in_sd": -0.07960827411417093,
+            "flat_folds": 0
+          },
+          "irrigation_total_withdrawal_mgd": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 5,
+            "mean_effect": 0.364155912399292,
+            "effect_in_sd": 0.3077526332445189,
+            "flat_folds": 0
+          }
+        }
+      },
+      "with_human": {
+        "n_train_last_fold": 183,
+        "n_features": 63,
+        "n_human_features": 22,
+        "target_r2": -0.8673273767315755,
+        "level_r2": 0.04233029167607105,
+        "skill_vs_persistence": -0.35714990509584865,
+        "human_importance_share": 0.28864821791648865,
+        "fitted_directions": {
+          "population": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 0,
+            "mean_effect": -0.11581609249114991,
+            "effect_in_sd": -0.09787760193540505,
+            "flat_folds": 0
+          },
+          "irrigation_total_withdrawal_mgd": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 3,
+            "mean_effect": 0.1655149854719639,
+            "effect_in_sd": 0.13987874667423417,
+            "flat_folds": 0
+          },
+          "public_supply_groundwater_mgd": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 3,
+            "mean_effect": -0.033620217442512514,
+            "effect_in_sd": -0.028412858602283254,
+            "flat_folds": 0
+          },
+          "impervious_pct": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 1,
+            "mean_effect": -0.00788111537694931,
+            "effect_in_sd": -0.0066604273817214964,
+            "flat_folds": 2
+          },
+          "mead_pool_elevation": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 3,
+            "mean_effect": -0.03944295346736908,
+            "effect_in_sd": -0.033333724317549926,
+            "flat_folds": 0
+          }
+        }
+      },
+      "with_human_deseason": {
+        "n_train_last_fold": 183,
+        "n_features": 63,
+        "n_human_features": 22,
+        "target_r2": -0.6883907229627957,
+        "level_r2": 0.12542769397092166,
+        "skill_vs_persistence": -0.274052502800998,
+        "human_importance_share": 0.29345038533210754,
+        "fitted_directions": {
+          "population": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 0,
+            "mean_effect": -0.1340644970536232,
+            "effect_in_sd": -0.1132995527136052,
+            "flat_folds": 0
+          },
+          "irrigation_total_withdrawal_mgd": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 5,
+            "mean_effect": 0.7100962862372399,
+            "effect_in_sd": 0.600111091171972,
+            "flat_folds": 0
+          },
+          "public_supply_groundwater_mgd": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 1,
+            "mean_effect": -0.0972557932138443,
+            "effect_in_sd": -0.08219206510376896,
+            "flat_folds": 0
+          },
+          "impervious_pct": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 0,
+            "mean_effect": -0.007055360078811646,
+            "effect_in_sd": -0.005962571439350224,
+            "flat_folds": 1
+          },
+          "mead_pool_elevation": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 5,
+            "mean_effect": -0.20255037844181062,
+            "effect_in_sd": -0.17117781205153446,
+            "flat_folds": 0
+          }
+        }
+      },
+      "with_human_constrained": {
+        "n_train_last_fold": 183,
+        "n_features": 63,
+        "n_human_features": 22,
+        "target_r2": -0.9322057736167586,
+        "level_r2": -0.01361821626752493,
+        "skill_vs_persistence": -0.4130984130394446,
+        "human_importance_share": 0.29664331674575806
+      }
+    }
+  },
+  "surface_water": {
+    "n_test_rows": 219,
+    "target_sd": 0.4602745380773009,
+    "test_span": "2002-10..2020-12",
+    "n_folds": 5,
+    "persistence_level_r2": -0.043580507529820435,
+    "variants": {
+      "shipped": {
+        "n_train_last_fold": 183,
+        "n_features": 26,
+        "n_human_features": 0,
+        "target_r2": 0.6854890577193562,
+        "level_r2": 0.669225119543278,
+        "skill_vs_persistence": 0.7128056270730985,
+        "human_importance_share": 0.0,
+        "fitted_directions": {}
+      },
+      "with_human": {
+        "n_train_last_fold": 183,
+        "n_features": 63,
+        "n_human_features": 22,
+        "target_r2": 0.5818704279274592,
+        "level_r2": 0.5588867108415537,
+        "skill_vs_persistence": 0.6024672183713742,
+        "human_importance_share": 0.20489564538002014,
+        "fitted_directions": {
+          "population": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 1,
+            "mean_effect": 0.002254406362771988,
+            "effect_in_sd": 0.004897960187390099,
+            "flat_folds": 1
+          },
+          "irrigation_total_withdrawal_mgd": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 5,
+            "mean_effect": -0.10199681892991067,
+            "effect_in_sd": -0.22159995935465104,
+            "flat_folds": 0
+          },
+          "public_supply_groundwater_mgd": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 3,
+            "mean_effect": 0.006451975181698799,
+            "effect_in_sd": 0.014017666952968015,
+            "flat_folds": 0
+          },
+          "impervious_pct": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 0,
+            "mean_effect": -0.0009807065129280091,
+            "effect_in_sd": -0.0021306990324181352,
+            "flat_folds": 4
+          },
+          "precip_x_impervious": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 5,
+            "mean_effect": 0.2258233591914177,
+            "effect_in_sd": 0.49062752881084143,
+            "flat_folds": 0
+          }
+        }
+      },
+      "with_human_deseason": {
+        "n_train_last_fold": 183,
+        "n_features": 63,
+        "n_human_features": 22,
+        "target_r2": 0.5767183470778054,
+        "level_r2": 0.5542270039246282,
+        "skill_vs_persistence": 0.5978075114544487,
+        "human_importance_share": 0.08415728807449341,
+        "fitted_directions": {
+          "population": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 1,
+            "mean_effect": 0.0008239366114139556,
+            "effect_in_sd": 0.001790098176744201,
+            "flat_folds": 2
+          },
+          "irrigation_total_withdrawal_mgd": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 1,
+            "mean_effect": 0.027315638214349746,
+            "effect_in_sd": 0.059346402971702544,
+            "flat_folds": 0
+          },
+          "public_supply_groundwater_mgd": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 0,
+            "mean_effect": 0.028990474343299866,
+            "effect_in_sd": 0.06298517937664207,
+            "flat_folds": 0
+          },
+          "impervious_pct": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 3,
+            "mean_effect": 0.005737478286027909,
+            "effect_in_sd": 0.012465339295097673,
+            "flat_folds": 2
+          },
+          "precip_x_impervious": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 1,
+            "mean_effect": -0.042848801612854,
+            "effect_in_sd": -0.09309400818008698,
+            "flat_folds": 0
+          }
+        }
+      },
+      "with_human_constrained": {
+        "n_train_last_fold": 183,
+        "n_features": 63,
+        "n_human_features": 22,
+        "target_r2": 0.5687169673744756,
+        "level_r2": 0.5457212764648223,
+        "skill_vs_persistence": 0.5893017839946427,
+        "human_importance_share": 0.09256643056869507
+      },
+      "shipped_long_record": {
+        "n_train_last_fold": 455,
+        "n_features": 26,
+        "n_human_features": 0,
+        "target_r2": 0.7671376823794592,
+        "level_r2": 0.7516495727579262,
+        "skill_vs_persistence": 0.7952300802877467,
+        "human_importance_share": 0.0,
+        "fitted_directions": {}
+      }
+    }
+  },
+  "wildfire": {
+    "n_test_rows": 219,
+    "target_sd": 0.23714860388379627,
+    "test_span": "2002-10..2020-12",
+    "n_folds": 5,
+    "persistence_level_r2": -0.2707210315122207,
+    "variants": {
+      "shipped": {
+        "n_train_last_fold": 183,
+        "n_features": 26,
+        "n_human_features": 0,
+        "target_r2": 0.19075588567554658,
+        "level_r2": 0.19075588567554658,
+        "skill_vs_persistence": 0.4614769171877673,
+        "human_importance_share": 0.0,
+        "fitted_directions": {}
+      },
+      "with_human": {
+        "n_train_last_fold": 183,
+        "n_features": 63,
+        "n_human_features": 22,
+        "target_r2": 0.06890192575769061,
+        "level_r2": 0.06890192575769061,
+        "skill_vs_persistence": 0.3396229572699113,
+        "human_importance_share": 0.17806939780712128,
+        "fitted_directions": {
+          "population": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 2,
+            "mean_effect": -0.0005838483572006226,
+            "effect_in_sd": -0.002461951483748606,
+            "flat_folds": 0
+          },
+          "impervious_pct": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 3,
+            "mean_effect": -0.0005709480494260788,
+            "effect_in_sd": -0.002407553913772335,
+            "flat_folds": 2
+          }
+        }
+      },
+      "with_human_deseason": {
+        "n_train_last_fold": 183,
+        "n_features": 63,
+        "n_human_features": 22,
+        "target_r2": 0.08118301675696624,
+        "level_r2": 0.08118301675696624,
+        "skill_vs_persistence": 0.351904048269187,
+        "human_importance_share": 0.18305158615112305,
+        "fitted_directions": {
+          "population": {
+            "expected_sign": 1,
+            "n_folds": 5,
+            "folds_agreeing": 1,
+            "mean_effect": -0.0034071704372763633,
+            "effect_in_sd": -0.014367238016488133,
+            "flat_folds": 0
+          },
+          "impervious_pct": {
+            "expected_sign": -1,
+            "n_folds": 5,
+            "folds_agreeing": 3,
+            "mean_effect": -0.0016779351979494094,
+            "effect_in_sd": -0.0070754588914704476,
+            "flat_folds": 1
+          }
+        }
+      },
+      "with_human_constrained": {
+        "n_train_last_fold": 183,
+        "n_features": 63,
+        "n_human_features": 22,
+        "target_r2": 0.07892261775925384,
+        "level_r2": 0.07892261775925384,
+        "skill_vs_persistence": 0.34964364927147457,
+        "human_importance_share": 0.16386958956718445
+      },
+      "shipped_long_record": {
+        "n_train_last_fold": 408,
+        "n_features": 26,
+        "n_human_features": 0,
+        "target_r2": 0.23286199791029802,
+        "level_r2": 0.23286199791029802,
+        "skill_vs_persistence": 0.5035830294225188,
+        "human_importance_share": 0.0,
+        "fitted_directions": {}
+      }
+    }
+  }
+}

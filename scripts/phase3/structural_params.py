@@ -1,0 +1,755 @@
+"""Generate the Layer 2 structural coefficients (PHASE3_PLAN.md §4).
+
+Layer 1 — the learned models — is a climate forecaster and is left alone. Layer 2
+supplies the human-lever response it cannot carry, with signs and magnitudes fixed by
+water balance and published policy rather than fitted from a collinear 219-row panel.
+PHASE3_PLAN.md §10 measured why that is necessary: of 21 lever/target pairs with a
+declared physical sign, the panel identified 3 and found nothing for 12.
+
+Every coefficient written here carries `value`, `band`, `source` and `status`, using
+the claim tags from PROBLEMS.md. Nothing is tuned to make an acceptance test pass —
+PHASE3_PARAMS.md §2 is explicit that doing so would defeat the premise of the plan,
+and §5 there says to let the test fail where the physics is small.
+
+WHICH STORAGE COEFFICIENT SHIPS, AND WHY
+----------------------------------------
+PHASE3_PLAN.md §12 measured `S_y * A` two ways and got 110,891 AF/ft (regression on
+monthly pumping anomalies, t = +3.16) against 1,875,000 AF/ft (S_y times the alluvial
+basin area). They are the short-run and long-run limits of a spreading drawdown cone,
+and their 16.9x ratio is the ratio of the two areas.
+
+**The long-run value ships.** The slider is a SUSTAINED policy control (that is what
+D5's reparameterization made it), and the coefficient for a sustained change is the
+long-run one. Using the short-run value instead would require a reversion rate of
+about 0.47/month -- a 2.1-month e-folding -- to keep the 36-month total physical, and
+that contradicts the aquifer's own measured lambda of 0.0157 (63.8 months, §4b). The
+consistent reading of a large short-run coefficient that recovers in weeks is local
+well interference around the pumped fields, not basin storage depletion.
+
+So the measured regression does two jobs here, and neither is setting the magnitude:
+it confirms the sign and the mechanism at t = +3.16, and it sets the upper end of the
+reported band.
+
+    python scripts/phase3/structural_params.py
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pandas as pd
+
+ROOT = Path(__file__).resolve().parents[2]
+DATA = ROOT / "data" / "Final"
+STATS_PATH = ROOT / "frontend" / "computed_stats.json"
+CALIBRATION_PATH = ROOT / "model" / "aquifer_calibration.json"
+TRANSFER_PATH = ROOT / "model" / "transfer_calibration.json"
+OUTPUT_FILE = ROOT / "frontend" / "structural_params.json"
+
+REFERENCE_YEAR = 2020
+
+# 1 Mgal = 3.06889 acre-ft; sustained for 365 days that is 1,120 AF/yr.
+AF_PER_MGD_YEAR = 1120.0
+AF_PER_MGD_MONTH = AF_PER_MGD_YEAR / 12.0
+CUBIC_M_PER_AF = 1233.48
+SECONDS_PER_MONTH = 365.2425 / 12 * 86400
+CFS_PER_CMS = 35.3147
+CFS_PER_MGD = 1.547229
+# 1 AF delivered evenly over a month, as cubic feet per second.
+CFS_PER_AF_MONTH = CUBIC_M_PER_AF / SECONDS_PER_MONTH * CFS_PER_CMS
+SQ_M_PER_ACRE = 4046.8564224
+
+# Recorded in PHASE3_PARAMS.md §2 as MEASURED from the dissolved eight-county TIGER
+# boundary in EPSG:5070. Recomputed in-repo when geopandas/rasterio are installed;
+# this is the fallback so the script runs without the geospatial stack.
+REGION_ACRES_RECORDED = 27_779_840.0
+
+
+def tag(value, *, band=None, source, status, note=None) -> dict:
+    entry = {"value": value, "source": source, "status": status}
+    if band is not None:
+        entry["band"] = list(band)
+    if note is not None:
+        entry["note"] = note
+    return entry
+
+
+def region_acres() -> dict:
+    try:
+        import sys
+
+        sys.path.insert(0, str(ROOT / "scripts"))
+        from phase1.region import load_county_boundary
+
+        boundary = load_county_boundary()
+        area_m2 = boundary.to_crs("EPSG:5070").geometry.union_all().area
+        return tag(
+            round(area_m2 / SQ_M_PER_ACRE),
+            source="dissolved eight-county TIGER boundary, EPSG:5070, via scripts/phase1/region.py",
+            status="MEASURED",
+        )
+    except Exception as exc:  # noqa: BLE001 - geospatial stack is optional here
+        return tag(
+            REGION_ACRES_RECORDED,
+            source="PHASE3_PARAMS.md §2, measured from the same boundary",
+            status="MEASURED",
+            note=f"recomputation unavailable in this environment ({type(exc).__name__})",
+        )
+
+
+def reference_mean(filename: str, column: str) -> float:
+    frame = pd.read_csv(DATA / filename)
+    year = pd.PeriodIndex(frame["year_month"], freq="M").year
+    rows = frame.loc[year == REFERENCE_YEAR, column].dropna()
+    if rows.empty:
+        raise ValueError(f"No {REFERENCE_YEAR} rows for {column} in {filename}")
+    return float(rows.mean())
+
+
+# Lower Basin Operating Agreement, Table 1, "Combined DCP Contributions and 2007
+# Interim Guidelines Shortages". Drought Contingency Plan Agreements, Final Review
+# Draft 2018-10-05, Bureau of Reclamation. Transcribed verbatim from the primary PDF
+# (PHASE3_PARAMS.md §1). Thousand acre-feet per year of Arizona reduction, keyed on
+# the projected January 1 Lake Mead elevation in feet msl.
+#
+# Descending thresholds: the first row whose `above` the elevation exceeds applies.
+# The 0-above-1,090 row is not in Table 1 — it is the complement of the table's
+# coverage, and asserting it is safe because no reduction is required above 1,090.
+MEAD_TIERS = [
+    {"above": 1090.0, "az_combined_kaf": 0},
+    {"above": 1075.0, "az_combined_kaf": 192},
+    {"above": 1050.0, "az_combined_kaf": 512},
+    {"above": 1045.0, "az_combined_kaf": 592},
+    {"above": 1025.0, "az_combined_kaf": 640},
+    # Catch-all for "below 1,025". Written as 0.0 rather than -inf because JSON has no
+    # infinity literal and JSON.parse rejects Python's `-Infinity`; Mead's dead pool is
+    # 895 ft, so no reachable elevation falls through this row.
+    {"above": 0.0, "az_combined_kaf": 720},
+]
+
+
+def build() -> dict:
+    stats = json.loads(STATS_PATH.read_text())
+    slider_stats = stats["SLIDER_STATS"]
+    calibration = json.loads(CALIBRATION_PATH.read_text())
+    transfers = json.loads(TRANSFER_PATH.read_text())
+
+    acres = region_acres()
+    region_m2 = acres["value"] * SQ_M_PER_ACRE
+
+    population_2020 = reference_mean("azpop_monthly.csv", "population")
+    public_supply_2020 = reference_mean(
+        "public_supply_monthly.csv", "public_supply_groundwater_mgd"
+    )
+    gpcd = public_supply_2020 * 1e6 / population_2020
+
+    specific_yield = 0.15
+    alluvial_fraction = 0.45
+    storage_long_run = specific_yield * alluvial_fraction * acres["value"]
+    storage_short_run = calibration["irrigation"]["+ climate + trend"][
+        "storage_af_per_ft"
+    ]
+
+    # Total flow the gage network sees, from the project's own record. The surface
+    # water target is the mean over gages of ln(Q/Q_normal), so a flow change
+    # expressed as a PROPORTION of this converts straight to a log anomaly.
+    surface = pd.read_csv(DATA / "water_surface_monthly.csv")
+    regional_cfs = float(
+        surface["discharge_cfs_mean"].median() * surface["n_gages"].median()
+    )
+    mean_precip_mm_day = float(
+        pd.read_csv(DATA / "precipitation_monthly.csv")["precipitation_mm_day"].mean()
+    )
+
+    irrigated_acres = 681_143.0
+    ndvi_natural = stats["OUTPUT_STATS"]["ndvi"]["baseline"]
+
+    constants = {
+        "af_per_mgd_month": tag(
+            AF_PER_MGD_MONTH,
+            source="1 Mgal = 3.06889 acre-ft, x 365 d / 12 mo",
+            status="VERIFIED",
+        ),
+        "region_acres": acres,
+        "irrigated_acres": tag(
+            irrigated_acres,
+            source=(
+                "2017 Census of Agriculture, Table 10 'Irrigation: 2017 and 2012', "
+                "USDA NASS Vol 1 Ch 2 Arizona county-level, summed over the eight counties"
+            ),
+            status="VERIFIED",
+        ),
+        "irrigated_fraction": tag(
+            irrigated_acres / acres["value"],
+            source="irrigated_acres / region_acres",
+            status="VERIFIED",
+        ),
+        "specific_yield": tag(
+            specific_yield,
+            band=(0.10, 0.20),
+            source=(
+                "Midpoint of the ADWR basin-fill modelling range. USGS SIR 2007-5275 "
+                "(Pool & Anderson) gives 0.16-0.21 for comparable alluvial aquifers. "
+                "The exact ADWR value was not retrieved: azwater.gov returns HTTP 403."
+            ),
+            status="UNTESTED",
+        ),
+        "alluvial_fraction": tag(
+            alluvial_fraction,
+            band=(0.30, 0.60),
+            source="assumed share of the region that is alluvial basin rather than mountain block",
+            status="UNTESTED",
+        ),
+        "storage_af_per_ft": tag(
+            storage_long_run,
+            band=(storage_short_run, storage_long_run),
+            source=(
+                "specific_yield x alluvial_fraction x region_acres — the LONG-RUN limit, "
+                "which is the right one for a sustained policy slider. The band's lower "
+                "end is the measured short-run value from PHASE3_PLAN.md §12 "
+                f"({storage_short_run:,.0f} AF/ft, t = +3.16)."
+            ),
+            status="UNTESTED",
+            note=(
+                "Dominant uncertainty in Layer 2. The two ends of the band differ by "
+                f"{storage_long_run / storage_short_run:.1f}x and are the long-run and "
+                "short-run limits of a spreading drawdown cone, not rival estimates."
+            ),
+        ),
+        "grace_units_per_af": tag(
+            CUBIC_M_PER_AF / region_m2,
+            source=(
+                "1 AF spread over the region area, in metres of equivalent water height. "
+                "The GRACE series is lwe_thickness in METRES despite the 'cm' label in "
+                "the source docstring: its sd is 0.0479, which is 4.8 cm (plausible for "
+                "a regional anomaly) and not 0.05 mm (not)."
+            ),
+            status="UNTESTED",
+            note=(
+                "A closed-basin upper bound: it assumes every acre-foot pumped shows up "
+                "in the GRACE footprint. The measured irrigation->GRACE slope "
+                f"({calibration['irrigation_grace']['+ climate + trend']['beta_ft_per_af_month']:.3e} "
+                "per AF/month, t = -1.93) is LARGER than this bound, which means it is "
+                "not a clean structural coefficient — it is used for sign only."
+            ),
+        ),
+        "gpcd_groundwater": tag(
+            gpcd,
+            source=(
+                f"public_supply_groundwater_mgd x 1e6 / population, {REFERENCE_YEAR} means "
+                f"({public_supply_2020:,.1f} MGD / {population_2020:,.0f} people)"
+            ),
+            status="MEASURED",
+        ),
+        "ndvi_natural": tag(
+            ndvi_natural,
+            source="regional NDVI baseline from frontend/computed_stats.json",
+            status="MEASURED",
+        ),
+        "ndvi_impervious": tag(
+            0.08,
+            band=(0.05, 0.12),
+            source="assumed dense-urban surface NDVI",
+            status="UNTESTED",
+            note="PHASE3_PARAMS.md §4b: derivable from data/raw/modis_ndvi/ but not measured.",
+        ),
+        "ndvi_irrigated_crop": tag(
+            0.55,
+            band=(0.45, 0.65),
+            source="assumed irrigated cropland NDVI, growing season",
+            status="UNTESTED",
+            note="PHASE3_PARAMS.md §4b: derivable from data/raw/modis_ndvi/ but not measured.",
+        ),
+        "region_share_of_az_reduction": tag(
+            0.60,
+            band=(0.40, 0.80),
+            source=(
+                "CAP serves Maricopa, Pinal and Pima; Pinal and Pima are in-region and "
+                "Maricopa is not, and the Tier-1 cut fell mostly on the CAP agricultural "
+                "pool, which is predominantly Pinal"
+            ),
+            status="UNTESTED",
+            note="Not sourced. Should be replaced with CAP delivery data by county.",
+        ),
+        # ── surface water (PHASE3_PLAN.md §14) ──────────────────────────────
+        "regional_baseline_cfs": tag(
+            regional_cfs,
+            source="median(discharge_cfs_mean) x median(n_gages) over data/Final/water_surface_monthly.csv",
+            status="MEASURED",
+        ),
+        "cfs_per_mgd": tag(
+            CFS_PER_MGD, source="1 MGD = 1.547229 cfs", status="VERIFIED"
+        ),
+        "cfs_per_af_month": tag(
+            CFS_PER_AF_MONTH,
+            source="1 acre-foot delivered evenly over a mean month, in cubic feet per second",
+            status="VERIFIED",
+        ),
+        "mean_precipitation_mm_day": tag(
+            mean_precip_mm_day,
+            source="mean of data/Final/precipitation_monthly.csv over the full record",
+            status="MEASURED",
+        ),
+        "effluent_return_fraction": tag(
+            0.55,
+            band=(0.45, 0.70),
+            source=(
+                "share of municipal supply returned as treated effluent — indoor use "
+                "reaches the sewer, outdoor use is consumed. The mechanism is primary: "
+                "'The Santa Cruz River is largely dependent on discharges from water "
+                "reclamation facilities' (A Living River: Santa Cruz River 2024, "
+                "Downtown Tucson to Marana, Supplementary Report, Sonoran Institute)."
+            ),
+            status="UNTESTED",
+            note="The fraction itself is a standard water-balance figure, not a cited value.",
+        ),
+        "runoff_coefficient_impervious": tag(
+            0.85,
+            band=(0.75, 0.95),
+            source="standard rational-method runoff coefficient for paved surface",
+            status="UNTESTED",
+        ),
+        "runoff_coefficient_natural": tag(
+            0.15,
+            band=(0.05, 0.25),
+            source="standard rational-method runoff coefficient for desert soils",
+            status="UNTESTED",
+            note=(
+                "The same mechanism the Living River report names — 'runoff after storms "
+                "depends on the amount of impervious surface' — and the reason "
+                "features.py calls precip_x_impervious the dominant urban-desert discharge term."
+            ),
+        ),
+        "stream_capture_fraction": tag(
+            0.10,
+            band=(0.05, 0.25),
+            source=(
+                "share of regional groundwater pumping captured from streamflow rather "
+                "than from storage. Stream-aquifer depletion is the documented mechanism "
+                "behind the loss of perennial reach on the Santa Cruz and San Pedro."
+            ),
+            status="UNTESTED",
+            note="Not sourced to a number. Most regional pumping is far from a stream, hence the low central value.",
+        ),
+        "transfer_surface_water_to_wildlife": tag(
+            transfers["surface_water_to_wildlife"]["+ climate + trend"]["beta"],
+            band=(
+                transfers["surface_water_to_wildlife"]["+ climate + trend"]["beta"],
+                transfers["surface_water_to_wildlife"]["+ climate"]["beta"],
+            ),
+            source=(
+                "regression of bbs_abundance_anomaly on annual mean discharge_log_anomaly, "
+                "n = 44 (1980-2024), PDSI-controlled. Riparian corridors carry "
+                "disproportionate bird abundance in the Southwest."
+            ),
+            status="MEASURED",
+            note=(
+                "The trend-controlled (conservative) estimate ships; the band's upper end "
+                "is the climate-only fit, which is significant (t = +2.19, p = 0.029). The "
+                "sign is positive in both, unlike Mead, which flipped."
+            ),
+        ),
+        "groundwater_substitution_fraction": tag(
+            0.50,
+            band=(0.30, 0.70),
+            source=(
+                "share of lost CAP water replaced by pumping rather than fallowing; "
+                "Pinal's DCP mitigation explicitly funded new wells"
+            ),
+            status="UNTESTED",
+            note="Not sourced.",
+        ),
+    }
+
+    # MGD of groundwater pumping per one unit of each slider's policy delta.
+    irrigation_baseline = slider_stats["irrigation_total_withdrawal_mgd"]["policy"]["baseline"]
+    public_supply_baseline = slider_stats["public_supply_groundwater_mgd"]["policy"]["baseline"]
+    pumping = {
+        "irrigation_total_withdrawal_mgd": tag(
+            irrigation_baseline / 100.0,
+            source=f"1% of the {REFERENCE_YEAR} deseasonalized baseline, {irrigation_baseline:,.1f} MGD",
+            status="MEASURED",
+        ),
+        "public_supply_groundwater_mgd": tag(
+            public_supply_baseline / 100.0,
+            source=f"1% of the {REFERENCE_YEAR} deseasonalized baseline, {public_supply_baseline:,.1f} MGD",
+            status="MEASURED",
+        ),
+        "population": tag(
+            gpcd / 1e6,
+            source="one person x GPCD, converted to MGD — closes the population -> public supply -> aquifer loop",
+            status="MEASURED",
+        ),
+    }
+    return constants, pumping, slider_stats, calibration
+
+
+# Every lever Layer 2 supplies, with the tier PHASE3_PLAN.md §11.1 assigns it.
+#
+#   kind "rate"  — a forcing per month that accumulates and mean-reverts. Pumping
+#                  changes a storage balance, so the response builds over time.
+#   kind "level" — a persistent offset applied immediately. Converting desert to
+#                  pavement does not accumulate; the ground is either paved or not.
+#
+# "corroborated" means an independent regression on the panel agrees on the sign
+# after climate and trend controls (PHASE3_PLAN.md §12). It does NOT mean the panel
+# set the magnitude — no magnitude here is fitted.
+LEVERS = [
+    {
+        "id": "irrigation_to_groundwater",
+        "slider": "irrigation_total_withdrawal_mgd",
+        "output": "groundwater",
+        "kind": "rate",
+        "path": "pumping_to_depth",
+        "sign": +1,
+        "tier": "corroborated",
+        "mechanism": "ΔDepth/month = ΔPumping / (S_y · A). More withdrawal, deeper water.",
+        "evidence": "PHASE3_PLAN.md §12: +9.018e-06 ft per AF/month, t = +3.16, n = 246.",
+    },
+    {
+        "id": "public_supply_to_groundwater",
+        "slider": "public_supply_groundwater_mgd",
+        "output": "groundwater",
+        "kind": "rate",
+        "path": "pumping_to_depth",
+        "sign": +1,
+        "tier": "structural-only",
+        "mechanism": "Same storage balance; municipal groundwater is pumped from the same aquifer.",
+        "evidence": "None. PHASE3_PLAN.md §12 finds t = +0.17 / -0.11 / +0.91 across specifications.",
+    },
+    {
+        "id": "population_to_groundwater",
+        "via": "municipal pumping",
+        "slider": "population",
+        "output": "groundwater",
+        "kind": "rate",
+        "path": "pumping_to_depth",
+        "sign": +1,
+        "tier": "structural-only",
+        "mechanism": "Δpopulation × per-capita municipal groundwater draw, into the storage balance.",
+        "evidence": "None. PHASE3_PLAN.md §10 finds 0/5 folds and an effect of -0.113 sd, wrong-signed.",
+    },
+    {
+        "id": "mead_to_groundwater",
+        "via": "DCP shortage tier",
+        "slider": "mead_pool_elevation",
+        "output": "groundwater",
+        "kind": "rate",
+        "path": "mead_tier_to_depth",
+        "sign": -1,
+        "tier": "structural-only",
+        "mechanism": (
+            "Elevation → DCP shortage tier → Arizona reduction (kAF/yr) → in-region share "
+            "→ share replaced by pumping → storage balance. A lower reservoir means more pumping."
+        ),
+        "evidence": (
+            "Published law (LBOps Table 1), but no panel support: PHASE3_PLAN.md §12 finds the "
+            "wrong sign in every specification and t falling to +0.12 under a time control. "
+            "§10's 5/5-fold agreement was five folds sharing one secular trend."
+        ),
+    },
+    {
+        "id": "irrigation_to_grace",
+        "slider": "irrigation_total_withdrawal_mgd",
+        "output": "grace",
+        "kind": "rate",
+        "path": "pumping_to_storage",
+        "sign": -1,
+        "tier": "corroborated",
+        "mechanism": "Pumped water leaves the storage GRACE measures, as equivalent water height.",
+        "evidence": "PHASE3_PLAN.md §12: correct sign in all three specifications, t = -3.61 to -1.93.",
+    },
+    {
+        "id": "public_supply_to_grace",
+        "slider": "public_supply_groundwater_mgd",
+        "output": "grace",
+        "kind": "rate",
+        "path": "pumping_to_storage",
+        "sign": -1,
+        "tier": "structural-only",
+        "mechanism": "Same storage accounting as irrigation.",
+        "evidence": "None.",
+    },
+    {
+        "id": "population_to_grace",
+        "via": "municipal pumping",
+        "slider": "population",
+        "output": "grace",
+        "kind": "rate",
+        "path": "pumping_to_storage",
+        "sign": -1,
+        "tier": "structural-only",
+        "mechanism": "Population → municipal pumping → storage.",
+        "evidence": "None.",
+    },
+    {
+        "id": "mead_to_grace",
+        "via": "DCP shortage tier",
+        "slider": "mead_pool_elevation",
+        "output": "grace",
+        "kind": "rate",
+        "path": "mead_tier_to_storage",
+        "sign": +1,
+        "tier": "structural-only",
+        "mechanism": "A lower reservoir substitutes pumping for CAP water, drawing down storage.",
+        "evidence": "None; see mead_to_groundwater.",
+    },
+    # ── surface water (PHASE3_PLAN.md §14) ───────────────────────────────────
+    # Three paths with OPPOSING signs, which is the point: more people means more
+    # effluent and more flow, while more pumping means less baseflow. The Santa Cruz
+    # is perennial today because of the first and intermittent historically because
+    # of the second.
+    {
+        "id": "population_to_surface_water",
+        "via": "effluent",
+        "slider": "population",
+        "output": "surface_water",
+        "kind": "level",
+        "path": "effluent_to_flow",
+        "sign": +1,
+        "tier": "structural-only",
+        "mechanism": (
+            "Δpopulation × per-capita municipal draw × effluent return fraction → added "
+            "discharge, as a proportion of total gaged flow. Counterintuitive and correct: "
+            "the perennial reaches of the Santa Cruz are treated wastewater."
+        ),
+        "evidence": "Mechanism is primary (Living River 2024); the return fraction is assumed.",
+    },
+    {
+        "id": "urbanization_to_surface_water",
+        "via": "storm runoff",
+        "slider": "impervious_pct",
+        "output": "surface_water",
+        "kind": "level",
+        "path": "runoff_to_flow",
+        "sign": +1,
+        "tier": "structural-only",
+        "mechanism": (
+            "Δimpervious area × (runoff coefficient paved − runoff coefficient desert) × "
+            "mean precipitation → added storm runoff."
+        ),
+        "evidence": "None from the panel; features.py already treats precip x impervious as the dominant urban-desert discharge term.",
+    },
+    {
+        "id": "irrigation_to_surface_water",
+        "via": "stream capture",
+        "slider": "irrigation_total_withdrawal_mgd",
+        "output": "surface_water",
+        "kind": "level",
+        "path": "capture_to_flow",
+        "sign": -1,
+        "tier": "structural-only",
+        "mechanism": "A share of pumping is captured from streamflow rather than from storage.",
+        "evidence": "None from the panel. Stream depletion is the documented cause of lost perennial reach on the Santa Cruz and San Pedro.",
+    },
+    {
+        "id": "public_supply_to_surface_water",
+        "via": "stream capture",
+        "slider": "public_supply_groundwater_mgd",
+        "output": "surface_water",
+        "kind": "level",
+        "path": "capture_to_flow",
+        "sign": -1,
+        "tier": "structural-only",
+        "mechanism": "Same stream capture as irrigation.",
+        "evidence": "None.",
+    },
+    {
+        "id": "population_capture_to_surface_water",
+        "via": "stream capture",
+        "slider": "population",
+        "output": "surface_water",
+        "kind": "level",
+        "path": "capture_to_flow",
+        "sign": -1,
+        "tier": "structural-only",
+        "mechanism": (
+            "The municipal pumping that population drives is also captured from streams. "
+            "This runs AGAINST the effluent lever above; the net sign is an output of the "
+            "model rather than an assumption, and it is positive at the shipped parameters."
+        ),
+        "evidence": "None.",
+    },
+    {
+        "id": "mead_to_surface_water",
+        "via": "stream capture",
+        "slider": "mead_pool_elevation",
+        "output": "surface_water",
+        "kind": "level",
+        "path": "mead_capture_to_flow",
+        "sign": +1,
+        "tier": "structural-only",
+        "mechanism": "A lower reservoir substitutes pumping for CAP water, and part of that pumping is stream capture.",
+        "evidence": "None.",
+    },
+    {
+        "id": "urbanization_to_ndvi",
+        "slider": "impervious_pct",
+        "output": "ndvi",
+        "kind": "level",
+        "path": "landcover_impervious",
+        "sign": -1,
+        "tier": "structural-only",
+        "mechanism": "ΔNDVI = (Δimpervious/100) × (NDVI_impervious − NDVI_natural). Pavement is not green.",
+        "evidence": "None. PHASE3_PLAN.md §10 finds an effect of -0.010 sd — no effect to have a sign.",
+    },
+    {
+        "id": "irrigation_to_ndvi",
+        "slider": "irrigation_total_withdrawal_mgd",
+        "output": "ndvi",
+        "kind": "level",
+        "path": "landcover_irrigated",
+        "sign": +1,
+        "tier": "structural-only",
+        "mechanism": (
+            "ΔNDVI = Δfraction_of_baseline_withdrawal × irrigated_fraction × "
+            "(NDVI_crop − NDVI_natural). Positive on irrigated pixels while negative on "
+            "groundwater — the tension PHASE3_PLAN.md §4 wants shown, not hidden."
+        ),
+        "evidence": "None. PHASE3_PLAN.md §10 finds 1/5 folds, wrong-signed.",
+    },
+]
+
+# Transfer edges: an output's structural displacement propagating to another output.
+# This is how surface water and wildlife get a human response at all — the outputs
+# form a chain, so ONE coefficient per edge carries every lever that feeds the source.
+#
+# There is no ndvi -> wildlife edge on purpose. It was estimated
+# (scripts/phase3/transfer_calibration.py) and came back a null: t = -0.19 without a
+# trend control and +0.17 with one, p ~ 0.85 either way, and the sign flips between
+# specifications. With no panel support AND no citable published elasticity, building
+# it would be inventing a number, which is the thing Layer 2 exists to avoid. The
+# frontend's stale `ndvi feedsInto wildlife` claim is corrected rather than honoured.
+TRANSFERS = [
+    {
+        "id": "surface_water_to_wildlife",
+        "from": "surface_water",
+        "to": "wildlife",
+        "constant": "transfer_surface_water_to_wildlife",
+        "sign": +1,
+        "tier": "structural-only",
+        "mechanism": (
+            "Riparian corridors carry disproportionate bird abundance in the Southwest, "
+            "so streamflow drives habitat. This edge is what lets every human lever reach "
+            "wildlife at all."
+        ),
+        "evidence": (
+            "Regression on the project's own annual panel, n = 44 (1980-2024): "
+            "+0.1953 (t = +2.19, p = 0.029) PDSI-controlled, attenuating to +0.0536 "
+            "(t = +0.42) with a linear trend added. Positive in both; the conservative "
+            "estimate ships."
+        ),
+    },
+]
+
+# Wildfire gets nothing, and that is a conclusion rather than an omission. Human
+# ignitions dominate US fire counts, but ignition is not the limiting factor for
+# large-fire extent in the Southwest -- fuel and weather are -- and the MTBS target
+# measures exactly that extent. No coefficient from population or impervious cover to
+# large-fire risk could be sourced, and PHASE3_PLAN.md §10 measured both at under
+# 0.05 sd. It ships as climate-only and the interface says so.
+CLIMATE_ONLY_OUTPUTS = ["wildfire"]
+
+
+def main() -> None:
+    constants, pumping, slider_stats, calibration = build()
+
+    # Mean-reversion rates from PHASE3_PLAN.md §4b, fitted on the observed panel by
+    # `slider_sensitivity.py --mode lambda`. These bound the rate levers: a sustained
+    # forcing f converges to f/lambda instead of ramping without limit, which §4a
+    # measured to be the difference between a scenario and an unbounded number.
+    reversion = {
+        "grace": tag(
+            0.0386,
+            source="regression of dy on (y_lag1 - ybar), t = -2.28, e-folding 25.9 months",
+            status="MEASURED",
+        ),
+        "groundwater": tag(
+            0.0157,
+            source="same regression, t = -1.24, e-folding 63.8 months",
+            status="MEASURED",
+            note="Not significant. An aquifer barely reverting is physically right, but the rate is weakly identified.",
+        ),
+        # Needed for Layer 3's integration of the LEARNED residual, not for any
+        # structural lever — neither of these outputs has one.
+        "ndvi": tag(
+            0.2221,
+            source="same regression, t = -5.99, e-folding 4.5 months",
+            status="MEASURED",
+            note="Vegetation recovering within a season.",
+        ),
+        "surface_water": tag(
+            0.3511,
+            source="same regression, t = -10.81, e-folding 2.8 months",
+            status="MEASURED",
+            note="Flow recedes fast.",
+        ),
+    }
+
+    integrate_learned = tag(
+        False,
+        source="PHASE3_PLAN.md §13 — measured both ways, see the table there",
+        status="MEASURED",
+        note=(
+            "Whether Layer 3 also integrates the LEARNED residual, not just the "
+            "structural forcing. Off: §4a established the exported models are not "
+            "dynamical systems, and integrating them amplifies D2's wrong signs "
+            "(Mead -> NDVI goes from -3.27 to -14.01 score points) without adding "
+            "any dynamics the models actually contain. The structural layer is "
+            "integrated either way, because a storage balance really does accumulate."
+        ),
+    )
+
+    result = {
+        "meta": {
+            "generated_by": "scripts/phase3/structural_params.py",
+            "reference_year": REFERENCE_YEAR,
+            "plan": "PHASE3_PLAN.md §4 (Layer 2), §4b (Layer 3), §12 (calibration)",
+            "note": (
+                "Magnitudes are structural: water balance, land-cover arithmetic and "
+                "published policy. None is fitted. `tier: corroborated` means an "
+                "independent regression agrees on the SIGN, not that it set the value."
+            ),
+        },
+        "constants": constants,
+        "pumping_mgd_per_slider_unit": pumping,
+        "mead_tiers": MEAD_TIERS,
+        "mead_baseline_elevation": slider_stats["mead_pool_elevation"]["policy"]["baseline"],
+        "irrigation_baseline_mgd": slider_stats["irrigation_total_withdrawal_mgd"]["policy"]["baseline"],
+        "reversion_per_month": reversion,
+        "integrate_learned_residual": integrate_learned,
+        "levers": LEVERS,
+        "transfers": TRANSFERS,
+        "climate_only_outputs": CLIMATE_ONLY_OUTPUTS,
+    }
+
+    with OUTPUT_FILE.open("w") as f:
+        json.dump(result, f, indent=2)
+        f.write("\n")
+
+    print(f"Structural parameters written to {OUTPUT_FILE}\n")
+    print(f"  {'constant':36s}{'value':>16s}  status")
+    for name, entry in constants.items():
+        print(f"  {name:36s}{entry['value']:>16,.6g}  {entry['status']}")
+    print(f"\n  {'lever':30s}{'output':14s}{'kind':7s}{'sign':>5s}  tier")
+    for lever in LEVERS:
+        print(
+            f"  {lever['id']:30s}{lever['output']:14s}{lever['kind']:7s}"
+            f"{lever['sign']:+5d}  {lever['tier']}"
+        )
+    print(f"\n  {'transfer':30s}{'to':14s}{'coefficient':>13s}  tier")
+    for transfer in TRANSFERS:
+        print(
+            f"  {transfer['id']:30s}{transfer['to']:14s}"
+            f"{constants[transfer['constant']]['value']:>13.4f}  {transfer['tier']}"
+        )
+    counts = {"corroborated": 0, "structural-only": 0}
+    for lever in LEVERS:
+        counts[lever["tier"]] += 1
+    print(f"\n  {counts['corroborated']} corroborated, {counts['structural-only']} structural-only")
+    print(f"  climate-only outputs (no structural path): {', '.join(CLIMATE_ONLY_OUTPUTS)}")
+
+
+if __name__ == "__main__":
+    main()

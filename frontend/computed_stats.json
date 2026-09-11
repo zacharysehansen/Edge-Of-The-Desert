@@ -3,32 +3,182 @@
     "population": {
       "min": 4570294.081,
       "max": 6537529.2585,
-      "default": 5723559.05
+      "default": 5723559.05,
+      "policy": {
+        "mode": "offset",
+        "unit": "people added",
+        "baseline": 6376432.9625,
+        "reference_year": 2020,
+        "seasonal": [
+          -41376.959826,
+          -33862.667326,
+          -26345.44191,
+          -18825.576493,
+          -11303.355243,
+          -3779.068576,
+          3746.991424,
+          11274.88434,
+          18806.063924,
+          26342.33059,
+          33885.481424,
+          41437.317674
+        ],
+        "default": 0,
+        "step": 50000,
+        "min": -500000,
+        "max": 3000000,
+        "range_basis": "policy scenario"
+      }
     },
     "irrigation_total_withdrawal_mgd": {
       "min": 256.2366,
       "max": 4814.9981,
-      "default": 2720.5625
+      "default": 2720.5625,
+      "policy": {
+        "mode": "scale",
+        "unit": "% of annual withdrawal",
+        "baseline": 2744.4724,
+        "reference_year": 2020,
+        "seasonal": [
+          0.154043,
+          0.346286,
+          0.775557,
+          1.270271,
+          1.547367,
+          1.830749,
+          1.751291,
+          1.577283,
+          1.337098,
+          0.8407,
+          0.444512,
+          0.124843
+        ],
+        "default": 0,
+        "step": 1,
+        "min": -60,
+        "max": 40,
+        "range_basis": "policy scenario"
+      }
     },
     "public_supply_groundwater_mgd": {
       "min": 467.2779,
       "max": 1002.6492,
-      "default": 804.4008
+      "default": 804.4008,
+      "policy": {
+        "mode": "scale",
+        "unit": "% of annual withdrawal",
+        "baseline": 823.1384,
+        "reference_year": 2020,
+        "seasonal": [
+          0.672202,
+          0.790352,
+          0.860182,
+          1.05107,
+          1.139961,
+          1.285321,
+          1.232311,
+          1.211768,
+          1.217782,
+          1.039045,
+          0.850439,
+          0.649564
+        ],
+        "default": 0,
+        "step": 1,
+        "min": -40,
+        "max": 60,
+        "range_basis": "policy scenario"
+      }
     },
     "impervious_pct": {
       "min": 0.8253,
       "max": 1.2839,
-      "default": 1.144
+      "default": 1.144,
+      "policy": {
+        "mode": "offset",
+        "unit": "points of impervious cover",
+        "baseline": 1.2413,
+        "reference_year": 2020,
+        "seasonal": [
+          -0.006896,
+          -0.005913,
+          -0.00485,
+          -0.003688,
+          -0.00243,
+          -0.001084,
+          0.000329,
+          0.0018,
+          0.003308,
+          0.004875,
+          0.006462,
+          0.008087
+        ],
+        "default": 0,
+        "step": 0.05,
+        "min": -0.4,
+        "max": 2.0,
+        "range_basis": "policy scenario"
+      }
     },
     "mead_pool_elevation": {
       "min": 1058.4032,
       "max": 1194.7139,
-      "default": 1104.6754
+      "default": 1104.6754,
+      "policy": {
+        "mode": "offset",
+        "unit": "ft",
+        "baseline": 1088.8083,
+        "reference_year": 2020,
+        "seasonal": [
+          5.928882,
+          7.644853,
+          7.108744,
+          4.083269,
+          0.367394,
+          -2.671681,
+          -4.258176,
+          -4.043926,
+          -3.805131,
+          -3.812606,
+          -3.849681,
+          -2.691943
+        ],
+        "default": 0,
+        "step": 1,
+        "min": -95,
+        "max": 130,
+        "range_basis": "policy scenario"
+      }
     },
     "precipitation_mm_day": {
       "min": 0.0277,
       "max": 2.3133,
-      "default": 0.5161
+      "default": 0.5161,
+      "policy": {
+        "mode": "scale",
+        "unit": "% of normal",
+        "baseline": 0.7749,
+        "reference_year": 2020,
+        "seasonal": [
+          1.112795,
+          1.057399,
+          0.779504,
+          0.278154,
+          0.23883,
+          0.283683,
+          2.483335,
+          1.997279,
+          1.182628,
+          0.691218,
+          0.675384,
+          1.219792
+        ],
+        "default": 0,
+        "step": 1,
+        "min": -32.11,
+        "max": 44.57,
+        "range_basis": "sustained (annual-mean) deseasonalized p5/p95"
+      }
     },
     "usdm_dsci": {
       "min": 9.315,
@@ -38,12 +188,62 @@
     "nclimdiv_pdsi": {
       "min": -3.6426,
       "max": 4.6309,
-      "default": -0.684
+      "default": -0.684,
+      "policy": {
+        "mode": "offset",
+        "unit": "PDSI",
+        "baseline": -0.7526,
+        "reference_year": 2020,
+        "seasonal": [
+          0.396464,
+          0.338592,
+          0.095654,
+          -0.128306,
+          -0.248994,
+          -0.414892,
+          -0.249744,
+          -0.25379,
+          -0.04509,
+          0.143965,
+          0.128961,
+          0.245304
+        ],
+        "default": 0,
+        "step": 0.1,
+        "min": -1.96,
+        "max": 2.42,
+        "range_basis": "sustained (annual-mean) deseasonalized p5/p95"
+      }
     },
     "temperature_2m_c": {
       "min": 7.8824,
       "max": 29.9466,
-      "default": 18.6694
+      "default": 18.6694,
+      "policy": {
+        "mode": "offset",
+        "unit": "\u00b0C",
+        "baseline": 19.9108,
+        "reference_year": 2020,
+        "seasonal": [
+          -10.288697,
+          -8.905234,
+          -5.379539,
+          -1.336159,
+          3.438941,
+          9.094482,
+          10.786974,
+          9.933407,
+          7.278761,
+          1.058099,
+          -5.322476,
+          -10.358559
+        ],
+        "default": 0,
+        "step": 0.1,
+        "min": -0.71,
+        "max": 0.79,
+        "range_basis": "sustained (annual-mean) deseasonalized p5/p95"
+      }
     }
   },
   "OUTPUT_STATS": {

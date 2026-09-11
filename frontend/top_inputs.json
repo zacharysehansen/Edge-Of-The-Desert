@@ -1,0 +1,170 @@
+{
+  "grace": {
+    "summary": "temperature, precipitation, drought (USDM)",
+    "top": [
+      {
+        "label": "temperature",
+        "family": "climate",
+        "share": 0.295
+      },
+      {
+        "label": "precipitation",
+        "family": "climate",
+        "share": 0.2646
+      },
+      {
+        "label": "drought (USDM)",
+        "family": "climate",
+        "share": 0.1008
+      }
+    ],
+    "feature_count": 45,
+    "human_feature_count": 12,
+    "human_features": [
+      "impervious_pct",
+      "impervious_pct_lag1",
+      "impervious_pct_roll12",
+      "mead_pool_elevation",
+      "mead_pool_elevation_lag1",
+      "mead_pool_elevation_lag3",
+      "mead_pool_elevation_roll3",
+      "mead_pool_elevation_roll6",
+      "population",
+      "population_lag1",
+      "population_roll12",
+      "precip_x_impervious"
+    ]
+  },
+  "ndvi": {
+    "summary": "temperature, precipitation x temperature, precipitation",
+    "top": [
+      {
+        "label": "temperature",
+        "family": "climate",
+        "share": 0.3486
+      },
+      {
+        "label": "precipitation x temperature",
+        "family": "climate",
+        "share": 0.3369
+      },
+      {
+        "label": "precipitation",
+        "family": "climate",
+        "share": 0.0986
+      }
+    ],
+    "feature_count": 46,
+    "human_feature_count": 12,
+    "human_features": [
+      "impervious_pct",
+      "impervious_pct_lag1",
+      "impervious_pct_roll12",
+      "mead_pool_elevation",
+      "mead_pool_elevation_lag1",
+      "mead_pool_elevation_lag3",
+      "mead_pool_elevation_roll3",
+      "mead_pool_elevation_roll6",
+      "population",
+      "population_lag1",
+      "population_roll12",
+      "precip_x_impervious"
+    ]
+  },
+  "groundwater": {
+    "summary": "temperature, precipitation, Lake Mead releases",
+    "top": [
+      {
+        "label": "temperature",
+        "family": "climate",
+        "share": 0.1892
+      },
+      {
+        "label": "precipitation",
+        "family": "climate",
+        "share": 0.1777
+      },
+      {
+        "label": "Lake Mead releases",
+        "family": "human-fixed",
+        "share": 0.1435
+      }
+    ],
+    "feature_count": 16,
+    "human_feature_count": 3,
+    "human_features": [
+      "irrigation_total_withdrawal_mgd",
+      "population_lag1",
+      "precip_x_impervious"
+    ]
+  },
+  "surface_water": {
+    "summary": "precipitation, drought (PDSI), temperature",
+    "top": [
+      {
+        "label": "precipitation",
+        "family": "climate",
+        "share": 0.3611
+      },
+      {
+        "label": "drought (PDSI)",
+        "family": "climate",
+        "share": 0.3228
+      },
+      {
+        "label": "temperature",
+        "family": "climate",
+        "share": 0.2454
+      }
+    ],
+    "feature_count": 26,
+    "human_feature_count": 0,
+    "human_features": []
+  },
+  "wildfire": {
+    "summary": "temperature, precipitation, season",
+    "top": [
+      {
+        "label": "temperature",
+        "family": "climate",
+        "share": 0.4051
+      },
+      {
+        "label": "precipitation",
+        "family": "climate",
+        "share": 0.2618
+      },
+      {
+        "label": "season",
+        "family": "season",
+        "share": 0.2159
+      }
+    ],
+    "feature_count": 26,
+    "human_feature_count": 0,
+    "human_features": []
+  },
+  "wildlife": {
+    "summary": "bird abundance, precipitation, drought (PDSI)",
+    "top": [
+      {
+        "label": "bird abundance",
+        "family": "response",
+        "share": 0.3048
+      },
+      {
+        "label": "precipitation",
+        "family": "climate",
+        "share": 0.2701
+      },
+      {
+        "label": "drought (PDSI)",
+        "family": "climate",
+        "share": 0.2628
+      }
+    ],
+    "feature_count": 12,
+    "human_feature_count": 0,
+    "human_features": []
+  }
+}

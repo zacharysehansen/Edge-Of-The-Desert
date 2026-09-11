@@ -369,3 +369,62 @@ select:focus {
   left: 0;
   font-weight: 700;
 }
+/* D4: provenance line under each output card. */
+.output-reach {
+  margin: 0.15rem 0 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  opacity: 0.65;
+}
+
+.output-reach-none {
+  opacity: 0.9;
+  font-style: italic;
+}
+
+/* Layer 4 — provenance: where each output's movement came from. */
+.provenance {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  border-top: 1px solid rgba(128, 128, 128, 0.22);
+  padding-top: 0.3rem;
+}
+
+.prov-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.06rem 0;
+}
+
+.prov-label { flex: 1 1 auto; }
+.prov-points { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.prov-climate { opacity: 0.72; }
+.prov-human   { font-weight: 500; }
+.prov-idle    { opacity: 0.5; font-style: italic; }
+.prov-none    { margin: 0; opacity: 0.85; font-style: italic; }
+
+.prov-levers {
+  margin-left: 0.7rem;
+  border-left: 1px solid rgba(128, 128, 128, 0.25);
+  padding-left: 0.5rem;
+}
+
+.prov-lever { opacity: 0.8; cursor: help; }
+
+.prov-badge {
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0 0.3rem;
+  border-radius: 2px;
+  border: 1px solid currentColor;
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+/* Two independent methods agreeing is a stronger claim than one, and the badge is
+   the only place the interface can say so. */
+.prov-badge-corroborated    { color: #2f7d5b; }
+.prov-badge-structural-only { color: #7a6a3f; }

@@ -1,0 +1,207 @@
+{
+  "irrigation": {
+    "unit": "ft per AF/month",
+    "raw": {
+      "lever": "irrigation",
+      "n": 249,
+      "beta_ft_per_af_month": 7.133472907016186e-06,
+      "beta_se": 2.7462094254844874e-06,
+      "t": 2.5975706152700626,
+      "storage_af_per_ft": 140184.17298766802,
+      "implied_area_acres": 934561.1532511201,
+      "r2": 0.08838882549898297,
+      "per_lag": {
+        "lever_lag0": 4.855570698221762e-06,
+        "lever_lag1": -2.959239602487721e-06,
+        "lever_lag2": 5.972410106181989e-06,
+        "lever_lag3": -7.35268294899844e-07
+      }
+    },
+    "+ climate": {
+      "lever": "irrigation",
+      "n": 246,
+      "beta_ft_per_af_month": 8.006389652903968e-06,
+      "beta_se": 2.6747665695915546e-06,
+      "t": 2.9933040676991,
+      "storage_af_per_ft": 124900.24135126795,
+      "implied_area_acres": 832668.2756751197,
+      "r2": 0.14489421203264208,
+      "per_lag": {
+        "lever_lag0": 1.1028614680643047e-05,
+        "lever_lag1": -5.133352602478827e-06,
+        "lever_lag2": 6.441727133088732e-06,
+        "lever_lag3": -4.3305995583489835e-06
+      }
+    },
+    "+ climate + trend": {
+      "lever": "irrigation",
+      "n": 246,
+      "beta_ft_per_af_month": 9.017825860061858e-06,
+      "beta_se": 2.8543272530804495e-06,
+      "t": 3.1593524709998237,
+      "storage_af_per_ft": 110891.47378957487,
+      "implied_area_acres": 739276.4919304992,
+      "r2": 0.14758803895816774,
+      "per_lag": {
+        "lever_lag0": 1.1333066386971839e-05,
+        "lever_lag1": -5.015276193510336e-06,
+        "lever_lag2": 6.529573203270121e-06,
+        "lever_lag3": -3.829537536669766e-06
+      }
+    }
+  },
+  "public_supply": {
+    "unit": "ft per AF/month",
+    "raw": {
+      "lever": "public_supply",
+      "n": 249,
+      "beta_ft_per_af_month": 1.9580935025757684e-06,
+      "beta_se": 1.1674336734182574e-05,
+      "t": 0.16772631689151565,
+      "storage_af_per_ft": 510700.8417547747,
+      "implied_area_acres": 3404672.2783651645,
+      "r2": 0.047765026197924,
+      "per_lag": {
+        "lever_lag0": -1.0887997145090239e-05,
+        "lever_lag1": -8.002930365741208e-06,
+        "lever_lag2": 1.39492735043968e-05,
+        "lever_lag3": 6.8997475090104164e-06
+      }
+    },
+    "+ climate": {
+      "lever": "public_supply",
+      "n": 246,
+      "beta_ft_per_af_month": -1.5036100206261952e-06,
+      "beta_se": 1.3347212499423564e-05,
+      "t": -0.11265348631342557,
+      "storage_af_per_ft": -665066.0651912515,
+      "implied_area_acres": -4433773.767941677,
+      "r2": 0.07665445040243479,
+      "per_lag": {
+        "lever_lag0": -5.166516721119665e-06,
+        "lever_lag1": 4.600163725143216e-06,
+        "lever_lag2": 1.3904283758209739e-05,
+        "lever_lag3": -1.4841540782859484e-05
+      }
+    },
+    "+ climate + trend": {
+      "lever": "public_supply",
+      "n": 246,
+      "beta_ft_per_af_month": 2.4074125509469347e-05,
+      "beta_se": 2.645954537176757e-05,
+      "t": 0.9098465287750758,
+      "storage_af_per_ft": 41538.37278976795,
+      "implied_area_acres": 276922.4852651197,
+      "r2": 0.07882123183025502,
+      "per_lag": {
+        "lever_lag0": 3.4493882386444026e-06,
+        "lever_lag1": 1.0736107318552103e-05,
+        "lever_lag2": 1.920773640478247e-05,
+        "lever_lag3": -9.319106452509625e-06
+      }
+    }
+  },
+  "mead_elevation": {
+    "unit": "ft per ft elevation",
+    "raw": {
+      "lever": "mead_elevation",
+      "n": 249,
+      "beta_ft_per_af_month": 0.0014172000804952567,
+      "beta_se": 0.0014708998792080739,
+      "t": 0.9634918735993582,
+      "storage_af_per_ft": 705.6166689254904,
+      "implied_area_acres": 4704.111126169936,
+      "r2": 0.07340588765222811,
+      "per_lag": {
+        "lever_lag0": 0.08161389993969975,
+        "lever_lag1": -0.08234884741307118,
+        "lever_lag2": -0.05140112407179756,
+        "lever_lag3": 0.05355327162566424
+      }
+    },
+    "+ climate": {
+      "lever": "mead_elevation",
+      "n": 246,
+      "beta_ft_per_af_month": 0.001272507201014593,
+      "beta_se": 0.0019355864854064017,
+      "t": 0.6574271987373447,
+      "storage_af_per_ft": 785.8501698086125,
+      "implied_area_acres": 5239.001132057417,
+      "r2": 0.10303408602013164,
+      "per_lag": {
+        "lever_lag0": 0.0848691786304611,
+        "lever_lag1": -0.0847929287868625,
+        "lever_lag2": -0.048983085511426695,
+        "lever_lag3": 0.05017934286884268
+      }
+    },
+    "+ climate + trend": {
+      "lever": "mead_elevation",
+      "n": 246,
+      "beta_ft_per_af_month": 0.00035009559675034524,
+      "beta_se": 0.0028568533416211475,
+      "t": 0.12254587648929864,
+      "storage_af_per_ft": 2856.3626885976078,
+      "implied_area_acres": 19042.417923984052,
+      "r2": 0.10321815945532908,
+      "per_lag": {
+        "lever_lag0": 0.08433110796773009,
+        "lever_lag1": -0.08450622440456497,
+        "lever_lag2": -0.048602231048006636,
+        "lever_lag3": 0.04912744308159186
+      }
+    }
+  },
+  "irrigation_grace": {
+    "unit": "cm per AF/month",
+    "expected_sign": -1,
+    "raw": {
+      "lever": "irrigation_grace",
+      "n": 249,
+      "beta_ft_per_af_month": -9.625304885966326e-08,
+      "beta_se": 2.6669039309075193e-08,
+      "t": -3.6091682097790962,
+      "storage_af_per_ft": -10389281.293915145,
+      "implied_area_acres": -69261875.29276764,
+      "r2": 0.18500198072793683,
+      "per_lag": {
+        "lever_lag0": -8.497613347618718e-08,
+        "lever_lag1": -8.420161381265632e-09,
+        "lever_lag2": 8.486282628124839e-09,
+        "lever_lag3": -1.1343036630335297e-08
+      }
+    },
+    "+ climate": {
+      "lever": "irrigation_grace",
+      "n": 246,
+      "beta_ft_per_af_month": -6.58520055750713e-08,
+      "beta_se": 2.6051295722318176e-08,
+      "t": -2.5277823520561324,
+      "storage_af_per_ft": -15185566.350898754,
+      "implied_area_acres": -101237109.0059917,
+      "r2": 0.2712447289729677,
+      "per_lag": {
+        "lever_lag0": -3.360566468608222e-08,
+        "lever_lag1": 2.5306946366264006e-10,
+        "lever_lag2": -2.3376755368741243e-09,
+        "lever_lag3": -3.016173481577761e-08
+      }
+    },
+    "+ climate + trend": {
+      "lever": "irrigation_grace",
+      "n": 246,
+      "beta_ft_per_af_month": -5.222148318905172e-08,
+      "beta_se": 2.703970127919985e-08,
+      "t": -1.9312892050779726,
+      "storage_af_per_ft": -19149207.164028823,
+      "implied_area_acres": -127661381.0935255,
+      "r2": 0.2749585589971918,
+      "per_lag": {
+        "lever_lag0": -2.9502750662122147e-08,
+        "lever_lag1": 1.8443147883806397e-09,
+        "lever_lag2": -1.1538264549370248e-09,
+        "lever_lag3": -2.340922086037319e-08
+      }
+    }
+  }
+}
