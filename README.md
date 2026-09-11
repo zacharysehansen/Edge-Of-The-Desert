@@ -35,7 +35,8 @@ data/
   Final/           clean per-variable CSVs written by Phase 1 — inputs to Phase 2
 scripts/
   phase1/          one script per source variable + run_phase1.py orchestrator
-  phase2/          merge, features, baselines, model_*, export, run_phase2.py
+  phase2/          merge, features, baselines, model_*, export, run_phase2.py,
+                   experiment_human_block.py, experiment_grace_nested.py
   phase3/          generate_stats.py, top_inputs.py, slider_sensitivity.py,
                    check_catalog_parity.py
 model/             exported ONNX models + feature/CV JSON sidecars (Phase 2 output)
@@ -166,6 +167,19 @@ feature block into every monthly model, deseasonalizes it, constrains the signs 
 water balance requires, and scores every variant on identical test rows. Exports nothing
 and changes no shipped artifact — it writes `model/experiment_human_block.json` and a
 report. The result and what follows from it are in [PHASE3_PLAN.md](PHASE3_PLAN.md) §10.
+
+```bash
+python -m scripts.phase2.experiment_grace_nested
+```
+
+Follows that one up for the single model where it mattered. The experiment above uses one
+fixed XGBoost config for every variant, so its "shipped" column is not the shipped model's
+real score — and GRACE was the one model the human block appeared to *improve*. This re-runs
+both arms under `model_grace.py`'s own nested tuner on identical rows, against a decision
+rule fixed in the docstring before the run. Verdict: **null** — the gain is +0.0566 target R²
+at t = +1.21, and 83% of it comes from a single 28-training-row fold. Writes
+`model/experiment_grace_nested.json`, exports nothing, retrains nothing.
+[PHASE3_PLAN.md](PHASE3_PLAN.md) §11.5.
 
 ### Exported artifacts (per model, written to `model/`)
 

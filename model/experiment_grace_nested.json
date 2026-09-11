@@ -1,0 +1,149 @@
+{
+  "question": "PHASE3_PLAN.md \u00a711.5",
+  "tuner": "RandomizedSearchCV(n_iter=60, inner TimeSeriesSplit(3)) per fold",
+  "window": "2002-10..2020-12",
+  "n_rows_scored": 168,
+  "test_span": "2002-10..2020-12",
+  "decision_rule": {
+    "primary_metric": "target_r2",
+    "delta_positive": true,
+    "min_fold_wins": 4,
+    "min_abs_paired_t": 2.0
+  },
+  "arms": {
+    "shipped": {
+      "n_features": 45,
+      "n_human_features": 15,
+      "deseasonalized": false,
+      "target_r2": 0.03941677987189507,
+      "level_r2": 0.4388860988147128,
+      "skill_vs_persistence": 0.002014270745242741,
+      "folds": [
+        {
+          "fold": 0,
+          "test_start": "2005-04",
+          "test_end": "2007-07",
+          "n_train": 28,
+          "n_test": 28,
+          "target_r2": -0.44327478234464524,
+          "level_r2": -0.0071082083315205935
+        },
+        {
+          "fold": 1,
+          "test_start": "2007-08",
+          "test_end": "2009-11",
+          "n_train": 56,
+          "n_test": 28,
+          "target_r2": 0.07886096952941779,
+          "level_r2": 0.3266318313496336
+        },
+        {
+          "fold": 2,
+          "test_start": "2009-12",
+          "test_end": "2013-01",
+          "n_train": 84,
+          "n_test": 28,
+          "target_r2": 0.2501034339222643,
+          "level_r2": 0.7632597219082418
+        },
+        {
+          "fold": 3,
+          "test_start": "2013-02",
+          "test_end": "2017-05",
+          "n_train": 112,
+          "n_test": 28,
+          "target_r2": 0.016923167929913885,
+          "level_r2": 0.36078779963683705
+        },
+        {
+          "fold": 4,
+          "test_start": "2017-06",
+          "test_end": "2020-12",
+          "n_train": 140,
+          "n_test": 28,
+          "target_r2": 0.2944711103225246,
+          "level_r2": 0.7508593495103724
+        }
+      ]
+    },
+    "with_human_deseason": {
+      "n_features": 58,
+      "n_human_features": 22,
+      "deseasonalized": true,
+      "target_r2": 0.09598957196108271,
+      "level_r2": 0.4743798304288001,
+      "skill_vs_persistence": 0.03750800235933005,
+      "folds": [
+        {
+          "fold": 0,
+          "test_start": "2005-04",
+          "test_end": "2007-07",
+          "n_train": 28,
+          "n_test": 28,
+          "target_r2": -0.20791730099514627,
+          "level_r2": 0.15712278514170408
+        },
+        {
+          "fold": 1,
+          "test_start": "2007-08",
+          "test_end": "2009-11",
+          "n_train": 56,
+          "n_test": 28,
+          "target_r2": 0.04324157852022692,
+          "level_r2": 0.3005934557093711
+        },
+        {
+          "fold": 2,
+          "test_start": "2009-12",
+          "test_end": "2013-01",
+          "n_train": 84,
+          "n_test": 28,
+          "target_r2": 0.28593418294238115,
+          "level_r2": 0.774571390571596
+        },
+        {
+          "fold": 3,
+          "test_start": "2013-02",
+          "test_end": "2017-05",
+          "n_train": 112,
+          "n_test": 28,
+          "target_r2": 0.05483503700878689,
+          "level_r2": 0.38543870022083027
+        },
+        {
+          "fold": 4,
+          "test_start": "2017-06",
+          "test_end": "2020-12",
+          "n_train": 140,
+          "n_test": 28,
+          "target_r2": 0.30385436232916485,
+          "level_r2": 0.7541728205004989
+        }
+      ]
+    }
+  },
+  "comparison": {
+    "delta_target_r2": 0.05657279208918764,
+    "delta_level_r2": 0.03549373161408731,
+    "per_fold_delta": [
+      0.23535748134949896,
+      -0.03561939100919087,
+      0.03583074902011685,
+      0.037911869078873006,
+      0.009383252006640252
+    ],
+    "fold_wins": 4,
+    "paired_t": 1.213484940159951,
+    "verdict": "NULL"
+  },
+  "fixed_config_reference": {
+    "note": "model/experiment_human_block.json, \u00a710's one-config panel",
+    "shipped_target_r2": -0.011853144723506782,
+    "with_human_deseason_target_r2": 0.05394495516770885
+  },
+  "deployed_reference": {
+    "note": "model/grace_cv_results.json \u2014 full 2002-10..2023-12 window, 204 rows",
+    "cv_target_r2": 0.030237012250611463,
+    "skill_r2": -0.03494308191758516
+  }
+}

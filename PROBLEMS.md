@@ -22,7 +22,7 @@ about it. Companion to [PHASE2_REPORT.md](PHASE2_REPORT.md) (what the models sco
 | Wildfire | **+0.3716** | **works** ✅ | ~~month came from a DB edit date~~ **FIXED**; extended to 1984–2023 | **done — see [M3](#m3-wildfire--the-target-was-not-measuring-wildfire-fixed)** |
 | NDVI | **+0.2653** | **works** | none — at MODIS instrument floor | already healthy |
 | Groundwater | **+0.0086** | no skill, but no longer harmful ✅ | ~~compositional artifact~~ **FIXED**; now [P5](#p5-monthly-pumping-is-weakly-observed-not-unobserved-measured) | target fixed — **now stop** |
-| GRACE | −0.0349 | no skill | the observable pumping signal is too weak | **stop tuning.** Irrigation trade re-tested 2026-09-04: **null**. Only acquisitions left: [CAP](#option-b--cap-deliveries-as-a-monthly-pumping-proxy-untested--worth-one-probe) / [GLDAS](#option-c--gldas-land-surface-state-as-features-not-a-new-target-untested) / OpenET |
+| GRACE | −0.0349 | no skill | the observable pumping signal is too weak | **stop tuning.** Irrigation trade re-tested 2026-09-04: **null**; the full deseasonalized human block re-tested under the real nested tuner 2026-09-10: **null** (t=1.21, 83% of the gain is one 28-row fold — PHASE3_PLAN.md §11.5). Only acquisitions left: [CAP](#option-b--cap-deliveries-as-a-monthly-pumping-proxy-untested--worth-one-probe) / [GLDAS](#option-c--gldas-land-surface-state-as-features-not-a-new-target-untested) / OpenET |
 | Wildlife | **+0.2046** | **works** ✅ | ~~the target was a survey-effort index~~ **FIXED** | **done — see [M6](#m6-wildlife--the-target-was-a-survey-effort-index-fixed)** |
 
 **Five of six models now predict something, and no model is actively harmful anymore.** GRACE is
@@ -1190,6 +1190,20 @@ Recorded so nobody spends the effort twice.
   noise. The design gave variant A *none* of its 36-row advantage (those months fall at the end of
   the record and never enter training for the common folds), so this is a null under conditions
   that favoured the challenger. **A significant correlation is not a usable feature.**
+- **Retraining GRACE on the whole deseasonalized human block, under its own nested tuner.** The
+  strongest-looking case in the panel: on one fixed XGBoost config the block took GRACE's target R²
+  from −0.0119 to +0.0539 and its level R² from +0.4121 to +0.4462. Re-run with
+  `model_grace.py`'s real `RandomizedSearchCV(n_iter=60)` inside every fold, on identical rows, it
+  is **+0.0394 → +0.0960 target R², a +0.0566 gain that wins 4 of 5 folds at t = +1.21** — below
+  the t ≥ 2.0 bar declared before the run. **Tuning is not what kills it, and that is the part
+  worth remembering:** the real search lifted the shipped arm +0.0513 and the human arm +0.0420, so
+  the gap survived nearly intact. What kills it is that **83% of the difference is fold 0**, the
+  28-training-row fold where both arms are worse than predicting zero and the block is merely less
+  catastrophic. Across the other four folds it is +0.0119 at t = +0.69. The block buys
+  *robustness when starved of rows*, not skill — worthless for a model that deploys on all 204 —
+  and buying it means re-accepting the 2020-12 cap GRACE deliberately traded away for 36 months.
+  **A gain carried by one small fold is a sample-size effect wearing a feature-set costume.**
+  See `scripts/phase2/experiment_grace_nested.py`, PHASE3_PLAN.md §11.5.
 - **Fixing the irrigation feature as a route to skill.** Correct and worth doing — it was 99.9%
   nodata summed over the entire United States — but it moved no model. Five of six are unchanged to
   four decimal places; groundwater moved within fold noise while *promoting* the feature from

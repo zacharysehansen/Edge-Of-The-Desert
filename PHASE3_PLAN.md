@@ -440,7 +440,10 @@ national-sum irrigation bug.
   none of them are affected. No number is retracted.
 - **PROBLEMS.md stays valid**, and its P4/P5 findings become *load-bearing* rather than
   explanatory — the variance decomposition is the proof that Layer 2 is necessary.
-- **No model is retrained for deployment** under this plan. The learned layer is the part that works.
+- **No model is retrained for deployment** under this plan. The learned layer is the part that
+  works. This is now a measurement rather than a policy: the one model with a reason to revisit
+  it was GRACE, and [§11.5](#115-one-open-question-and-the-experiment-that-settles-it-measured)
+  ran its real nested pipeline on the human-block feature set and returned a null.
 
 The one thing that changes is the claim the interface makes. Right now it implies the six outputs
 respond to human pressure and they do not. After this, the response is real, correctly signed,
@@ -840,19 +843,95 @@ Restructure [§7](#7-acceptance-criteria) as:
 - **Reported, not gated: magnitude per lever**, with *"this lever's physical effect is genuinely
   small"* an allowed pass rather than a failure — provided the number and its basis are shown.
 
-### 11.5 One open question, and the experiment that settles it `UNTESTED`
+### 11.5 One open question, and the experiment that settles it `MEASURED`
 
-GRACE scored **better** with the deseasonalized human block than with its shipped feature set — on
-both the residual it is trained on (−0.0119 → +0.0539) and the reconstructed level
-(+0.4121 → +0.4462), on identical test rows.
+✅ **RUN — the verdict is NULL, but this section's hypothesis was wrong about why.**
+[`scripts/phase2/experiment_grace_nested.py`](scripts/phase2/experiment_grace_nested.py) →
+`model/experiment_grace_nested.json`.
 
-That cannot be claimed against the deployed model. Every §10 variant used one fixed XGBoost
-configuration rather than each model's own nested tuning, so the comparison is internally valid
-but its "shipped" column is not the shipped model's real score. Settling it means running
-`model_grace.py`'s actual pipeline on the human-block feature set and comparing to
-PHASE2_REPORT.md's number. It is the one place where
-[§8](#8-what-this-does-not-change)'s "no model is retrained for deployment" may be leaving
-something on the table, and it should be tested rather than assumed either way.
+**The question.** GRACE scored **better** with the deseasonalized human block than with its
+shipped feature set — on both the residual it is trained on (−0.0119 → +0.0539) and the
+reconstructed level (+0.4121 → +0.4462), on identical test rows. That could not be claimed against
+the deployed model, because every §10 variant used one fixed XGBoost configuration rather than each
+model's own nested tuning, so the comparison is internally valid but its "shipped" column is not
+the shipped model's real score. This is the one place where
+[§8](#8-what-this-does-not-change)'s "no model is retrained for deployment" might be leaving
+something on the table.
+
+**The rule was fixed before the run**, in the script's docstring, because PROBLEMS.md Part 3 says
+in bold *do not tune GRACE* and a probe must not be allowed to become a search. The human block
+counts as REAL only on all three of: Δ target R² > 0, wins in ≥ 4 of 5 folds, and |paired t| ≥ 2.0
+across folds. The t-bar is the standard PROBLEMS.md item #3 already used to call the irrigation
+trade null.
+
+#### The result: two of three criteria pass, so it is a NULL
+
+Both arms re-run under `model_grace.py`'s real pipeline — `RandomizedSearchCV(n_iter=60, inner
+TimeSeriesSplit(3))` tuned inside every training fold — on the 168 rows `build_variants` guarantees
+are shared, with GRACE's `require_real_target` filter applied so neither the target nor its anchor
+is zero-fill:
+
+| arm | features | human | target R² | level R² | skill vs persistence |
+|---|---|---|---|---|---|
+| shipped | 45 | 15 | +0.0394 | +0.4389 | +0.0020 |
+| + deseasonalized human block | 58 | 22 | **+0.0960** | **+0.4744** | **+0.0375** |
+
+| criterion | result | |
+|---|---|---|
+| Δ target R² > 0 | **+0.0566** | PASS |
+| wins ≥ 4 of 5 folds | **4/5** | PASS |
+| \|paired t\| ≥ 2.0 | **t = +1.21** | **FAIL** |
+
+`MEASURED`. **VERDICT: NULL.** The shipped feature set stands and nothing is retrained.
+
+#### This section's hypothesis was that tuning would close the gap. It does not
+
+The prediction was that the advantage was an artifact of an undertuned shipped arm. The real search
+lifts **both** arms by a similar amount, so the gap survives almost intact:
+
+| | §10 fixed config | real nested tuner | lift |
+|---|---|---|---|
+| shipped | −0.0119 | +0.0394 | +0.0513 |
+| + human block | +0.0539 | +0.0960 | +0.0420 |
+| **the gap** | **+0.0658** | **+0.0566** | −0.0092 |
+
+So the fixed config *was* understating the shipped arm, by 0.051 — but it understated the human arm
+by almost as much, and the difference between the two is not where the answer lives. **The null is
+on significance, not on tuning.** Recorded because this section predicted the opposite and the run
+refuted it.
+
+#### Where the advantage actually comes from: one fold, and it is the starved one
+
+| fold | test span | n_train | shipped | + human block | Δ |
+|---|---|---|---|---|---|
+| 0 | 2005-04..2007-07 | **28** | **−0.4433** | **−0.2079** | **+0.2354** |
+| 1 | 2007-08..2009-11 | 56 | +0.0789 | +0.0432 | −0.0356 |
+| 2 | 2009-12..2013-01 | 84 | +0.2501 | +0.2859 | +0.0358 |
+| 3 | 2013-02..2017-05 | 112 | +0.0169 | +0.0548 | +0.0379 |
+| 4 | 2017-06..2020-12 | 140 | +0.2945 | +0.3039 | +0.0094 |
+
+**Fold 0 is 83% of the summed difference.** It is the earliest fold, with 28 training rows, and it
+is the one fold where *both* arms are worse than predicting zero — the human block is merely less
+catastrophic. Across the other four folds the difference is +0.0119 with t = +0.69 (a post-hoc
+diagnostic, not a second test).
+
+That reframes the finding. The human block does not add skill to GRACE; it adds **robustness when
+the model is starved of training data**, which is a real property and a useless one for a deployed
+model that fits on all 204 rows. §10's headline was reporting a small-sample effect as a feature-set
+effect, and the fold table is the only view in which that is visible.
+
+#### What it would have cost anyway
+
+Adopting the human block means re-accepting the 2020-12 cap that the human series impose, which is
+the trade PHASE2_REPORT.md records GRACE already making deliberately in the other direction: it
+gave up irrigation and the other 2020-capped features to reach 2023-12, buying 36 months — 18% of
+the record. So even a REAL verdict would have had to clear that cost, and a +0.0566 target R²
+at t = 1.21 does not come close.
+
+**§8 stands as measured rather than assumed: no model is retrained for deployment.** GRACE's
+remaining routes are the data acquisitions PROBLEMS.md Part 3 already lists — CAP monthly
+deliveries (#5) and GLDAS soil moisture (#7) — not a feature-set rearrangement of the panel it
+already has.
 
 ### 11.6 What does not change
 
