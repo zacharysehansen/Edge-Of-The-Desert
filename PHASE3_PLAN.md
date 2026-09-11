@@ -726,16 +726,103 @@ spreading drawdown cone, and their 16.9x ratio is exactly the ratio of the two a
 
 ### 11.3 A double-counting hazard the plan does not cover `VERIFIED`
 
-`groundwater` is the one model whose Layer 1 **already contains irrigation** — it is one of its
-three human features — and it already responds: **+0.36 score points** across the policy range
-(§9). Layer 2 will add a structural irrigation term on top of a learned model that already has
-one, so for that single path the effect is counted twice.
+✅ **RESOLVED — and the hazard was wider than this section described.** Gated by
+`slider_sensitivity.py --mode no-double-count`.
 
-At an estimated ~4 structural points ([PHASE3_PARAMS.md §2](PHASE3_PARAMS.md)) the learned share
-is about 9%, so the pragmatic answer is probably to state it and accept it. But it has to be a
-decision rather than an oversight, and the same check is owed to Mead → groundwater. GRACE is
-clean: `extended: True` dropped irrigation from its feature set, so there is nothing to
-double-count there — which is also why the GRACE sweep reads exactly 0.00 for that lever.
+**The original hazard.** `groundwater` is the one model whose Layer 1 **already contains
+irrigation** — it is one of its three human features — and it already responds: **+0.36 score
+points** across the policy range (§9). Layer 2 adds a structural irrigation term on top of a
+learned model that already has one, so for that single path the effect would be counted twice.
+
+This section proposed to *state it and accept it* at an estimated ~9% learned share, and required
+that the outcome be a decision rather than an oversight. **The decision is recorded here, and it
+is not the one proposed: there is nothing left to accept.** §13's climate-only fix removed the
+overlap entirely, and the three things this section asked for — a measurement, a decision, and the
+owed Mead → groundwater check — are each answered below.
+
+#### The double-count is gone, measured to exact equality `MEASURED`
+
+`climateOnly()` holds all five human levers at their climatological normal before the ONNX models
+run, so Layer 1 cannot see a human delta at all. Swinging each human lever across its full policy
+range, in all 12 months, changes the raw learned output of all six models by **exactly zero** —
+`0.0e+00` across 5 × 6 × 12 = **360 comparisons**, not a small number but bit-identical output.
+Every shipped lever/output pair's learned share is **0.0%**.
+
+Gate: `python scripts/phase3/slider_sensitivity.py --mode no-double-count`. It asserts exact
+equality rather than a tolerance, because Layer 1 does not consume these values at all — any
+nonzero difference is a wiring bug, not a numerical one. Reverting `climate_only()` to a no-op
+makes it fail 8 pairs and exit nonzero, so it is a gate and not a decoration.
+
+#### The exposure was eight paths, not one — this section undercounted it
+
+Auditing the deployed `*_feature_names.json` sidecars directly, rather than reasoning from which
+lever each model was *meant* to carry:
+
+| model | human features it actually carries |
+|---|---|
+| `grace` | population ×3, impervious ×4, **mead ×8** |
+| `ndvi` | population ×3, impervious ×4, **mead ×8** |
+| `groundwater` | **irrigation ×1**, population_lag1, `precip_x_impervious`, mead_total_release ×2 |
+| `surface_water`, `wildfire_monthly`, `wildlife` | none |
+
+So **"GRACE is clean" was true only of irrigation.** `extended: True` did drop irrigation from its
+feature set, but GRACE still carries fifteen other human features, and so does NDVI. Had the human
+deltas kept flowing into Layer 1, the double-count would have been:
+
+| removed learned term (policy min → max, July) | score points | sign across 12 months |
+|---|---|---|
+| mead → ndvi | **−3.27** | **flips** (+2 / −10) |
+| impervious → ndvi | +1.37 | **flips** (+11 / −1) |
+| impervious → grace | −0.68 | **flips** (+10 / −2) |
+| mead → grace | +0.39 | **flips** (+4 / −8) |
+| **irrigation → groundwater** | **+0.36** | stable |
+| population → grace | −0.24 | stable |
+| population → ndvi | +0.19 | **flips** (+7 / −5) |
+| impervious → groundwater | +0.00 | stable (below rounding) |
+
+`MEASURED`. The path this section was written about is the **fifth largest** of the eight, and the
+largest — mead → ndvi at −3.27 — is nine times bigger and has the wrong sign in ten of twelve
+months. **Five of the eight flip sign with the month**, which is [D2](#d2--where-the-features-do-exist-the-fitted-signs-are-noise-measured)
+measured one more time, on the deployed artifacts, in the units the UI renders. That is the real
+finding: the overlap was not a 9% accounting rounding error on one well-grounded lever, it was
+mostly unstable coefficients on levers this section did not list.
+
+#### The owed Mead → groundwater check `MEASURED`
+
+**There was never a path, even before the fix.** `groundwater`'s two Mead features are
+`mead_total_release` and `mead_total_release_roll3` — *release volume*, not pool elevation — and
+the model does not carry `mead_pool_elevation` at all. Release is a `CONSTANT_DRIVERS` entry in
+[`catalog.js`](frontend/catalog.js), pinned at 12,657 with no slider, so the Mead control could
+not move it. Measured deviation: **+0.00**. The check is discharged with a null, and the null has
+a mechanism rather than being an absence of evidence.
+
+#### The 9% estimate was high by about half
+
+| | score points |
+|---|---|
+| learned irrigation → groundwater (counterfactual, pre-fix) | +0.36 |
+| structural irrigation → groundwater (shipped) | **+7.82** |
+| combined, had both been counted | +8.18 |
+| **learned share** | **4.4%** |
+
+`MEASURED`. The ~9% figure assumed ~4 structural points from
+[PHASE3_PARAMS.md §2](PHASE3_PARAMS.md); §12's calibrated lever came in at 7.82, nearly double, so
+the learned share is ~4.4%. Both terms carry the same sign, so it would have been a genuine
+inflation rather than a cancellation — which is what made it worth gating even at 4.4%.
+
+#### What the decision actually is
+
+**Layer 1 is climate-only, permanently, and it is now gated rather than asserted.** That is the
+decision this section asked for. It is recorded as a measurement for the reason §13 gives — the
+same structural choice fixes the double-count, removes D2's wrong signs from the interface, and
+makes every lever month-invariant, so it should not be revisited for one of those three reasons in
+isolation.
+
+One residual fragility, stated rather than fixed: `climateOnly()` derives its key list from
+`panel: 'human'` in `SLIDER_DEFS`. That is the right default — a new human lever is covered
+automatically — but a lever placed in the climate panel for layout reasons would silently begin
+double-counting. The `--mode no-double-count` gate exists to catch exactly that, and it reads the
+same `panel` field, so it is a live check on the wiring and not a restatement of it.
 
 ### 11.4 §7's acceptance criteria need restructuring
 
@@ -899,8 +986,9 @@ when the ONNX models run, and Layer 2 owns the whole human response. That is wha
 says, and it fixes three things at once:
 
 - the D2 wrong signs disappear from the interface entirely,
-- the [§11.3](#113-a-double-counting-hazard-the-plan-does-not-cover-verified) double-count of
-  irrigation in the groundwater model is gone by construction rather than by accounting,
+- the [§11.3](#113-a-double-counting-hazard-the-plan-does-not-cover-verified) double-count is gone
+  by construction rather than by accounting — and measurably so: it covered **eight** lever/output
+  paths, not just the irrigation → groundwater one §11.3 named,
 - every lever's effect becomes **month-invariant**, which is what a structural coefficient should
   be and what D2 said the fitted ones were not.
 

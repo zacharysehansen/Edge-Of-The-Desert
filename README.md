@@ -274,7 +274,16 @@ python scripts/phase3/transfer_calibration.py   # output-to-output transfer edge
 
 # every human lever must hold its declared sign in all 12 months
 python scripts/phase3/slider_sensitivity.py --mode acceptance
+
+# Layer 1 must stay climate-only: no human lever may move the learned output
+python scripts/phase3/slider_sensitivity.py --mode no-double-count
 ```
+
+The last two exit nonzero on failure, so they work as build gates. `--mode
+no-double-count` asserts that swinging any human lever leaves all six learned outputs
+**bit-identical** — if one moves, its response is being counted twice, once by the fitted
+coefficient and once by the structural β
+([PHASE3_PLAN.md §11.3](PHASE3_PLAN.md)).
 
 `slider_sensitivity.py` runs the exported ONNX files headlessly and reports how far each
 slider moves each output across its full policy range. It is the only check in the repo

@@ -540,10 +540,61 @@ def acceptance(runner: Runner, months: int) -> int:
     return failures
 
 
+def no_double_count(runner: "Runner", months: int) -> int:
+    """PHASE3_PLAN.md §11.3 — assert no human lever reaches Layer 1.
+
+    §4 splits the model as `ML_climate(...) + Σ β_j (lever_j − baseline_j)`, so a human
+    lever that still moved the learned output would be counted twice: once by the fitted
+    coefficient and once by the structural β. `groundwater` is the path that matters —
+    it is the only model carrying `irrigation_total_withdrawal_mgd`, which is also
+    Layer 2's strongest corroborated lever.
+
+    This is a gate rather than a report because the exposure is wider than the feature
+    lists suggest and it is reachable by ordinary edits: `climateOnly()` derives its key
+    list from `panel: 'human'` in SLIDER_DEFS, so a lever added to the climate panel for
+    layout reasons would silently start double-counting. The assertion is exact equality,
+    not a tolerance — Layer 1 does not see these values at all, so any nonzero difference
+    is a wiring bug and not a numerical one.
+    """
+    print("=== §11.3 gate: no human lever reaches Layer 1 ===\n")
+    pol = {k: runner.slider_stats[k]["policy"] for k in HUMAN_SLIDERS}
+    history = {k: [runner.seed[k]] * 24 for k in RESIDUAL_TARGETS}
+
+    def layer1(sv: dict, month: int) -> dict:
+        cat = fill_response_features(
+            runner.catalog.build(runner.climate_only(sv), month, months), history
+        )
+        return {k: runner.raw(k, cat) for k in MODELS}
+
+    print(f"{'lever (policy min -> max)':34s} " + " ".join(f"{m[:9]:>10s}" for m in MODELS))
+    worst, failures = 0.0, 0
+    for lev in HUMAN_SLIDERS:
+        cells = []
+        for key in MODELS:
+            dev = 0.0
+            for month in range(1, 13):
+                lo, hi = dict(runner.default), dict(runner.default)
+                lo[lev], hi[lev] = pol[lev]["min"], pol[lev]["max"]
+                dev = max(dev, abs(layer1(hi, month)[key] - layer1(lo, month)[key]))
+            cells.append(dev)
+            worst = max(worst, dev)
+            if dev != 0.0:
+                failures += 1
+        print(f"{lev:34s} " + " ".join(f"{c:10.1e}" for c in cells))
+
+    print(
+        f"\nworst deviation across {len(HUMAN_SLIDERS)}x{len(MODELS)}x12 = "
+        f"{len(HUMAN_SLIDERS) * len(MODELS) * 12} comparisons: {worst:.1e}"
+    )
+    return failures
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument(
-        "--mode", choices=("sweep", "rollout", "lambda", "acceptance"), default="sweep"
+        "--mode",
+        choices=("sweep", "rollout", "lambda", "acceptance", "no-double-count"),
+        default="sweep",
     )
     ap.add_argument("--months", type=int, default=12)
     ap.add_argument("--month-of-year", type=int, default=7)
@@ -559,6 +610,16 @@ def main() -> None:
         return
 
     runner = Runner()
+    if args.mode == "no-double-count":
+        failures = no_double_count(runner, args.months)
+        if failures:
+            raise SystemExit(
+                f"\n{failures} lever/output pair(s) still reach Layer 1. The human "
+                f"response is counted twice — see PHASE3_PLAN.md §11.3."
+            )
+        print("\nLayer 1 is bit-identical across every human lever. No double-count.")
+        return
+
     if args.mode == "acceptance":
         failures = acceptance(runner, args.months)
         if failures:

@@ -93,10 +93,17 @@ const HUMAN_SLIDERS = Object.keys(SLIDER_DEFS).filter(k => SLIDER_DEFS[k].panel 
 //
 // so the human levers are held at their climatological normal when the ONNX models
 // run, and Layer 2 owns the entire human response. Feeding the human deltas into the
-// learned models as well did two bad things: it double-counted irrigation for
-// groundwater, which is the one model that carries the feature (§11.3), and it
-// imported D2's month-dependent wrong signs, which the §7 acceptance gate then caught
-// overwhelming the structural term for urbanization → NDVI and Mead → GRACE.
+// learned models as well did two bad things: it double-counted the human response over
+// eight lever/output paths (§11.3 — irrigation → groundwater is the only one it named,
+// and it is the fifth largest), and it imported D2's month-dependent wrong signs, which
+// the §7 acceptance gate then caught overwhelming the structural term for urbanization
+// → NDVI and Mead → GRACE.
+//
+// HUMAN_SLIDERS is derived from `panel: 'human'` rather than hardcoded, so a new human
+// lever is covered automatically — but a human lever placed in the climate panel for
+// layout reasons would silently start double-counting. That is what
+// `slider_sensitivity.py --mode no-double-count` gates: it asserts Layer 1's output is
+// bit-identical across every human lever's full policy range, in all 12 months.
 //
 // Nothing measurable is lost. §10 established the panel cannot identify these
 // coefficients: of 21 lever/target pairs, 12 had no effect at all and only 3 had a
