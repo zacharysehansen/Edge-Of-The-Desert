@@ -8,7 +8,7 @@ import {
     computeDelta,
 } from './state.js';
 import { SEED_BASELINES, buildFeatureCatalog } from './catalog.js';
-import { structuralResponse, integrateLearnedResidual } from './structural.js';
+import { structuralResponse, structuralResponseBand, integrateLearnedResidual } from './structural.js';
 
 // Tell the WASM runtime where to find its binary files.
 ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.3/dist/';
@@ -334,6 +334,11 @@ async function runPipeline(sliderDeltas, month, durationMonths) {
     // Layer 2, computed once for the whole pipeline and exposed for the provenance UI.
     const structural = structuralResponse(sliderDeltas, month, durationMonths);
     state.structural = structural;
+    // The declared parameter bands, propagated to the same per-lever breakdown. Eight
+    // of the twelve banded constants are UNTESTED and the dominant one carries
+    // t = +1.78 at the horizon it is used (PHASE3_PLAN.md §12a), so a card showing
+    // only the point estimate would overstate what is known.
+    state.structuralBand = structuralResponseBand(sliderDeltas, month, durationMonths);
     const graceBaseline = SEED_BASELINES.grace;
     const annualNdviBaseline = SEED_BASELINES.ndvi;
     const groundwaterBaseline = SEED_BASELINES.groundwater;
@@ -466,21 +471,37 @@ function splitProvenance(modelKey, rawValue) {
     const humanRaw = structural?.total ?? 0;
     const totalRaw = rawValue - stats.baseline;
 
+    const band = state.structuralBand?.outputs?.[modelKey];
+
     const levers = Object.entries(structural?.byLever ?? {})
-        .map(([id, detail]) => ({
-            id,
-            points: toPoints(detail.displacement),
-            kind: detail.kind,
-            tier: detail.tier,
-            slider: detail.slider ?? null,
-            from: detail.from ?? null,
-        }))
+        .map(([id, detail]) => {
+            const span = band?.byLever?.[id]?.displacementBand;
+            return {
+                id,
+                points: toPoints(detail.displacement),
+                // Ordered low-to-high in POINTS, which is not the same as low-to-high
+                // in raw units once the sign is negative.
+                pointsBand: span
+                    ? [toPoints(span[0]), toPoints(span[1])].sort((a, b) => a - b)
+                    : null,
+                drivers: band?.byLever?.[id]?.drivers ?? [],
+                kind: detail.kind,
+                tier: detail.tier,
+                slider: detail.slider ?? null,
+                from: detail.from ?? null,
+            };
+        })
         .filter(lever => Math.abs(lever.points) >= 0.005)
         .sort((a, b) => Math.abs(b.points) - Math.abs(a.points));
+
+    const humanBand = band?.total
+        ? [toPoints(band.total[0]), toPoints(band.total[1])].sort((a, b) => a - b)
+        : null;
 
     return {
         climatePoints: toPoints(totalRaw - humanRaw),
         humanPoints: toPoints(humanRaw),
+        humanBand,
         levers,
     };
 }

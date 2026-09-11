@@ -287,12 +287,125 @@ if (process?.argv?.includes('--dump')) {
         month,
         duration,
         response: structuralResponse({ ...ZERO_DELTAS, ...deltas }, month, duration),
+        responseBand: structuralResponseBand({ ...ZERO_DELTAS, ...deltas }, month, duration),
         meadElevation: params.mead_baseline_elevation + (deltas.mead_pool_elevation ?? 0),
         meadReductionKaf: meadReductionKafPerYear(
             params.mead_baseline_elevation + (deltas.mead_pool_elevation ?? 0),
         ),
     }));
     console.log(JSON.stringify(dump, null, 2));
+}
+
+// ── Parameter bands ───────────────────────────────────────────────────────────
+//
+// Every Layer 2 number rendered on a card is a product of constants, and twelve of
+// those ship with a declared `band` — eight UNTESTED, and since PHASE3_PLAN.md §12a
+// the dominant one (`storage_af_per_ft`, 184,023..289,336) MEASURED but with
+// t = +1.78 at the horizon it is used. Showing only the point estimate claims a
+// precision the parameters do not have, which is the same failure this whole layer
+// exists to fix, in miniature.
+//
+// The envelope is taken over the CORNERS of the relevant bands rather than by
+// propagating derivatives: every path is a product, quotient or difference of
+// positive quantities composed with a log, so each is monotone in each constant
+// across its band and the corner extremes are the true extremes. Corners are also
+// the only version that stays right when two levers share a constant — all three
+// pumping levers divide by `storage_af_per_ft`, so they move together, and summing
+// independent per-lever minima would understate the width.
+//
+// "Relevant" is detected by perturbation rather than from a hardcoded
+// path -> constant map, for the same reason climateOnly() derives its keys from
+// `panel`: a map would drift the first time a path gained a factor.
+
+function bandedConstants() {
+    return Object.keys(C).filter(k => Array.isArray(C[k]?.band) && C[k].band.length === 2);
+}
+
+function evalWith(overrides, deltas, month, durationMonths) {
+    const saved = {};
+    for (const [k, v] of Object.entries(overrides)) {
+        saved[k] = C[k].value;
+        C[k].value = v;
+    }
+    try {
+        return structuralResponse(deltas, month, durationMonths);
+    } finally {
+        for (const [k, v] of Object.entries(saved)) C[k].value = v;
+    }
+}
+
+function cornersOf(names) {
+    let out = [[]];
+    for (const name of names) {
+        const next = [];
+        for (const prefix of out) for (const end of C[name].band) next.push([...prefix, end]);
+        out = next;
+    }
+    return out;
+}
+
+/**
+ * Low/high envelope of every total and lever displacement over the declared bands.
+ * Same shape as structuralResponse, with `total` as [lo, hi] and each lever carrying
+ * `displacementBand` plus `drivers` — which banded constants actually move it, so
+ * the card can say why the range is wide.
+ */
+function structuralResponseBand(deltas, month, durationMonths) {
+    const base = structuralResponse(deltas, month, durationMonths);
+    const EPS = 1e-12;
+
+    const relevant = bandedConstants().filter(name => {
+        const [lo, hi] = C[name].band;
+        const probe = hi !== C[name].value ? hi : lo;
+        const alt = evalWith({ [name]: probe }, deltas, month, durationMonths);
+        return STRUCTURAL_OUTPUTS.some(
+            out => Math.abs(alt[out].total - base[out].total) > EPS,
+        );
+    });
+
+    const bands = {};
+    for (const out of STRUCTURAL_OUTPUTS) {
+        bands[out] = { total: [base[out].total, base[out].total], byLever: {} };
+        for (const [id, entry] of Object.entries(base[out].byLever)) {
+            bands[out].byLever[id] = {
+                displacementBand: [entry.displacement, entry.displacement],
+                drivers: [],
+            };
+        }
+    }
+
+    for (const corner of cornersOf(relevant)) {
+        const overrides = Object.fromEntries(relevant.map((n, i) => [n, corner[i]]));
+        const trial = evalWith(overrides, deltas, month, durationMonths);
+        for (const out of STRUCTURAL_OUTPUTS) {
+            const span = bands[out].total;
+            span[0] = Math.min(span[0], trial[out].total);
+            span[1] = Math.max(span[1], trial[out].total);
+            for (const [id, entry] of Object.entries(trial[out].byLever)) {
+                const target = bands[out].byLever[id];
+                if (!target) continue;
+                target.displacementBand[0] = Math.min(target.displacementBand[0], entry.displacement);
+                target.displacementBand[1] = Math.max(target.displacementBand[1], entry.displacement);
+            }
+        }
+    }
+
+    // Attribute the width: which relevant constant moves THIS lever.
+    for (const name of relevant) {
+        const [lo, hi] = C[name].band;
+        const probe = hi !== C[name].value ? hi : lo;
+        const alt = evalWith({ [name]: probe }, deltas, month, durationMonths);
+        for (const out of STRUCTURAL_OUTPUTS) {
+            for (const [id, entry] of Object.entries(base[out].byLever)) {
+                const moved = alt[out].byLever[id]?.displacement;
+                if (moved !== undefined && Math.abs(moved - entry.displacement) > EPS) {
+                    bands[out].byLever[id].drivers.push(name);
+                }
+            }
+        }
+    }
+
+    return { outputs: bands, relevantConstants: relevant };
 }
 
 // Lever/transfer metadata by id, for the provenance UI: mechanism, evidence, tier.
@@ -302,6 +415,13 @@ const LEVER_INFO = Object.fromEntries([
 ]);
 
 const CLIMATE_ONLY_OUTPUTS = params.climate_only_outputs ?? [];
+
+// The banded constants' own metadata, for the tooltips that explain a range. Read
+// straight from structural_params.json so the numbers in the interface are the
+// numbers the arithmetic used — there is no second copy to fall out of step.
+const PARAM_BANDS = Object.fromEntries(
+    bandedConstants().map(name => [name, C[name]]),
+);
 
 export {
     LEVER_INFO,
@@ -314,4 +434,7 @@ export {
     integrateRate,
     integrateLearnedResidual,
     structuralResponse,
+    structuralResponseBand,
+    bandedConstants,
+    PARAM_BANDS,
 };

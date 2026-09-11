@@ -10,7 +10,9 @@ paths, not one; now gated), [§11.5](#115-one-open-question-and-the-experiment-t
 (GRACE's human-block retrain is a null — a one-fold sample-size effect), and
 [§12a](#12a-the-spreading-cone-test-measured) (the aquifer storage coefficient was shipping at the
 long-run limit, 7.7× past the evidence; measuring it at the scenario horizon multiplies every
-groundwater lever by 7.7).
+groundwater lever by 7.7), and
+[§15a](#15a-parameter-bands-on-the-cards-measured) (the cards now show each lever's range over the
+declared parameter bands, and which constants drive its width).
 
 This document is about a defect that is invisible in [PHASE2_REPORT.md](PHASE2_REPORT.md) and
 [PROBLEMS.md](PROBLEMS.md) because both are scored on forecast accuracy, and the defect does not
@@ -1382,7 +1384,8 @@ the band is as load-bearing as the point estimate.
 The wildlife column is small — 0.04 to 0.82 points — because it is a second-order effect reached
 through one attenuating edge, and the conservative end of that edge's band shipped. At the band's
 upper end (+0.1953, the significant fit) it is 3.6x larger. That range belongs on the card, which
-is Layer 4.
+is Layer 4 — ✅ **done, see [§15a](#15a-parameter-bands-on-the-cards-measured)**, and it turned out
+to be the least uncertain of the ranges that needed showing.
 
 
 ---
@@ -1433,3 +1436,83 @@ prose that can drift from the artifacts.
 **This is not a disclaimer.** It answers *why* the number moved, which the black box it replaces
 never could — and it is what makes the difference between a coefficient with a citation and an
 XGBoost coefficient whose sign flipped with the month legible to whoever is using the tool.
+
+---
+
+## 15a. Parameter bands on the cards `MEASURED`
+
+Layer 4 answered *where did this number come from*. It did not answer *how well is it known*, and
+after [§12a](#12a-the-spreading-cone-test-measured) that gap was no longer defensible: every Layer 2
+number is a product of constants, **twelve of which ship with a declared band** — eight still
+`UNTESTED`, and the dominant one now `MEASURED` but at t = +1.78. A card printing `−36.1` and
+nothing else claims a precision the parameters do not have, which is this document's own opening
+complaint in miniature.
+
+Two open items collapsed into this one. [§14](#where-the-app-now-stands) asked for the wildlife
+edge's range on the card; the Lake Mead lever is weak mostly because
+`region_share_of_az_reduction` (0.4–0.8) and `groundwater_substitution_fraction` (0.3–0.7) are both
+guesses that multiply. Neither needed a better point estimate. Both needed the width shown.
+
+### Method
+
+`structuralResponseBand` / `response_band` take the envelope over the **corners** of the relevant
+bands. Corners rather than propagated derivatives because every path here is a product, quotient or
+difference of positive quantities composed with a log, so each is monotone in each constant across
+its band and the corner extremes are the true extremes. Corners are also the only version that
+stays correct when levers **share** a constant: all three pumping levers divide by
+`storage_af_per_ft`, so they move together, and summing independent per-lever minima would
+understate the width. Which constants are "relevant" is found by perturbation, not from a
+path → constant map — the same reason `climateOnly()` keys off `panel` instead of a list, so it
+cannot drift when a formula gains a factor.
+
+Each lever also reports its **drivers**: the banded constants that actually move it. That is the
+difference between *"this number is uncertain"* and *"this number is uncertain because the aquifer
+storage coefficient is only known to a factor of 1.6"* — the second is actionable.
+
+### What the cards now say
+
+A scenario with irrigation −60%, +1.5 M people, +1.0 pt impervious, Mead −60 ft:
+
+```
+Groundwater Depth vs Normal
+  human levers (structural)              −29.2      −40.8 to −22.7
+      Irrigation Withdrawal  CORROBORATED −36.1      −47.8 to −30.4
+      Population (municipal pumping)       +4.2       +3.6 to +5.6
+      Lake Mead Level (DCP tier)           +2.6       +0.9 to +6.5   ← 7× wide
+
+Bird Abundance vs Normal
+  human levers (structural)               +0.9       +0.6 to +5.3   ← 6× wide
+      via Streamflow vs Normal             +0.9       +0.6 to +5.3
+```
+
+Three things that only became visible once the widths were on screen:
+
+- **Wildlife is the least certain number in the application** — +0.6 to +5.3, a 6× range, because
+  it compounds the transfer edge's own band with every upstream surface-water parameter. §14 asked
+  for the edge's 3.6× range; the honest figure is wider than that, since the edge is not the only
+  uncertain factor on the path.
+- **Lake Mead → groundwater spans 7×** (+0.9 to +6.5) on two `UNTESTED` multipliers. The lever is
+  not *small*, it is *unknown* — a materially different statement from the one the point estimate
+  was making, and the reason that item closes here rather than with better guesses.
+- **Irrigation → GRACE carries no band at all.** Its only non-unit factor is `grace_units_per_af`,
+  a geometric conversion with nothing to be uncertain about. An empty range is information too: it
+  says the width comes from the parameters, not from the rendering.
+
+### What the range is not
+
+It is **Layer 2 parameter uncertainty only.** The learned climate term on the same card carries its
+own error — PHASE2_REPORT.md's CV spread — and that is not in this interval; nor is structural error
+in the water balance itself, nor the band on `λ`. The tooltip says so rather than letting the range
+imply a total error bar it is not.
+
+The point estimate stays, and stays first. A card showing only a range could not be reconciled with
+the bar above it, and the arithmetic elsewhere in the card uses the point value. A range narrower
+than the one-decimal precision the number is printed to is dropped, because below that it implies a
+distinction the display cannot support.
+
+Guarded by `check_catalog_parity.py`, which now compares both envelopes, every lever's band, the
+driver attribution, and asserts each band contains its own point estimate — a band that excludes
+its point estimate is a bug in the envelope, not a wide uncertainty. Reverting the JS relevance
+threshold from `1e-12` to `1e-3` makes it fail on three scenarios.
+
+---

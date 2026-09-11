@@ -11,6 +11,7 @@ argument of its own, only the same operations in the same order.
 
 from __future__ import annotations
 
+import itertools
 import json
 import math
 from pathlib import Path
@@ -19,6 +20,10 @@ ROOT = Path(__file__).resolve().parents[2]
 PARAMS_PATH = ROOT / "frontend" / "structural_params.json"
 
 STRUCTURAL_OUTPUTS = ("groundwater", "grace", "ndvi", "surface_water", "wildlife")
+
+# Below this, two evaluations of the same formula differ only by floating-point
+# noise, not by a parameter band. Used to decide whether a constant is "relevant".
+BAND_EPS = 1e-12
 
 SQ_M_PER_ACRE = 4046.8564224
 CFS_PER_CMS = 35.3147
@@ -157,6 +162,130 @@ class Structural:
         if lam <= 0:
             return residual
         return self.integrate_rate(residual, lam, months)
+
+    # ── parameter bands ──────────────────────────────────────────────────────
+    #
+    # Every Layer 2 number the UI renders is a product of constants, and twelve of
+    # those constants ship with a declared `band` — eight UNTESTED, and since
+    # PHASE3_PLAN.md §12a the dominant one (`storage_af_per_ft`, 184,023..289,336)
+    # MEASURED but with t = +1.78 at the horizon it is used. A card showing only the
+    # point estimate is claiming a precision the parameters do not have, which is the
+    # same failure mode in miniature as the one this whole layer exists to fix.
+    #
+    # The range is computed by evaluating the corners of the relevant bands rather
+    # than by propagating derivatives: every path here is a product, quotient or
+    # difference of positive quantities composed with a log, so each is monotone in
+    # each constant across its band, and the corner extremes ARE the extremes. It is
+    # also the only version that stays correct when two levers share a constant —
+    # all three pumping levers divide by `storage_af_per_ft`, so they move together
+    # and summing independent per-lever minima would understate the width.
+    #
+    # "Relevant" is detected by perturbation, not from a hardcoded path -> constant
+    # map, for the same reason `climateOnly()` derives its keys from `panel` instead
+    # of listing them: a map would drift the first time a path gained a factor.
+
+    def banded_constants(self) -> list[str]:
+        return [
+            name
+            for name, spec in self.params["constants"].items()
+            if isinstance(spec, dict) and spec.get("band")
+        ]
+
+    def _eval_with(
+        self, overrides: dict, deltas: dict, month: int, duration_months: int
+    ) -> dict:
+        saved = {k: self.c[k] for k in overrides}
+        self.c.update(overrides)
+        try:
+            return self.response(deltas, month, duration_months)
+        finally:
+            self.c.update(saved)
+
+    def response_band(self, deltas: dict, month: int, duration_months: int) -> dict:
+        """Low/high envelope of every total and lever displacement over the bands.
+
+        Returns the same shape as `response`, with `total` replaced by `[lo, hi]` and
+        each lever carrying `displacementBand` plus `drivers` — the banded constants
+        that actually move it, so the interface can say *why* the range is wide.
+        """
+        base = self.response(deltas, month, duration_months)
+        candidates = self.banded_constants()
+
+        relevant = []
+        for name in candidates:
+            probe = self._probe_value(name)
+            alt = self._eval_with({name: probe}, deltas, month, duration_months)
+            if any(
+                abs(alt[out]["total"] - base[out]["total"]) > BAND_EPS
+                for out in STRUCTURAL_OUTPUTS
+            ):
+                relevant.append(name)
+
+        bands = {
+            out: {
+                "total": [base[out]["total"], base[out]["total"]],
+                "byLever": {
+                    lever_id: {
+                        "displacementBand": [entry["displacement"]] * 2,
+                        "drivers": [],
+                    }
+                    for lever_id, entry in base[out]["byLever"].items()
+                },
+            }
+            for out in STRUCTURAL_OUTPUTS
+        }
+
+        for corner in itertools.product(
+            *[self.params["constants"][n]["band"] for n in relevant]
+        ):
+            trial = self._eval_with(
+                dict(zip(relevant, corner, strict=True)), deltas, month, duration_months
+            )
+            for out in STRUCTURAL_OUTPUTS:
+                span = bands[out]["total"]
+                span[0] = min(span[0], trial[out]["total"])
+                span[1] = max(span[1], trial[out]["total"])
+                for lever_id, entry in trial[out]["byLever"].items():
+                    target = bands[out]["byLever"].get(lever_id)
+                    if target is None:
+                        continue
+                    pair = target["displacementBand"]
+                    pair[0] = min(pair[0], entry["displacement"])
+                    pair[1] = max(pair[1], entry["displacement"])
+
+        self._attribute_drivers(bands, base, relevant, deltas, month, duration_months)
+        return {"outputs": bands, "relevant_constants": relevant}
+
+    def _probe_value(self, name: str) -> float:
+        """The band end that differs from the shipped value, so a probe moves."""
+        lo, hi = self.params["constants"][name]["band"]
+        return hi if hi != self.c[name] else lo
+
+    def _attribute_drivers(  # noqa: PLR0913
+        self,
+        bands: dict,
+        base: dict,
+        relevant: list[str],
+        deltas: dict,
+        month: int,
+        duration_months: int,
+    ) -> None:
+        """Record which banded constants move each lever, so a card can say why.
+
+        Separate from the envelope because it answers a different question: the
+        envelope needs the joint corners, this needs one constant at a time.
+        """
+        for name in relevant:
+            alt = self._eval_with(
+                {name: self._probe_value(name)}, deltas, month, duration_months
+            )
+            for out in STRUCTURAL_OUTPUTS:
+                for lever_id, entry in base[out]["byLever"].items():
+                    moved = alt[out]["byLever"].get(lever_id, {}).get("displacement")
+                    if moved is None:
+                        continue
+                    if abs(moved - entry["displacement"]) > BAND_EPS:
+                        bands[out]["byLever"][lever_id]["drivers"].append(name)
 
     # ── public entry point ───────────────────────────────────────────────────
 

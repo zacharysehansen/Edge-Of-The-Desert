@@ -93,6 +93,71 @@ def main() -> None:
     print("the structural layer.")
 
 
+def compare_bands(js_band: dict, py_band: dict, js_point: dict) -> list[tuple]:
+    """Disagreements between the JS and Python parameter-band envelopes.
+
+    The bands are as load-bearing as the point estimates now that the cards render
+    them, and they are the easier of the two to get subtly wrong: the envelope is a
+    max over band corners, so a mirror that iterated the corners in a different
+    order, or missed a constant two levers share, would still produce plausible
+    numbers. Comparing them makes that a failure rather than a silent divergence.
+    """
+    out = []
+    if sorted(js_band["relevantConstants"]) != sorted(py_band["relevant_constants"]):
+        out.append(
+            (
+                "BAND relevant_constants",
+                js_band["relevantConstants"],
+                py_band["relevant_constants"],
+            )
+        )
+
+    for output, bucket in js_band["outputs"].items():
+        mirror_out = py_band["outputs"][output]
+        for i, edge in enumerate(("lo", "hi")):
+            if not close(bucket["total"][i], mirror_out["total"][i]):
+                out.append(
+                    (
+                        f"BAND {output} total {edge}",
+                        bucket["total"][i],
+                        mirror_out["total"][i],
+                    )
+                )
+        out += _compare_lever_bands(output, bucket, mirror_out, js_point)
+    return out
+
+
+def _compare_lever_bands(
+    output: str, bucket: dict, mirror_out: dict, js_point: dict
+) -> list[tuple]:
+    out = []
+    for lever_id, detail in bucket["byLever"].items():
+        mirror = mirror_out["byLever"].get(lever_id)
+        if mirror is None:
+            out.append((f"BAND {lever_id}", detail, None))
+            continue
+        for i, edge in enumerate(("lo", "hi")):
+            if not close(detail["displacementBand"][i], mirror["displacementBand"][i]):
+                out.append(
+                    (
+                        f"BAND {lever_id} {edge}",
+                        detail["displacementBand"][i],
+                        mirror["displacementBand"][i],
+                    )
+                )
+        if sorted(detail["drivers"]) != sorted(mirror["drivers"]):
+            out.append(
+                (f"BAND {lever_id} drivers", detail["drivers"], mirror["drivers"])
+            )
+        # A band that does not contain its own point estimate is a bug in the
+        # envelope, not a wide uncertainty.
+        point = js_point[output]["byLever"][lever_id]["displacement"]
+        lo, hi = detail["displacementBand"]
+        if not lo - 1e-9 <= point <= hi + 1e-9:
+            out.append((f"BAND {lever_id} EXCLUDES POINT", point, (lo, hi)))
+    return out
+
+
 def check_structural() -> int:
     """Same guard for Layer 2 / Layer 3 (frontend/structural.js)."""
     structural = Structural()
@@ -139,6 +204,14 @@ def check_structural() -> int:
                             (f"{lever_id} SIGN", detail["displacement"], expected)
                         )
 
+        js_band = entry.get("responseBand")
+        if js_band is not None:
+            mismatched += compare_bands(
+                js_band,
+                structural.response_band(deltas, entry["month"], entry["duration"]),
+                js,
+            )
+
         if mismatched:
             failures += 1
             print(f"  FAIL {name}: {len(mismatched)} disagreements")
@@ -146,7 +219,13 @@ def check_structural() -> int:
                 print(f"         {key:44s} js={a!r:<22} py/expected={b!r}")
         else:
             active = sum(len(b["byLever"]) for b in js.values())
-            print(f"  ok   {name:20s} {active} lever contributions agree")
+            banded = (
+                len(js_band["relevantConstants"]) if js_band is not None else 0
+            )
+            print(
+                f"  ok   {name:20s} {active} lever contributions agree"
+                f"  (+ bands over {banded} constants)"
+            )
     return failures
 
 

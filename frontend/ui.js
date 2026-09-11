@@ -2,8 +2,43 @@ import {
   MONTHS, SCENARIO_DURATION_OPTIONS, SLIDER_DEFS, SLIDER_POLICY, OUTPUT_DEFS, OUTPUT_STATS,
   TOP_INPUTS, TIER_BASIS, state, sliderRaw,
 } from './state.js';
-import { LEVER_INFO, CLIMATE_ONLY_OUTPUTS } from './structural.js';
+import { LEVER_INFO, CLIMATE_ONLY_OUTPUTS, PARAM_BANDS } from './structural.js';
 import { loadModels, runAll } from './models.js';
+
+
+// Readable names for the banded constants, for the tooltip that explains a range.
+// Only the wording lives here — every number comes from PARAM_BANDS, i.e. from
+// structural_params.json itself. A renamed constant falls back to its raw name, which
+// is ugly but never wrong.
+const PARAM_LABELS = {
+  storage_af_per_ft: 'aquifer storage coefficient',
+  specific_yield: 'specific yield',
+  alluvial_fraction: 'alluvial fraction of the region',
+  ndvi_impervious: 'NDVI of paved surface',
+  ndvi_irrigated_crop: 'NDVI of irrigated cropland',
+  region_share_of_az_reduction: "region's share of the Arizona CAP cut",
+  groundwater_substitution_fraction: 'share of lost CAP water replaced by pumping',
+  effluent_return_fraction: 'effluent returned to stream',
+  runoff_coefficient_impervious: 'runoff coefficient, paved',
+  runoff_coefficient_natural: 'runoff coefficient, desert',
+  stream_capture_fraction: 'stream capture fraction',
+  transfer_surface_water_to_wildlife: 'streamflow \u2192 bird abundance edge',
+};
+
+
+// "storage_af_per_ft" means nothing on a card; "aquifer storage coefficient
+// (184,023-289,336 AF/ft, MEASURED)" is the sentence that makes a wide range
+// legible. The status matters as much as the numbers: a range from an UNTESTED
+// assumption and a range from a t = +1.78 measurement are different claims.
+function describeParam(name) {
+  const spec = PARAM_BANDS[name];
+  const label = PARAM_LABELS[name] ?? name;
+  if (!spec?.band) return label;
+  const fmt = (v) => (Math.abs(v) >= 1000
+    ? Math.round(v).toLocaleString('en-US')
+    : Number(v.toPrecision(3)).toString());
+  return `${label} (${fmt(spec.band[0])}\u2013${fmt(spec.band[1])}, ${spec.status})`;
+}
 
 
 let debounceTimer = null;
@@ -324,7 +359,19 @@ function signed(points) {
 }
 
 
-function provenanceRow(className, label, points, title, badge) {
+// A range is only worth printing when it is wider than the precision the number is
+// shown to. Below that it is visual noise that implies a spurious distinction.
+function bandText(band) {
+  if (!band) return null;
+  const [lo, hi] = band;
+  if (hi - lo < 0.1) return null;
+  // Dropped when the band is an artefact of rounding rather than of uncertainty.
+  if (signed(lo) === signed(hi)) return null;
+  return `${signed(lo)} to ${signed(hi)}`;
+}
+
+
+function provenanceRow(className, label, points, title, badge, band) {
   const row = document.createElement('div');
   row.className = `prov-row ${className}`;
   if (title) row.title = title;
@@ -340,6 +387,17 @@ function provenanceRow(className, label, points, title, badge) {
   value.className = 'prov-points';
   value.textContent = signed(points);
   row.appendChild(value);
+
+  // The range sits after the point estimate rather than replacing it: the point
+  // estimate is what the rest of the card's arithmetic uses, and a card that showed
+  // only a range could not be reconciled with the bar above it.
+  const range = bandText(band);
+  if (range) {
+    const span = document.createElement('span');
+    span.className = 'prov-band';
+    span.textContent = range;
+    row.appendChild(span);
+  }
 
   return row;
 }
@@ -380,7 +438,10 @@ function updateProvenance(key, provenance) {
 
   host.appendChild(provenanceRow(
     'prov-human', 'human levers (structural)', provenance.humanPoints,
-    'Supplied by Layer 2, not by the learned model. Signs and magnitudes come from water balance, land-cover arithmetic and published policy.',
+    'Supplied by Layer 2, not by the learned model. Signs and magnitudes come from water balance, land-cover arithmetic and published policy.'
+    + (provenance.humanBand ? '\n\nThe range spans the declared bands on the parameters this output depends on. It is parameter uncertainty in Layer 2 only — the learned climate term above carries its own error, which is not in this range.' : ''),
+    null,
+    provenance.humanBand,
   ));
 
   const list = document.createElement('div');
@@ -403,13 +464,21 @@ function updateProvenance(key, provenance) {
     badge.textContent = tier.label;
     badge.title = tier.detail;
 
+    // Naming the parameters that drive the width is the difference between "this
+    // number is uncertain" and "this number is uncertain BECAUSE storage_af_per_ft is
+    // only known to a factor of 1.6" — the second is actionable, the first is a shrug.
+    const driverNote = lever.drivers?.length
+      ? `Range driven by:\n  \u2022 ${lever.drivers.map(describeParam).join('\n  \u2022 ')}`
+      : null;
+
     list.appendChild(provenanceRow(
       `prov-lever prov-tier-${lever.tier}`,
       label,
       lever.points,
-      [info.mechanism, info.evidence && `Evidence: ${info.evidence}`, tier.detail]
+      [info.mechanism, info.evidence && `Evidence: ${info.evidence}`, tier.detail, driverNote]
         .filter(Boolean).join('\n\n'),
       badge,
+      lever.pointsBand,
     ));
   }
   host.appendChild(list);

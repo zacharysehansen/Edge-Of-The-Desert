@@ -267,7 +267,12 @@ Then open <http://localhost:8000/frontend/index.html>.
   DCP shortage tier → substituted pumping; impervious cover → land-cover NDVI) and
   integrates the rate levers in closed form. It reads every number from
   `structural_params.json` and runs under Node (`node frontend/structural.js --dump`).
-- `ui.js` renders the controls and updates the output cards.
+- `ui.js` renders the controls and updates the output cards. Each lever row carries its
+  **range over the declared parameter bands** alongside the point estimate, and its tooltip
+  names the constants that drive that width — twelve of Layer 2's constants ship with a
+  band, eight of them still `UNTESTED`
+  ([PHASE3_PLAN.md](PHASE3_PLAN.md) §15a). The range is Layer 2 parameter uncertainty only;
+  the learned climate term on the same card carries its own error, which is not in it.
 
 Because the models are loaded straight from the Phase 2 `model/` directory, re-running
 Phase 2 and refreshing the browser is all that's needed to deploy updated models. Re-run

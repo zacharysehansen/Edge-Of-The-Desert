@@ -400,6 +400,21 @@ select:focus {
 .prov-label { flex: 1 1 auto; }
 .prov-points { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
+/* The parameter range, after the point estimate. Deliberately quieter than the
+   number it qualifies: it is the width of the claim, not the claim. Eight of the
+   twelve constants behind these are UNTESTED, so on some cards this is the most
+   honest thing on the screen — but a range typeset as loudly as the estimate would
+   read as two competing numbers instead of one number and its uncertainty. */
+.prov-band {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-size: 0.68rem;
+  opacity: 0.6;
+  letter-spacing: 0.01em;
+}
+
+.prov-human .prov-band { opacity: 0.7; }
+
 .prov-climate { opacity: 0.72; }
 .prov-human   { font-weight: 500; }
 .prov-idle    { opacity: 0.5; font-style: italic; }
