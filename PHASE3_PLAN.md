@@ -1573,7 +1573,44 @@ and `effluent_return_fraction` (0.45–0.70). Not all eight live UNTESTED bands 
 this panel — some are land-cover constants with no time variation to regress — but these two are,
 and the harness exists.
 
-### 4. GLDAS soil moisture as a GRACE feature
+### 4. An urban-footprint NDVI output `UNTESTED` — proposed
+
+[§17](#17-ndvi_impervious-measured-measured) established that paving costs **16% of the vegetation
+signal on the land actually paved** and **83% where it replaces cropland**, while the eight-county
+mean NDVI moves about a point. Both numbers are correct; they are answers to different questions.
+The regional mean is the wrong observable for a small-area, high-intensity change, and no
+re-parameterisation fixes that — it is what a regional mean is *for*.
+
+The proposal is a **seventh output**: NDVI within the urban footprint, rather than across the eight
+counties. It would move hard under the urbanization slider, because the dilution that flattens the
+regional number is exactly what it removes.
+
+What makes it plausible rather than merely appealing:
+
+- **The data is already on disk and already co-registered.**
+  [`ndvi_endpoints.py`](scripts/phase3/ndvi_endpoints.py) puts MOD13A3 and NLCD on one grid, and the
+  footprint mask is a threshold on the impervious raster it already builds.
+- **The measurement exists.** The DiD slope and its strata are the coefficient; no new estimate is
+  needed for Layer 2.
+- **It is an output, not a lever**, so §7's gate and the tier system apply to it unchanged.
+
+What has to be decided before building it, and none of it is obvious:
+
+- **Layer 1 has nothing to say about it.** No exported model predicts urban-subset NDVI, so the new
+  output would be structural-only for its entire value — the first output in the application with
+  no learned component at all. That is a real departure from §4's architecture and should be a
+  decision, not a side effect.
+- **A fixed mask or a moving one?** If the footprint is defined by present-day impervious cover, the
+  output measures "NDVI inside today's cities" and urbanizing *new* land does not enter it. If the
+  mask moves with the slider, the denominator changes as the lever moves, and a changing denominator
+  is how §10's compositional artifacts got in ([P3](PROBLEMS.md)).
+- **Climate would still dominate it.** Urban NDVI responds to monsoon too. The gain over the
+  regional output is the removal of area dilution, not the removal of weather.
+
+`UNTESTED`, and deliberately left so: it is a scope decision about what the application is for, not
+a modelling gap.
+
+### 5. GLDAS soil moisture as a GRACE feature
 
 [PROBLEMS.md](PROBLEMS.md) Part 3 item 7. Ranked last on its own description: modest and uncertain,
 since precipitation lags may already carry the fast weather-driven part of monthly ΔTWS. Do **not**
@@ -1882,5 +1919,84 @@ suite had been doing, deliberately, since the Chrome extension is not connected 
 environment and every check was built to run headless. The lesson is narrower than "test in a
 browser": a check that runs only in the environment the code does *not* ship to will certify code
 that cannot run in the one it does.
+
+---
+
+## 19. The signs that look wrong, and which one actually was `VERIFIED`
+
+Raised from using the app: *"Increases in population, irrigation withdrawal, urbanization make the
+streamflow increase, which is the opposite of what it should be. Public supply groundwater and
+population increased the well depth."*
+
+Every path was re-derived and checked against its band. **One of the five readings was a
+misreading, three are correct and counterintuitive, and one was a genuine interface failure.**
+
+### Streamflow, every path, at each slider's maximum
+
+| lever | sign | points |
+|---|---|---|
+| population — effluent | + | **+1.82** |
+| population — stream capture | − | −0.34 |
+| **→ net for population** | | **+1.49** |
+| irrigation — stream capture | − | **−0.96** |
+| public supply — stream capture | − | **−0.43** |
+| urbanization — storm runoff | + | **+2.74** |
+| Lake Mead — stream capture | + | +0.04 |
+
+**Irrigation does not raise streamflow — it lowers it, −0.96.** The sweep table reports a
+`min → max` swing and irrigation's slider runs −60% → +40%, so its −2.37 there *is* "more irrigation,
+less flow". Same for public supply. That reading was of the table, not of the model.
+
+### The two that really are positive, and why both are right
+
+**Urbanization → +2.74 is textbook.** Impervious surface prevents infiltration, so a larger share of
+each storm becomes direct runoff. Higher runoff volume and much higher peak flow from urban
+catchments is among the most robust results in hydrology. `features.py` already carries
+`precip × impervious` as the dominant urban-desert discharge term for the same reason.
+
+**Population → +1.49 is regionally specific, documented, and in this repo.** The perennial reaches of
+the Santa Cruz through Tucson are treated wastewater. From
+[Living-River-Downtown-Tucson-to-Marana-2024.pdf](Living-River-Downtown-Tucson-to-Marana-2024.pdf),
+which the project already carries: Pima County's reclamation system *"continues to produce
+high-quality effluent"*, and *"releasing effluent into the river provides habitat and helps
+replenish the aquifer."* More people means more effluent means more flow past the gages. The lever's
+own `mechanism` field has said so all along — *"counterintuitive and correct"*.
+
+It is a tug-of-war, not an assumption: population reaches streamflow twice, through effluent (+) and
+through the municipal pumping it drives (−), and **the net sign is an output of the model.** It
+survives the whole parameter band — **+0.65 to +2.14** across every corner, and still +0.65 at the
+worst case for it (stream capture at its maximum 0.25, effluent return at its minimum 0.45). So the
+sign is not an artefact of a convenient parameter choice.
+
+### Groundwater was the interface's fault, not the model's
+
+`depth_to_water_anomaly_ft` is **depth to water**. More pumping lowers the water table, which means a
+*larger* depth. So public supply `+18.03` and population `+9.90` are the correct sign, and
+`higherIsBetter: false` already colours those deltas red.
+
+But a bar labelled **"Groundwater Depth vs Normal"** that rises when you pump more reads as *more
+groundwater* to anyone who does not stop to parse "Depth" — and colour is not a label. Three of the
+six outputs are named for a quantity that rises when things get worse.
+
+So every output card now states which way is up, under its name:
+
+```
+Groundwater Depth vs Normal                              ft
+bar rises → water table DEEPER — less water
+```
+
+`grace` → *more water stored*; `ndvi` → *greener*; `surface_water` → *more flow past the gages*;
+`wildfire` → *more burned area*; `wildlife` → *more birds*. It is a unit label, not a warning, and
+it is set quietly.
+
+### One real weakness found while checking, recorded not fixed
+
+The effluent lever converts added discharge into a share of `regional_baseline_cfs` — the median
+gage flow times the median gage count — which spreads it evenly across a **103-gage** network. But
+the target is the *mean over gages of* `ln(Q/Q_normal)`, and effluent does not arrive evenly: it
+enters a few Santa Cruz reaches. Concentrated flow into a handful of gages moves a mean-of-logs
+differently from the same volume spread across all of them. The direction is unaffected and the
+magnitude is the right order, but the normalisation is an approximation, and a per-gage version
+would be the honest improvement. `UNTESTED`.
 
 ---

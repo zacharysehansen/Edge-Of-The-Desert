@@ -418,6 +418,16 @@ select:focus {
 /* The at-the-source effect for levers whose regional number understates them. Indented
    under its lever and set quieter than the row, because it is context for that number
    rather than a competing one — it is not added into any total. */
+/* Which way is up, under the output's name. Small and unemphatic: it is a unit
+   label, not a warning. */
+.output-direction {
+  flex-basis: 100%;
+  font-size: 0.65rem;
+  opacity: 0.6;
+  letter-spacing: 0.02em;
+  margin-top: 0.1rem;
+}
+
 .prov-local {
   margin: 0.05rem 0 0.25rem 0.9rem;
   font-size: 0.68rem;

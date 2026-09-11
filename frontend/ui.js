@@ -247,6 +247,19 @@ function buildOutputPanel() {
     header.appendChild(name);
     header.appendChild(unit);
 
+    // Which way is up. Three of the six outputs are named for a quantity that rises
+    // when things get WORSE -- "Groundwater Depth vs Normal" goes up as the water
+    // table falls, and "Wildfire Risk Index" up as more burns -- so a rising bar reads
+    // as good news unless the card says otherwise. The delta colour already encodes
+    // it (higherIsBetter), but colour alone is not a label, and it is not available to
+    // anyone reading the number rather than the hue.
+    if (def.rising) {
+      const dir = document.createElement('div');
+      dir.className = 'output-direction';
+      dir.textContent = `bar rises \u2192 ${def.rising}`;
+      header.appendChild(dir);
+    }
+
     const barWrap = document.createElement('div');
     barWrap.className = 'bar-wrap';
 

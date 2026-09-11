@@ -124,20 +124,20 @@ const OUTPUT_DEFS = {
   //
   // The GRACE unit is metres, not centimetres: the series is lwe_thickness straight from
   // the source .nc4 with no conversion, and its sd of 0.0479 is 4.8 cm, not 0.05 mm.
-  grace:        { label: "GRACE Groundwater Anomaly", unit: "m",     higherIsBetter: true,  feedsInto: "ndvi"     },
-  ndvi:         { label: "NDVI Vegetation Health",    unit: "NDVI",  higherIsBetter: true,  feedsInto: null       },
+  grace:        { label: "GRACE Groundwater Anomaly", unit: "m",     higherIsBetter: true,  rising: "more water stored",     feedsInto: "ndvi"     },
+  ndvi:         { label: "NDVI Vegetation Health",    unit: "NDVI",  higherIsBetter: true,  rising: "greener",               feedsInto: null       },
   // Both of these are per-station anomaly indices, not levels. A regional mean of raw
   // well depths / raw discharge is a mean over whichever stations reported that month,
   // so it moves with the roster as much as with the water; the models are trained on the
   // centered version instead. Groundwater is still "depth to water", so positive = deeper
   // = less water = worse. Surface water is a log ratio, so 0 = normal flow and +0.7 ≈ 2x.
-  groundwater:  { label: "Groundwater Depth vs Normal", unit: "ft",       higherIsBetter: false, feedsInto: null       },
+  groundwater:  { label: "Groundwater Depth vs Normal", unit: "ft",       higherIsBetter: false, rising: "water table DEEPER \u2014 less water", feedsInto: null       },
   // Structural, not learned: the wildlife model has no discharge feature either, but
   // there is a real riparian transfer edge in Layer 2 carrying it (structural.js).
-  surface_water:{ label: "Streamflow vs Normal",        unit: "log ratio", higherIsBetter: true,  feedsInto: "wildlife" },
-  wildfire:     { label: "Wildfire Risk Index",       unit: "",      higherIsBetter: false, feedsInto: null       },
+  surface_water:{ label: "Streamflow vs Normal",        unit: "log ratio", higherIsBetter: true,  rising: "more flow past the gages", feedsInto: "wildlife" },
+  wildfire:     { label: "Wildfire Risk Index",       unit: "",      higherIsBetter: false, rising: "more burned area", feedsInto: null       },
   // Per-route log-abundance anomaly: 0 = an average year, + = more birds than normal.
-  wildlife:     { label: "Bird Abundance vs Normal", unit: "log ratio", higherIsBetter: true,  feedsInto: null       },
+  wildlife:     { label: "Bird Abundance vs Normal", unit: "log ratio", higherIsBetter: true,  rising: "more birds", feedsInto: null       },
 };
 
 // Loaded dynamically from computed_stats.json (p5, p95, p50 as baseline)
