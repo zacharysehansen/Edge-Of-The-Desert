@@ -71,14 +71,14 @@
       "status": "MEASURED"
     },
     "ndvi_impervious": {
-      "value": 0.08,
-      "source": "assumed dense-urban surface NDVI",
-      "status": "UNTESTED",
+      "value": 0.1917048546600122,
+      "source": "measured: OLS of MOD13A3 NDVI on NLCD impervious fraction over 287 months (2000-02..2023-12), ~131,000 cells/month on the MODIS sinusoidal grid inside the eight-county cutline. Slope = -0.0250 NDVI per unit impervious fraction (median across months), negative in 251 of 287. See scripts/phase3/ndvi_endpoints.py.",
+      "status": "MEASURED",
       "band": [
-        0.05,
-        0.12
+        0.17101654460445065,
+        0.20751684383038516
       ],
-      "note": "PHASE3_PARAMS.md \u00a74b: derivable from data/raw/modis_ndvi/ but not measured."
+      "note": "Stated so that (ndvi_impervious - ndvi_natural) IS the measured slope, because that difference is the whole of what the lever multiplies. The directly measured NDVI of a fully impervious cell is 0.2046; the +0.0143 gap to the value used here is the difference between the regression's zero-impervious intercept (0.2310, the NDVI of the land actually being paved) and ndvi_natural (0.2167, a p50 over months of the whole-region mean). Anchoring on the slope removes that mismatch instead of inheriting it. PHASE3_PARAMS.md \u00a74b assumed 0.08 (band 0.05-0.12), which is 5.5x too strong and does not overlap the measurement: even cells 90-100% impervious read NDVI ~0.20, because a 926 m cell that is mostly pavement still carries lawns, parks and street trees, and the desert it replaced was only at 0.23 to begin with."
     },
     "ndvi_irrigated_crop": {
       "value": 0.55,

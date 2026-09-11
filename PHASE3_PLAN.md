@@ -1519,3 +1519,178 @@ its point estimate is a bug in the envelope, not a wide uncertainty. Reverting t
 threshold from `1e-12` to `1e-3` makes it fail on three scenarios.
 
 ---
+
+## 16. Paths forward
+
+Every item this document opened is now closed
+([§11.3](#113-a-double-counting-hazard-the-plan-does-not-cover-verified),
+[§11.5](#115-one-open-question-and-the-experiment-that-settles-it-measured),
+[§12a](#12a-the-spreading-cone-test-measured),
+[§15a](#15a-parameter-bands-on-the-cards-measured)). What remains is ranked below, and the ranking
+follows from one observation that took the whole of Layers 2-4 to make legible:
+
+**Layer 1 is finished and Layer 2 is not.** Four of six models forecast honestly and the two that
+do not (GRACE, groundwater) fail on missing data rather than on modelling — PROBLEMS.md says *stop
+tuning* both, and §11.5 confirmed it for the last plausible feature-set change. Layer 2 is the
+opposite: it works, every sign holds, and **14 of its 16 levers are `structural-only`** with eight
+live parameter bands still `UNTESTED`. So the remaining leverage is in *narrowing what Layer 2
+claims*, not in improving what Layer 1 predicts.
+
+### 1. Measure `ndvi_impervious` and `ndvi_irrigated_crop` from data already on disk
+
+✅ **`ndvi_impervious` done — [§17](#17-ndvi_impervious-measured-measured).** The assumption was
+5.5× too strong. `ndvi_irrigated_crop` is still open: its predictor is the one thing that is
+*not* on disk (no cropland mask), so it needs the HUC12-withdrawal route instead.
+
+[PHASE3_PARAMS.md §4b](PHASE3_PARAMS.md) records both as *"derivable from `data/raw/modis_ndvi/`
+but not measured"* — the pass "was out of budget". The budget is the only thing that was missing:
+**574 MOD13A3 granules (11 GB) and 30 annual NLCD fractional-impervious rasters (26 GB) are sitting
+in `data/raw/`.** No acquisition, no network, no new source.
+
+It is also better posed than §4b assumed. The urbanization lever is
+`ΔNDVI = (Δimpervious/100) × (ndvi_impervious − ndvi_natural)`, so the quantity the interface
+multiplies **is the slope of NDVI on impervious fraction** — directly regressable across pixels,
+with the endpoint recovered as `ndvi_natural + slope` rather than assumed. Two `UNTESTED` bands
+become `MEASURED`, and the NDVI column of the sweep stops resting on two guesses.
+
+### 2. Probe CAP monthly deliveries (Reclamation HydroData)
+
+The best-value acquisition, because **one pull serves two unrelated problems.** It is
+[PROBLEMS.md](PROBLEMS.md) Part 3 item 5 — the last remaining *monthly* pumping proxy, aimed at
+GRACE, the only model with negative skill — and it is independently what
+`region_share_of_az_reduction`'s own note asks for: *"Should be replaced with CAP delivery data by
+county."* That constant and `groundwater_substitution_fraction` are why Lake Mead → groundwater
+spans 7× ([§15a](#15a-parameter-bands-on-the-cards-measured)); CAP deliveries by county would
+retire the first of them. Cheap: `lake_mead.py` already ingests from that endpoint.
+
+### 3. Corroborate more levers with the method that already worked
+
+[`aquifer_calibration.py`](scripts/phase3/aquifer_calibration.py) is a general pattern — regress the
+lever against the project's own panel with climate and trend controls, Newey-West — and it is what
+earned irrigation its `corroborated` badge and what §12a extended to horizons. The obvious next
+candidates are `stream_capture_fraction` (0.05–0.25, and the widest band on the surface-water card)
+and `effluent_return_fraction` (0.45–0.70). Not all eight live UNTESTED bands are estimable from
+this panel — some are land-cover constants with no time variation to regress — but these two are,
+and the harness exists.
+
+### 4. GLDAS soil moisture as a GRACE feature
+
+[PROBLEMS.md](PROBLEMS.md) Part 3 item 7. Ranked last on its own description: modest and uncertain,
+since precipitation lags may already carry the fast weather-driven part of monthly ΔTWS. Do **not**
+decompose TWS→GWS expecting skill.
+
+### What not to do
+
+- **Do not tune GRACE or groundwater.** Both are at data-limited ceilings, PROBLEMS.md says so in
+  bold, and §11.5 measured the last plausible exception and found a null.
+- **Do not reach for parameters to make human levers bigger.**
+  [PHASE3_PARAMS.md §2](PHASE3_PARAMS.md) and [§11.2](#112-the-plans-dominant-uncertainty-now-has-a-second-disagreeing-estimate-)
+  both prohibit it, and [§11.4](#114-7s-acceptance-criteria-need-restructuring) made magnitude
+  *reported, not gated* precisely so a genuinely small lever can pass honestly. §12a was legitimate
+  because it measured the coefficient at the duration the slider runs, with the specification fixed
+  before the result was known — not because the answer came out larger.
+- **Do not add a lever without a source.** Wildfire stays climate-only; §14 measured that the
+  ndvi → wildlife edge is a null and it is not to be re-added.
+
+## 17. `ndvi_impervious`, measured `MEASURED`
+
+[§16](#16-paths-forward) item 1, done. [PHASE3_PARAMS.md §4b](PHASE3_PARAMS.md) recorded both NDVI
+endpoints as assumptions and said the pass over the HDFs "was out of budget". The budget was the
+only thing missing: [`scripts/phase3/ndvi_endpoints.py`](scripts/phase3/ndvi_endpoints.py) →
+`model/ndvi_endpoints.json`.
+
+### What was measured
+
+The lever is `ΔNDVI = (Δimpervious/100) × (ndvi_impervious − ndvi_natural)`, so the quantity the
+interface multiplies is the **difference**, which is exactly the slope of NDVI on impervious
+fraction. That is directly regressable. MOD13A3 NDVI and NLCD fractional impervious were put on one
+grid — MODIS sinusoidal at the native 926.6 m, clipped to the same dissolved eight-county boundary
+every Phase 1 script uses — and OLS run across ~131,000 cells in each of **287 months
+(2000-02 … 2023-12)**, each month paired with its own year's NLCD.
+
+| | |
+|---|---|
+| slope, median across months | **−0.0250** (IQR −0.0457 … −0.0092) |
+| negative in | 251 of 287 months |
+| `ndvi_impervious` at 100% impervious | **0.2046** (IQR 0.1982 … 0.2135) |
+| **assumed in §4b** | **0.08** (band 0.05 … 0.12) |
+
+**The assumption was 5.5× too strong, and its band does not overlap the measurement at all.**
+
+### Why 0.08 was never plausible here
+
+The binned means say it plainly. Even cells that are **90–100% impervious read NDVI ≈ 0.20**, against
+a desert background of 0.23:
+
+| impervious | mean NDVI |
+|---|---|
+| 0–1% | 0.2326 |
+| 1–25% | 0.239 – 0.242 ← *greener than desert* |
+| 25–50% | 0.2200 |
+| 50–75% | 0.2140 |
+| 90–100% | 0.2022 |
+
+Two things cause it. A 926 m cell that is mostly pavement still carries lawns, parks and street
+trees; and the desert being paved over was only at 0.23 to begin with, so there is very little room
+to fall. The 1–25% band being *greener* than untouched desert is the urban fringe — irrigated
+landscaping beats creosote. A value of 0.08 describes asphalt, not a kilometre of Tucson.
+
+### Three checks that the co-registration is right
+
+- **The intercept is a free falsification test.** At zero impervious the fit must reproduce the
+  region's own natural NDVI, and it gives **0.2310** against `ndvi_natural` 0.2167.
+- **The urban-core-only fit agrees.** Restricted to cells ≥25% impervious — where the extrapolation
+  to 100% is actually anchored rather than leaning on cells that barely exist — the slope is
+  **−0.0326** against the whole-region −0.0250, and the endpoint 0.2030 against 0.2046.
+- **Region area from the reprojected cutline** is 27,795,794 acres against the repo's
+  `region_acres` of 27,779,840 — 0.06% apart.
+
+### How it is adopted, and the one subtlety
+
+`ndvi_impervious` ships as **0.1917 = ndvi_natural + measured slope**, `status: MEASURED`, band
+0.1710 … 0.2075 from the slope's IQR — *not* as the directly measured 0.2046. The difference is
+deliberate. `ndvi_natural` (0.2167) is a p50 over months of the whole-region mean, while the
+quantity the lever needs is the NDVI of *the land actually being paved*, which is the regression's
+zero-impervious intercept (0.2310). Those differ by +0.0143. Stating the endpoint relative to
+`ndvi_natural` makes `(ndvi_impervious − ndvi_natural)` equal the measured slope, which removes
+that mismatch instead of inheriting it. The directly measured 0.2046 is recorded in the constant's
+own note and in `ndvi_endpoints.json`.
+
+The band is the **interquartile range across months**, not a per-pixel standard error. 131,000
+MODIS cells in one month are nowhere near independent, and an OLS standard error over them would
+manufacture a precision this has no claim to.
+
+### Consequence, and a caveat that has to travel with it
+
+| | before | after |
+|---|---|---|
+| urbanization → NDVI | −3.73 | **−0.68** |
+
+The lever gets 5.5× weaker, and that is the correct direction: §4b's own text already said *"both
+are physically tiny, and that is the correct answer, not a bug"* — it just had the wrong endpoint.
+[§11.4](#114-7s-acceptance-criteria-need-restructuring) is why this is a pass and not a failure:
+magnitude is reported, not gated.
+
+**The caveat is seasonality.** The measured slope is strongly seasonal — most negative in Aug–Sep
+(−0.053, −0.062) when the monsoon greens the desert but not the pavement, and around **zero or
+slightly positive in May–June** (+0.002, −0.001) when pre-monsoon desert is bare and irrigated
+urban land is the greener of the two. That is why the sign holds in 251 of 287 months rather than
+all of them. Layer 2 applies a month-invariant coefficient **by design** —
+[§13](#13-layer-2-and-layer-3-built-measured) made month-invariance the property that distinguishes
+a structural coefficient from D2's fitted ones — so the median ships and the seasonality is
+recorded here rather than being pushed into the lever. Making this one lever seasonal would
+reintroduce exactly the month-dependent sign flipping the whole layer exists to remove.
+
+### `ndvi_irrigated_crop` is not done, and why
+
+It needs the same treatment but **its predictor is not on disk.** The impervious endpoint was
+measurable because NLCD gives a per-pixel impervious *fraction* to regress against; there is no
+equivalent irrigated-cropland raster in `data/raw/` — the NLCD holdings are fractional-impervious
+only, with no land-cover class layer. The in-repo route that does exist is
+`IR_HUC12_Tot_WD_monthly_2000_2020.csv` with the WBD HUC12 polygons: regress HUC12-mean NDVI on
+HUC12 irrigation-withdrawal density. That is a real measurement and a coarser one — HUC12s are
+large relative to fields — so it is worth doing and worth labelling as weaker evidence than the
+impervious fit. Until then `ndvi_irrigated_crop` stays `UNTESTED` at 0.55 (band 0.45–0.65) and
+irrigation → NDVI stays at +9.30.
+
+---

@@ -169,7 +169,19 @@ Compute it in the parameter script from the reference-year values rather than ha
 
 Against the in-repo region area of 27,779,840 acres: **irrigated fraction = 2.452 %**.
 
-### 4b. NDVI endpoints `UNTESTED`
+### 4b. NDVI endpoints `UNTESTED` — `ndvi_impervious` now MEASURED
+
+> **`ndvi_impervious` measured, 2026-09-11 — the assumption below was 5.5× too strong.**
+> [PHASE3_PLAN.md §17](PHASE3_PLAN.md). OLS of MOD13A3 NDVI on NLCD impervious fraction, 287
+> months, ~131,000 cells each, on the MODIS grid inside the eight-county cutline. Slope
+> **−0.0250** (IQR −0.0457 … −0.0092); endpoint at 100% impervious **0.2046** (IQR 0.1982 …
+> 0.2135), against the **0.08 (band 0.05–0.12)** assumed below — the bands do not overlap. Even
+> 90–100% impervious cells read NDVI ≈ 0.20: a 926 m cell that is mostly pavement still carries
+> lawns and street trees, and the desert it replaced was only at 0.23. Ships as
+> `ndvi_impervious = 0.1917`, stated relative to `ndvi_natural` so the difference *is* the measured
+> slope. urbanization → NDVI goes −3.73 → **−0.68**. `ndvi_irrigated_crop` is still assumed: its
+> predictor (a cropland mask) is not in `data/raw/`.
+
 
 The plan says both endpoints are "measurable in the project's own MOD13A3 pixels". They were not
 measured — that needs a pass over `data/raw/modis_ndvi/` HDFs, which was out of budget. Assumed:

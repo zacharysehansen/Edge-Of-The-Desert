@@ -44,6 +44,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "data" / "Final"
 STATS_PATH = ROOT / "frontend" / "computed_stats.json"
 CALIBRATION_PATH = ROOT / "model" / "aquifer_calibration.json"
+NDVI_ENDPOINTS_PATH = ROOT / "model" / "ndvi_endpoints.json"
 TRANSFER_PATH = ROOT / "model" / "transfer_calibration.json"
 OUTPUT_FILE = ROOT / "frontend" / "structural_params.json"
 
@@ -133,6 +134,7 @@ def build() -> dict:
     stats = json.loads(STATS_PATH.read_text())
     slider_stats = stats["SLIDER_STATS"]
     calibration = json.loads(CALIBRATION_PATH.read_text())
+    ndvi_endpoints = json.loads(NDVI_ENDPOINTS_PATH.read_text())
     transfers = json.loads(TRANSFER_PATH.read_text())
 
     acres = region_acres()
@@ -169,6 +171,15 @@ def build() -> dict:
     mean_precip_mm_day = float(
         pd.read_csv(DATA / "precipitation_monthly.csv")["precipitation_mm_day"].mean()
     )
+
+    # PHASE3_PLAN.md §16 item 1 / PHASE3_PARAMS.md §4b. The lever multiplies the
+    # DIFFERENCE (ndvi_impervious - ndvi_natural), which is exactly the regression
+    # slope of NDVI on impervious fraction, so the slope is what gets adopted and the
+    # endpoint is derived from it. Band is the interquartile range across the 287
+    # months fitted: a per-pixel standard error would be fiction, since 131,000 MODIS
+    # cells in one month are nowhere near independent.
+    ndvi_slope = ndvi_endpoints["slope"]["median"]
+    ndvi_slope_band = ndvi_endpoints["slope"]["iqr"]
 
     irrigated_acres = 681_143.0
     ndvi_natural = stats["OUTPUT_STATS"]["ndvi"]["baseline"]
@@ -264,11 +275,35 @@ def build() -> dict:
             status="MEASURED",
         ),
         "ndvi_impervious": tag(
-            0.08,
-            band=(0.05, 0.12),
-            source="assumed dense-urban surface NDVI",
-            status="UNTESTED",
-            note="PHASE3_PARAMS.md §4b: derivable from data/raw/modis_ndvi/ but not measured.",
+            ndvi_natural + ndvi_slope,
+            band=(ndvi_natural + ndvi_slope_band[0], ndvi_natural + ndvi_slope_band[1]),
+            source=(
+                f"measured: OLS of MOD13A3 NDVI on NLCD impervious fraction over "
+                f"{ndvi_endpoints['n_months']} months "
+                f"({ndvi_endpoints['span'][0]}..{ndvi_endpoints['span'][1]}), "
+                f"~131,000 cells/month on the MODIS sinusoidal grid inside the "
+                f"eight-county cutline. Slope = {ndvi_slope:+.4f} NDVI per unit "
+                f"impervious fraction (median across months), negative in "
+                f"{ndvi_endpoints['slope']['negative_months']} of "
+                f"{ndvi_endpoints['n_months']}. See scripts/phase3/ndvi_endpoints.py."
+            ),
+            status="MEASURED",
+            note=(
+                "Stated so that (ndvi_impervious - ndvi_natural) IS the measured slope, "
+                "because that difference is the whole of what the lever multiplies. The "
+                f"directly measured NDVI of a fully impervious cell is "
+                f"{ndvi_endpoints['ndvi_impervious']['median']:.4f}; the "
+                f"{ndvi_endpoints['intercept_median'] - ndvi_natural:+.4f} gap to the value "
+                "used here is the difference between the regression's zero-impervious "
+                f"intercept ({ndvi_endpoints['intercept_median']:.4f}, the NDVI of the land "
+                f"actually being paved) and ndvi_natural ({ndvi_natural:.4f}, a p50 over "
+                "months of the whole-region mean). Anchoring on the slope removes that "
+                "mismatch instead of inheriting it. PHASE3_PARAMS.md §4b assumed 0.08 "
+                "(band 0.05-0.12), which is 5.5x too strong and does not overlap the "
+                "measurement: even cells 90-100% impervious read NDVI ~0.20, because a "
+                "926 m cell that is mostly pavement still carries lawns, parks and street "
+                "trees, and the desert it replaced was only at 0.23 to begin with."
+            ),
         ),
         "ndvi_irrigated_crop": tag(
             0.55,

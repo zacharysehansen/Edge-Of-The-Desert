@@ -38,7 +38,8 @@ scripts/
   phase2/          merge, features, baselines, model_*, export, run_phase2.py,
                    experiment_human_block.py, experiment_grace_nested.py
   phase3/          generate_stats.py, top_inputs.py, slider_sensitivity.py,
-                   check_catalog_parity.py
+                   check_catalog_parity.py, aquifer_calibration.py,
+                   ndvi_endpoints.py, structural_params.py, structural.py
 model/             exported ONNX models + feature/CV JSON sidecars (Phase 2 output)
 frontend/          static web app (index.html, ui.js, models.js, catalog.js,
                    state.js, style.css)
@@ -289,6 +290,7 @@ python scripts/phase3/check_catalog_parity.py
 
 # Layer 2: estimate the coefficients the structural levers run on
 python scripts/phase3/aquifer_calibration.py    # aquifer storage + the spreading-cone horizon sweep
+python scripts/phase3/ndvi_endpoints.py         # ndvi_impervious, from MOD13A3 + NLCD on disk
 python scripts/phase3/transfer_calibration.py   # output-to-output transfer edges
 
 # every human lever must hold its declared sign in all 12 months
