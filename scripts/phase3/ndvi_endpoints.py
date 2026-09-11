@@ -141,11 +141,18 @@ def month_of(path: Path) -> str:
     return d.strftime("%Y-%m")
 
 
-def region_grid() -> tuple[tuple[float, float, float, float], int, int, Path]:
-    """The eight-county boundary in MODIS sinusoidal, plus the grid it implies."""
+def region_grid(
+    boundary=None, tag: str = "region"
+) -> tuple[tuple[float, float, float, float], int, int, Path]:
+    """The study boundary in MODIS sinusoidal, plus the grid it implies.
+
+    `boundary` overrides `region.load_county_boundary()` so the same measurements can
+    be rebuilt under an alternative county set — see scripts/phase3/region_variants.py,
+    which exists because COUNTY_FIPS turned out to name two counties it did not select.
+    """
     CACHE.mkdir(parents=True, exist_ok=True)
-    boundary = load_county_boundary().to_crs(SINU)
-    cutline = CACHE / "region_sinu.gpkg"
+    boundary = (load_county_boundary() if boundary is None else boundary).to_crs(SINU)
+    cutline = CACHE / f"{tag}_sinu.gpkg"
     boundary.to_file(cutline, driver="GPKG")
 
     xmin, ymin, xmax, ymax = boundary.total_bounds
@@ -349,7 +356,7 @@ def difference_in_differences(granules, bounds, nx, ny, cutline) -> dict:
         "by_prior_land_cover": strata,
     }
 
-def irrigated_fraction_rasters(bounds, nx, ny) -> tuple[np.ndarray, np.ndarray]:
+def irrigated_fraction_rasters(bounds, nx, ny, boundary=None) -> tuple[np.ndarray, np.ndarray]:
     """Implied irrigated fraction per MODIS cell, for the early and late windows.
 
     There is no cropland mask in this repo — the NLCD holdings are
@@ -377,7 +384,18 @@ def irrigated_fraction_rasters(bounds, nx, ny) -> tuple[np.ndarray, np.ndarray]:
     from phase1 import irrigation as irr  # noqa: PLC0415
 
     frame = irr._load_raw(irr.INPUT_FILE)
-    columns = irr._get_regional_huc12_columns(irr._identify_huc12_columns(frame))
+    all_columns = irr._identify_huc12_columns(frame)
+    if boundary is None:
+        columns = irr._get_regional_huc12_columns(all_columns)
+    else:
+        # region_variants.py passes an alternative boundary; the HUC12 set has to
+        # follow it, or the predictor keeps the shipped region's watersheds and
+        # silently assigns zero irrigation to everything the variant added.
+        shapes_all = gpd.read_file(HUC12_SHAPEFILE).to_crs(boundary.crs)
+        inside = shapes_all[
+            shapes_all.geometry.representative_point().within(boundary.geometry.iloc[0])
+        ]
+        columns = [c for c in all_columns if c in set(inside.HUC12)]
     annual = (
         frame[columns]
         .replace(list(irr.NODATA_SENTINELS), np.nan)
@@ -411,7 +429,7 @@ def irrigated_fraction_rasters(bounds, nx, ny) -> tuple[np.ndarray, np.ndarray]:
     return out[0], out[1]
 
 
-def irrigation_did(granules, bounds, nx, ny, cutline) -> dict:
+def irrigation_did(granules, bounds, nx, ny, cutline, boundary=None) -> dict:
     """`ndvi_irrigated_crop`, by the same difference-in-differences as the impervious one.
 
     The cross-section is unusable here, and visibly so: binned by irrigated fraction,
@@ -422,7 +440,7 @@ def irrigation_did(granules, bounds, nx, ny, cutline) -> dict:
     """
     early = window_mean_ndvi(granules, IRR_EARLY_YEARS, bounds, nx, ny, cutline)
     late = window_mean_ndvi(granules, IRR_LATE_YEARS, bounds, nx, ny, cutline)
-    frac_early, frac_late = irrigated_fraction_rasters(bounds, nx, ny)
+    frac_early, frac_late = irrigated_fraction_rasters(bounds, nx, ny, boundary)
 
     d_ndvi = (late - early).ravel()
     d_frac = (frac_late - frac_early).ravel()
