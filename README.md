@@ -38,8 +38,9 @@ scripts/
   phase2/          merge, features, baselines, model_*, export, run_phase2.py,
                    experiment_human_block.py, experiment_grace_nested.py
   phase3/          generate_stats.py, top_inputs.py, slider_sensitivity.py,
-                   check_catalog_parity.py, aquifer_calibration.py,
-                   ndvi_endpoints.py, structural_params.py, structural.py
+                   check_catalog_parity.py, check_frontend.mjs,
+                   aquifer_calibration.py, ndvi_endpoints.py,
+                   structural_params.py, structural.py
 model/             exported ONNX models + feature/CV JSON sidecars (Phase 2 output)
 frontend/          static web app (index.html, ui.js, models.js, catalog.js,
                    state.js, style.css)
@@ -298,6 +299,9 @@ python scripts/phase3/slider_sensitivity.py --mode acceptance
 
 # Layer 1 must stay climate-only: no human lever may move the learned output
 python scripts/phase3/slider_sensitivity.py --mode no-double-count
+
+# the frontend must load and render as a BROWSER sees it, not as Node sees it
+node scripts/phase3/check_frontend.mjs
 ```
 
 The last two exit nonzero on failure, so they work as build gates. `--mode

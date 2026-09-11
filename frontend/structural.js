@@ -280,7 +280,14 @@ const PARITY_SCENARIOS = [
     { name: 'combined',          deltas: { irrigation_total_withdrawal_mgd: -60, mead_pool_elevation: -95, population: 3000000, impervious_pct: 2.0 }, month: 9, duration: 24 },
 ];
 
-if (process?.argv?.includes('--dump')) {
+// `typeof process` and not `process?.` — optional chaining short-circuits a property
+// that is null or undefined, but it does NOT protect an identifier that was never
+// declared, and in a browser `process` is undeclared. `process?.argv` therefore throws
+// ReferenceError at module load, which took this whole module down and every module
+// that imports it with it. Every check in the repo runs under Node, where `process`
+// exists, so nothing caught it; `--mode browser-safety` in check_catalog_parity.py now
+// does, by loading each module with the Node-only globals deleted.
+if (typeof process !== 'undefined' && process.argv?.includes('--dump')) {
     const dump = PARITY_SCENARIOS.map(({ name, deltas, month, duration }) => ({
         name,
         deltas,

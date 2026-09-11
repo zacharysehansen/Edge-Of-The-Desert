@@ -1694,3 +1694,63 @@ impervious fit. Until then `ndvi_irrigated_crop` stays `UNTESTED` at 0.55 (band 
 irrigation → NDVI stays at +9.30.
 
 ---
+
+## 18. The frontend could not start in a browser `VERIFIED`
+
+Every gate passed and the application did not run. `frontend/structural.js` and
+`frontend/catalog.js` both ended with
+
+```js
+if (process?.argv?.includes('--dump')) { ... }
+```
+
+**Optional chaining short-circuits a property whose value is null or undefined. It does not protect
+an identifier that was never declared** — and in a browser `process` is undeclared, so that line
+throws `ReferenceError` at module load. `structural.js` died, `models.js` and `ui.js` died importing
+it, and the page drew its three panels and then never loaded a single model. Reported from the
+browser console as:
+
+```
+Uncaught ReferenceError: process is not defined    structural.js:283
+```
+
+### Why five green gates said nothing
+
+Because all five ran under Node, where `process` exists. The sweep, the acceptance gate, the
+double-count gate and the parity check all exercise the *arithmetic* — much of it through the Python
+mirror, which never imports the JS at all. The fifth, the `ui.js` DOM shim, did import it, and still
+passed, because Node defines the global the browser does not.
+
+That is the same shape as the defect this whole document opens with: everything in the repo scored
+the thing that was easy to score. [§1](#1-the-measurement) was *nothing measured slider response*;
+this is *nothing measured whether the page starts*.
+
+### The fix, and the gate
+
+Both guards become `typeof process !== 'undefined' && process.argv?.includes('--dump')`, which is
+safe on an undeclared identifier. `--dump` still works, so `check_catalog_parity.py` is unaffected.
+
+The DOM shim is now a committed file rather than one rewritten from scratch each time —
+[`scripts/phase3/check_frontend.mjs`](scripts/phase3/check_frontend.mjs) — and it does three things
+the other gates cannot:
+
+1. **deletes the Node-only globals** (`process`, `require`, `__dirname`, `__filename`, `Buffer`,
+   `global`) before importing anything, which reproduces the browser exactly. Verified: after
+   `delete globalThis.process`, a bare `process` throws `ReferenceError` while `typeof process`
+   stays safe — that difference is the entire bug;
+2. **stubs the DOM** so `ui.js` builds its panels and can be read back — it renders 90 text nodes
+   across 18 panels, and a blank page is a failure;
+3. **stubs `onnxruntime-web`**, which the browser supplies through the importmap in `index.html`,
+   so `models.js` and `ui.js` are actually checked rather than skipped over an unresolvable
+   specifier.
+
+Reinstating the `process?.` form makes it fail on `structural.js` with that exact `ReferenceError`
+and exit non-zero, so it is a gate and not a decoration.
+
+**It does not replace opening the page. It replaces *not* opening the page** — which is what the
+suite had been doing, deliberately, since the Chrome extension is not connected in the development
+environment and every check was built to run headless. The lesson is narrower than "test in a
+browser": a check that runs only in the environment the code does *not* ship to will certify code
+that cannot run in the one it does.
+
+---
