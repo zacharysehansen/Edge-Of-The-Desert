@@ -288,8 +288,8 @@ restores GRACE storage, slightly increases streamflow — and makes the region b
 
 ## 5. What we are assuming, and where it hurts
 
-Of the twelve constants shipping with a declared band, **ten still feed a lever and seven of those
-are `UNTESTED`.** The three that are measured are the three that were argued about most.
+Of the twelve constants shipping with a declared band, **ten still feed a lever and six of those
+are `UNTESTED`.** The four that are measured are the four that were argued about most.
 
 | constant | value | band | status | what it decides |
 |---|---|---|---|---|
@@ -299,7 +299,7 @@ are `UNTESTED`.** The three that are measured are the three that were argued abo
 | `effluent_return_fraction` | 0.55 | 0.45 – 0.70 | UNTESTED | population → streamflow |
 | `region_share_of_az_reduction` | 0.60 | 0.40 – 0.80 | UNTESTED | every Lake Mead path |
 | `groundwater_substitution_fraction` | 0.50 | 0.30 – 0.70 | UNTESTED | every Lake Mead path |
-| `ndvi_irrigated_crop` | 0.55 | 0.45 – 0.65 | UNTESTED | irrigation → NDVI |
+| `ndvi_irrigated_crop` | 0.5520 | 0.5520 – 0.5709 | **MEASURED** | irrigation → NDVI |
 | `runoff_coefficient_impervious` / `_natural` | 0.85 / 0.15 | 0.75–0.95 / 0.05–0.25 | UNTESTED | urbanization → streamflow |
 | `transfer_surface_water_to_wildlife` | 0.0536 | 0.0536 – 0.1953 | MEASURED | the entire wildlife column |
 
@@ -312,9 +312,11 @@ are `UNTESTED`.** The three that are measured are the three that were argued abo
   point.
 - **Wildlife spans about 6×**, because it compounds the transfer edge's own band with every
   upstream streamflow parameter.
-- **`ndvi_irrigated_crop` is the one endpoint still assumed**, and it is not for lack of trying:
-  unlike impervious cover, there is no cropland mask in the repo to regress against. The in-repo
-  route is HUC12 irrigation withdrawal against HUC12-mean NDVI, which is real but coarser.
+- **Both NDVI endpoints are now measured, and they came out very differently.** `ndvi_impervious`
+  was assumed 5.5× too strong; `ndvi_irrigated_crop` was assumed almost exactly right (0.5520
+  measured against 0.55 assumed). The irrigation one had to be measured through HUC12 withdrawal
+  rather than a cropland mask, because no cropland mask exists in the repo — coarser evidence,
+  identified off ~339 irrigated HUC12s rather than off fields.
 
 Two decisions deliberately *not* revisited, both written down so they are not quietly reversed
 later: `storage_af_per_ft` was measured at the scenario's own duration rather than picked from
@@ -351,13 +353,12 @@ are not measuring were badly wrong, and then go measure that.**
 
 Ranked, with the reasoning, in [PHASE3_PLAN.md §16](PHASE3_PLAN.md). In short:
 
-1. **`ndvi_irrigated_crop`** — the last assumed NDVI endpoint; needs the HUC12 route.
-2. **CAP monthly deliveries** — one acquisition that serves two unrelated problems: the only
+1. **CAP monthly deliveries** — one acquisition that serves two unrelated problems: the only
    remaining monthly pumping proxy for GRACE, and the county-level data
    `region_share_of_az_reduction` explicitly asks for.
-3. **Corroborate `stream_capture_fraction` and `effluent_return_fraction`** with the method that
+2. **Corroborate `stream_capture_fraction` and `effluent_return_fraction`** with the method that
    already worked for irrigation. These are the widest bands on the streamflow card.
-4. **An urban-footprint NDVI output** — proposed, not built. It would move hard under the
+3. **An urban-footprint NDVI output** — proposed, not built. It would move hard under the
    urbanization slider because it removes the area dilution that flattens the regional number. The
    blockers are real: no learned model predicts it, a moving mask changes the denominator, and
    climate would still dominate it.

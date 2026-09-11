@@ -186,6 +186,11 @@ def build() -> dict:
     # characteristic at once. It was chosen on identification, before the magnitude
     # was known; it happens to come out 42% larger.
     ndvi_slope = ndvi_endpoints["difference_in_differences"]["slope"]
+    # Same design for the irrigation endpoint, baseline-controlled because mean
+    # reversion would otherwise inflate it. See PHASE3_PLAN.md §20.
+    irr_did = ndvi_endpoints["irrigation_difference_in_differences"]
+    irr_slope = irr_did["slope_baseline_controlled"]
+    irr_band = sorted((irr_slope, irr_did["slope"]))
     # Band spans the cross-sectional estimate at one end and the matched urbanised-vs-
     # control contrast at the other: the honest width is the spread across designs,
     # which is wider than any one design's standard error.
@@ -330,11 +335,36 @@ def build() -> dict:
             ),
         ),
         "ndvi_irrigated_crop": tag(
-            0.55,
-            band=(0.45, 0.65),
-            source="assumed irrigated cropland NDVI, growing season",
-            status="UNTESTED",
-            note="PHASE3_PARAMS.md §4b: derivable from data/raw/modis_ndvi/ but not measured.",
+            ndvi_natural + irr_slope,
+            band=(ndvi_natural + irr_band[0], ndvi_natural + irr_band[1]),
+            source=(
+                f"measured: difference-in-differences of MOD13A3 NDVI against HUC12 "
+                f"irrigation withdrawal, {irr_did['n_cells']:,} MODIS cells differenced "
+                f"against themselves ({irr_did['early_years'][0]}-{irr_did['early_years'][1]} "
+                f"vs {irr_did['late_years'][0]}-{irr_did['late_years'][1]}). Slope "
+                f"{irr_slope:+.4f} NDVI per unit irrigated fraction, baseline-controlled, "
+                f"HC1 t = {irr_did['t_baseline_controlled']:+.1f} "
+                f"({irr_did['slope']:+.4f} uncontrolled). "
+                "See scripts/phase3/ndvi_endpoints.py."
+            ),
+            status="MEASURED",
+            note=(
+                "PHASE3_PARAMS.md §4b assumed 0.55 (band 0.45-0.65) and was very nearly "
+                f"right: the measurement is {ndvi_natural + irr_slope:.4f}, inside the "
+                "assumed band and 0.4% from its midpoint. Stated relative to ndvi_natural "
+                "so the difference IS the measured slope, as for ndvi_impervious. "
+                "THE BAND IS NARROW BECAUSE TWO DESIGNS AGREE, NOT BECAUSE THE QUANTITY IS "
+                "PRECISELY KNOWN: it spans the baseline-controlled and uncontrolled fits, "
+                "and is deliberately not a confidence interval, since 126,655 MODIS cells "
+                "are nowhere near independent. There is no cropland mask in the repo, so "
+                "the predictor is HUC12 withdrawal turned into irrigated area by one "
+                "calibration on the whole record - coarser than the impervious predictor, "
+                "and identified off ~339 irrigated HUC12s rather than off fields. The "
+                "cross-sectional fit is unusable here and visibly so (+0.0486): binned by "
+                "irrigated fraction, mean NDVI DIPS before it rises, because HUC12s with no "
+                "irrigation include the mountains while HUC12s with a little are low desert "
+                "valleys - that fit is measuring elevation."
+            ),
         ),
         "region_share_of_az_reduction": tag(
             0.60,
@@ -685,7 +715,8 @@ LEVERS = [
             "(NDVI_crop − NDVI_natural). Positive on irrigated pixels while negative on "
             "groundwater — the tension PHASE3_PLAN.md §4 wants shown, not hidden."
         ),
-        "evidence": "None. PHASE3_PLAN.md §10 finds 1/5 folds, wrong-signed.",
+        # filled in from model/ndvi_endpoints.json by _apply_ndvi_measurement()
+        "evidence": None,
     },
 ]
 
@@ -750,7 +781,26 @@ def _apply_ndvi_measurement(levers: list[dict], endpoints: dict) -> None:
     did = endpoints["difference_in_differences"]
     strata = did["by_prior_land_cover"]
     natural = endpoints["ndvi_natural_in_repo"]
+    irr = endpoints["irrigation_difference_in_differences"]
+
     for lever in levers:
+        if lever["id"] == "irrigation_to_ndvi":
+            # Same promotion, same reason: the panel could not see this lever (§10
+            # found 1 of 5 folds, wrong-signed) because an eight-county monthly mean
+            # cannot separate a 2.5%-of-area land-cover effect from weather. The
+            # rasters resolve it where it happens.
+            lever["tier"] = "corroborated"
+            lever["evidence"] = (
+                f"Difference-in-differences on MOD13A3 against HUC12 irrigation "
+                f"withdrawal: {irr['n_cells']:,} MODIS cells differenced against "
+                f"themselves ({irr['early_years'][0]}-{irr['early_years'][1]} vs "
+                f"{irr['late_years'][0]}-{irr['late_years'][1]}), slope "
+                f"{irr['slope_baseline_controlled']:+.4f} NDVI per unit irrigated "
+                f"fraction, HC1 t = {irr['t_baseline_controlled']:+.1f}. The dose-response "
+                "is monotone: cells that LOST irrigation fell below the regional drift, "
+                "cells that gained rose above it."
+            )
+            continue
         if lever["id"] != "urbanization_to_ndvi":
             continue
         lever["tier"] = "corroborated"

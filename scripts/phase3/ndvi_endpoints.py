@@ -116,6 +116,19 @@ MIN_MONTHS_PER_WINDOW = 12
 # A cell counts as urbanised if it gained this many points of impervious cover.
 URBANISED_MIN_POINTS = 10.0
 
+# --- the irrigation endpoint -------------------------------------------------
+# The HUC12 irrigation matrix runs 2000-2020, so its late window stops earlier than
+# the impervious one.
+IRR_EARLY_YEARS = range(2000, 2005)
+IRR_LATE_YEARS = range(2016, 2021)
+# 2017 Census of Agriculture, eight counties. Already VERIFIED in structural_params;
+# used here to turn withdrawal into an irrigated AREA without assuming an
+# application depth — one calibration on the whole record, so both the spatial
+# distribution and the regional total are free to move between windows.
+IRRIGATED_ACRES = 681_143.0
+HUC12_SHAPEFILE = ROOT / "data" / "raw" / "wbd" / "WBDHU12.shp"
+SQ_M_PER_ACRE = 4046.8564224
+
 
 def month_of(path: Path) -> str:
     """MOD13A3.AYYYYDDD... -> 'YYYY-MM'."""
@@ -336,6 +349,136 @@ def difference_in_differences(granules, bounds, nx, ny, cutline) -> dict:
         "by_prior_land_cover": strata,
     }
 
+def irrigated_fraction_rasters(bounds, nx, ny) -> tuple[np.ndarray, np.ndarray]:
+    """Implied irrigated fraction per MODIS cell, for the early and late windows.
+
+    There is no cropland mask in this repo — the NLCD holdings are
+    fractional-impervious only — so the predictor is built from the HUC12 irrigation
+    withdrawal matrix instead, using the same eight-county HUC12 selection
+    `scripts/phase1/irrigation.py` already performs (including its 999/888 nodata
+    sentinels, which are 70% of the regional cells and were once summed as data).
+
+    Withdrawal is turned into irrigated AREA by one calibration constant fitted on the
+    whole record, `IRRIGATED_ACRES / total_withdrawal`, rather than by assuming an
+    application depth. Because the constant is fixed across windows, both where the
+    irrigation is and how much of it there is are free to change between them.
+
+    The aggregation is coarser than the impervious predictor and that is worth being
+    explicit about: withdrawal is known per HUC12, not per field, so every cell in a
+    HUC12 gets the same value. That does NOT attenuate the slope — with x constant
+    within a polygon, the cell-level OLS slope equals the polygon-level one, and a
+    polygon's mean NDVI is exactly `natural + fraction x (crop - natural)`. What it
+    does mean is that the estimate is identified off ~339 irrigated HUC12s rather
+    than off individual fields.
+    """
+    import geopandas as gpd  # noqa: PLC0415 - heavy, and only this path needs it
+
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from phase1 import irrigation as irr  # noqa: PLC0415
+
+    frame = irr._load_raw(irr.INPUT_FILE)
+    columns = irr._get_regional_huc12_columns(irr._identify_huc12_columns(frame))
+    annual = (
+        frame[columns]
+        .replace(list(irr.NODATA_SENTINELS), np.nan)
+        .groupby(frame["Year"])
+        .mean()
+    )
+
+    shapes = gpd.read_file(HUC12_SHAPEFILE)
+    shapes = shapes[shapes.HUC12.isin(columns)].to_crs(SINU)
+    shapes["area_acres"] = shapes.geometry.area / SQ_M_PER_ACRE
+    acres_per_mgd = IRRIGATED_ACRES / annual.mean().sum()
+
+    out = []
+    for tag, years in (("early", IRR_EARLY_YEARS), ("late", IRR_LATE_YEARS)):
+        mgd = shapes.HUC12.map(annual.loc[list(years)].mean()).fillna(0.0).clip(lower=0)
+        layer = shapes.copy()
+        layer["frac"] = ((mgd * acres_per_mgd) / shapes["area_acres"]).clip(0, 1)
+        vector = CACHE / f"huc12_{tag}.gpkg"
+        layer[["frac", "geometry"]].to_file(vector, driver="GPKG")
+        raster = CACHE / f"irrfrac_{tag}.tif"
+        ds = gdal.Rasterize(
+            str(raster), str(vector), outputBounds=bounds, width=nx, height=ny,
+            attribute="frac", noData=-9999, outputType=gdal.GDT_Float32,
+        )
+        ds.FlushCache()
+        ds = None
+        handle = gdal.Open(str(raster))
+        arr = handle.GetRasterBand(1).ReadAsArray()
+        handle = None
+        out.append(np.where(arr > WARP_NODATA_FLOOR, arr, np.nan))
+    return out[0], out[1]
+
+
+def irrigation_did(granules, bounds, nx, ny, cutline) -> dict:
+    """`ndvi_irrigated_crop`, by the same difference-in-differences as the impervious one.
+
+    The cross-section is unusable here, and visibly so: binned by irrigated fraction,
+    mean NDVI DIPS before it rises, because HUC12s with no irrigation include the
+    mountains — which are greener than any farm — while HUC12s with a little
+    irrigation are low desert valleys. The cross-sectional fit is measuring elevation.
+    Differencing each cell against its own past removes it.
+    """
+    early = window_mean_ndvi(granules, IRR_EARLY_YEARS, bounds, nx, ny, cutline)
+    late = window_mean_ndvi(granules, IRR_LATE_YEARS, bounds, nx, ny, cutline)
+    frac_early, frac_late = irrigated_fraction_rasters(bounds, nx, ny)
+
+    d_ndvi = (late - early).ravel()
+    d_frac = (frac_late - frac_early).ravel()
+    base = early.ravel()
+    keep = np.isfinite(d_ndvi) & np.isfinite(d_frac) & np.isfinite(base)
+    d_ndvi, d_frac, base = d_ndvi[keep], d_frac[keep], base[keep]
+
+    slope, se = _ols_robust(d_ndvi, d_frac)
+
+    # Mean reversion would inflate this if greener cells systematically drifted, so
+    # the baseline is offered the chance to explain the slope away.
+    design = np.vstack([np.ones_like(d_ndvi), d_frac, base]).T
+    coef, *_ = np.linalg.lstsq(design, d_ndvi, rcond=None)
+    resid = d_ndvi - design @ coef
+    xtx_inv = np.linalg.inv(design.T @ design)
+    meat = (design * (resid**2)[:, None]).T @ design
+    ses = np.sqrt(np.diag(xtx_inv @ meat @ xtx_inv)) * np.sqrt(
+        len(d_ndvi) / (len(d_ndvi) - 3)
+    )
+    controlled, controlled_se = float(coef[1]), float(ses[1])
+
+    cuts = np.nanquantile(base, [0.5, 0.8, 0.95])
+    strata = {}
+    for label, sel in [
+        ("dry_desert", base < cuts[0]),
+        ("typical", (base >= cuts[0]) & (base < cuts[1])),
+        ("green", (base >= cuts[1]) & (base < cuts[2])),
+        ("very_green_cropland_riparian", base >= cuts[2]),
+    ]:
+        if sel.sum() < 500:  # noqa: PLR2004
+            continue
+        s, e = _ols_robust(d_ndvi[sel], d_frac[sel])
+        strata[label] = {"n": int(sel.sum()), "slope": s, "t": s / e if e else None,
+                         "baseline_ndvi_mean": float(base[sel].mean())}
+
+    dose = {}
+    for lo, hi in [(-1, -0.02), (-0.02, -0.002), (-0.002, 0.002),
+                   (0.002, 0.02), (0.02, 0.05), (0.05, 1.0)]:
+        sel = (d_frac >= lo) & (d_frac < hi)
+        if sel.sum() > 50:  # noqa: PLR2004
+            dose[f"{lo:+.3f}..{hi:+.3f}"] = {
+                "n": int(sel.sum()), "mean_d_ndvi": float(d_ndvi[sel].mean())
+            }
+
+    return {
+        "early_years": [min(IRR_EARLY_YEARS), max(IRR_EARLY_YEARS)],
+        "late_years": [min(IRR_LATE_YEARS), max(IRR_LATE_YEARS)],
+        "n_cells": int(keep.sum()),
+        "slope": slope, "se": se, "t": slope / se if se else float("nan"),
+        "slope_baseline_controlled": controlled,
+        "t_baseline_controlled": controlled / controlled_se if controlled_se else None,
+        "regional_drift": float(d_ndvi[np.abs(d_frac) < 0.002].mean()),  # noqa: PLR2004
+        "dose_response": dose,
+        "by_prior_land_cover": strata,
+    }
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--years", type=int, nargs="*", default=None)
@@ -371,12 +514,14 @@ def main() -> None:
             log.info("  %s  (%d/%d)  slope=%+.4f", ym, i, len(months), whole["slope"])
 
     frame = pd.DataFrame(rows)
-    log.info("difference-in-differences ...")
+    log.info("difference-in-differences (impervious) ...")
     did = difference_in_differences(granules, bounds, nx, ny, cutline)
-    report(frame, did)
+    log.info("difference-in-differences (irrigation) ...")
+    irr_did = irrigation_did(granules, bounds, nx, ny, cutline)
+    report(frame, did, irr_did)
 
 
-def report(frame: pd.DataFrame, did: dict) -> None:
+def report(frame: pd.DataFrame, did: dict, irr_did: dict) -> None:
     natural = json.loads((ROOT / "frontend" / "computed_stats.json").read_text())
     ndvi_natural = natural["OUTPUT_STATS"]["ndvi"]["baseline"]
 
@@ -421,9 +566,22 @@ def report(frame: pd.DataFrame, did: dict) -> None:
               f"n={s['n']:>6,} urbanising={s['n_urbanised']:>5,}  "
               f"slope {s['slope']:+.4f} (t={s['t']:+.1f})")
 
+    print("\n  IRRIGATION ENDPOINT (difference-in-differences)")
+    print(f"    n={irr_did['n_cells']:,}  {irr_did['early_years'][0]}-{irr_did['early_years'][1]}"
+          f" vs {irr_did['late_years'][0]}-{irr_did['late_years'][1]}")
+    print(f"    slope {irr_did['slope']:+.4f} (t={irr_did['t']:+.1f})"
+          f"   baseline-controlled {irr_did['slope_baseline_controlled']:+.4f}"
+          f" (t={irr_did['t_baseline_controlled']:+.1f})")
+    print(f"    => ndvi_irrigated_crop = {ndvi_natural + irr_did['slope_baseline_controlled']:.4f}"
+          f"   [assumed 0.55, band 0.45-0.65]")
+    print("    dose-response (regional drift is the no-change row):")
+    for band, d in irr_did["dose_response"].items():
+        print(f"      Δfrac {band}  n={d['n']:>7,}  mean ΔNDVI={d['mean_d_ndvi']:+.5f}")
+
     payload = {
         "source": "PHASE3_PARAMS.md §4b; measured by scripts/phase3/ndvi_endpoints.py",
         "difference_in_differences": did,
+        "irrigation_difference_in_differences": irr_did,
         "grid": "MODIS sinusoidal 926.63 m, eight-county cutline",
         "n_months": int(len(frame)),
         "span": [frame["month"].iloc[0], frame["month"].iloc[-1]],

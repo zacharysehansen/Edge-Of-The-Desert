@@ -1448,7 +1448,7 @@ XGBoost coefficient whose sign flipped with the month legible to whoever is usin
 Layer 4 answered *where did this number come from*. It did not answer *how well is it known*, and
 after [§12a](#12a-the-spreading-cone-test-measured) that gap was no longer defensible: every Layer 2
 number is a product of constants, **twelve of which ship with a declared band**. Ten of those still
-feed a lever path: seven still `UNTESTED`, and the dominant one now `MEASURED` but at t = +1.78.
+feed a lever path: six still `UNTESTED`, and the dominant one now `MEASURED` but at t = +1.78.
 (`specific_yield` and `alluvial_fraction` are the other two, vestigial since §12a measured
 `storage_af_per_ft` directly rather than deriving it from their product — the relevance scan finds
 them irrelevant to every scenario rather than being told to skip them.) A card printing `−36.1` and
@@ -1536,15 +1536,16 @@ follows from one observation that took the whole of Layers 2-4 to make legible:
 **Layer 1 is finished and Layer 2 is not.** Four of six models forecast honestly and the two that
 do not (GRACE, groundwater) fail on missing data rather than on modelling — PROBLEMS.md says *stop
 tuning* both, and §11.5 confirmed it for the last plausible feature-set change. Layer 2 is the
-opposite: it works, every sign holds, and **13 of its 16 levers are `structural-only`** with seven
+opposite: it works, every sign holds, and **12 of its 16 levers are `structural-only`** with six
 live parameter bands still `UNTESTED`. So the remaining leverage is in *narrowing what Layer 2
 claims*, not in improving what Layer 1 predicts.
 
 ### 1. Measure `ndvi_impervious` and `ndvi_irrigated_crop` from data already on disk
 
-✅ **`ndvi_impervious` done — [§17](#17-ndvi_impervious-measured-measured).** The assumption was
-5.5× too strong. `ndvi_irrigated_crop` is still open: its predictor is the one thing that is
-*not* on disk (no cropland mask), so it needs the HUC12-withdrawal route instead.
+✅ **DONE, both of them.** `ndvi_impervious` — [§17](#17-ndvi_impervious-measured-measured) — was
+5.5× too strong. `ndvi_irrigated_crop` — [§20](#20-ndvi_irrigated_crop-measured--and-the-assumption-was-right-measured) —
+was very nearly exact, measured through the HUC12-withdrawal route because there is no cropland
+mask on disk. **Both NDVI endpoints are now `MEASURED`, and both NDVI levers `corroborated`.**
 
 [PHASE3_PARAMS.md §4b](PHASE3_PARAMS.md) records both as *"derivable from `data/raw/modis_ndvi/`
 but not measured"* — the pass "was out of budget". The budget is the only thing that was missing:
@@ -1573,7 +1574,7 @@ retire the first of them. Cheap: `lake_mead.py` already ingests from that endpoi
 lever against the project's own panel with climate and trend controls, Newey-West — and it is what
 earned irrigation its `corroborated` badge and what §12a extended to horizons. The obvious next
 candidates are `stream_capture_fraction` (0.05–0.25, and the widest band on the surface-water card)
-and `effluent_return_fraction` (0.45–0.70). Not all seven live UNTESTED bands are estimable from
+and `effluent_return_fraction` (0.45–0.70). Not all six live UNTESTED bands are estimable from
 this panel — some are land-cover constants with no time variation to regress — but these two are,
 and the harness exists.
 
@@ -1792,7 +1793,7 @@ desert-versus-cropland split — on hover. The local figure is deliberately **no
 total: it is context for the regional number, not a competing one.
 
 The lever also moves from `structural-only` to **`corroborated`**, taking the application from two
-corroborated levers to three. Its `evidence` field used to read *"None. §10 finds an effect of
+corroborated levers to three (and §20 later makes it four). Its `evidence` field used to read *"None. §10 finds an effect of
 −0.010 sd — no effect to have a sign."* That was the panel's verdict and the panel could not see
 this: an eight-county monthly mean has no way to separate a 2%-of-area land-cover change from
 weather. The rasters can, because they resolve the change where it happens.
@@ -2002,5 +2003,109 @@ enters a few Santa Cruz reaches. Concentrated flow into a handful of gages moves
 differently from the same volume spread across all of them. The direction is unaffected and the
 magnitude is the right order, but the normalisation is an approximation, and a per-gage version
 would be the honest improvement. `UNTESTED`.
+
+---
+
+## 20. `ndvi_irrigated_crop`, measured — and the assumption was right `MEASURED`
+
+[§16](#16-paths-forward) item 1, finished. The other half of §4b, and the last NDVI endpoint.
+
+### The predictor had to be built, because it is not on disk
+
+The impervious endpoint was measurable because NLCD hands you a per-pixel impervious *fraction*.
+There is no cropland mask anywhere in `data/raw/` — the NLCD holdings are fractional-impervious
+only. So the predictor is constructed from the HUC12 irrigation withdrawal matrix, reusing the
+eight-county HUC12 selection `scripts/phase1/irrigation.py` already performs, sentinels and all
+(999/888 are 70% of the regional cells and were once summed as data).
+
+Withdrawal becomes irrigated *area* through **one calibration constant fitted on the whole record** —
+`681,143 acres ÷ total withdrawal` — rather than by assuming an application depth. Because the
+constant is fixed across windows, both where the irrigation is and how much of it there is are free
+to move. Two checks that the construction is sound: the 1,133 HUC12 polygons total 27,769,412 acres
+against the repo's `region_acres` of 27,779,840 (0.04% apart), and the mean per-cell irrigated
+fraction comes out **0.0246** against the independently computed `irrigated_fraction` constant of
+**0.0245**.
+
+### The cross-section is unusable, and it says so out loud
+
+| implied irrigated fraction | n | mean NDVI |
+|---|---|---|
+| 0.000–0.005 | 99,092 | **0.2437** |
+| 0.005–0.020 | 6,371 | 0.2087 |
+| 0.020–0.050 | 4,122 | **0.1933** |
+| 0.050–0.100 | 7,573 | 0.2132 |
+| 0.100–0.200 | 3,947 | 0.2380 |
+| 0.200–0.700 | 5,550 | 0.2639 |
+
+**NDVI dips before it rises.** The zero-irrigation cells include the mountains, which are greener
+than any farm; the barely-irrigated cells are low desert valley. A cross-sectional fit here is
+measuring *elevation*, and returns +0.0486 — an endpoint of 0.27, which would be absurd for
+irrigated cropland. This is the same siting confound as [§17](#17-ndvi_impervious-measured-measured)
+and much worse.
+
+### The difference-in-differences
+
+Each cell against its own past, 2000–2004 versus 2016–2020 (the HUC12 matrix stops at 2020),
+126,655 cells:
+
+| | slope | t |
+|---|---|---|
+| uncontrolled | +0.3542 | +34.8 |
+| **baseline-controlled** (what ships) | **+0.3353** | **+33.4** |
+
+The dose-response is monotone, and the sign flips on the correct side of the regional drift:
+
+| Δ irrigated fraction | n | mean ΔNDVI |
+|---|---|---|
+| lost > 0.02 | 3,919 | **−0.0085** |
+| −0.02 … −0.002 | 6,679 | +0.0078 |
+| no change | 98,174 | **+0.0106** ← regional drift |
+| +0.002 … +0.02 | 10,820 | +0.0177 |
+| +0.02 … +0.05 | 3,883 | +0.0236 |
+| gained > 0.05 | 3,180 | **+0.0354** |
+
+**Cells that lost irrigation fell below the drift; cells that gained rose above it, in order.** That
+is what a dose-response looks like when it is real, and it is a stronger argument than the t.
+
+### The result: 0.5520 against 0.55 assumed
+
+| | |
+|---|---|
+| measured `ndvi_irrigated_crop` | **0.5520** |
+| assumed in §4b | 0.55 (band 0.45–0.65) |
+| discrepancy | **0.4% from the assumed midpoint, well inside the assumed band** |
+
+**This one was right.** §4b guessed two NDVI endpoints from the literature; one
+([§17](#17-ndvi_impervious-measured-measured)) was 5.5× too strong and one was very nearly exact.
+Worth recording as a pair, because it is the difference between "the assumptions were sloppy" and
+"one assumption was describing the wrong half of the region" — and only measurement told them
+apart.
+
+Consequence for the app: irrigation → NDVI moves **+9.30 → +9.35**. Nothing visible changes, which
+is the point.
+
+### How the band is stated, and what it is not
+
+Band **0.5520 … 0.5709**, spanning the baseline-controlled and uncontrolled fits. It is
+**narrow because two designs agree, not because the quantity is precisely known**, and it is
+deliberately *not* a confidence interval — 126,655 MODIS cells are nowhere near independent, and an
+HC1 interval over them would manufacture precision, the same objection recorded in §15a and §17.
+
+The honest weaknesses, none of which the band expresses:
+
+- **Withdrawal is known per HUC12, not per field**, so every cell in a polygon carries the same
+  value and the estimate is identified off ~339 irrigated HUC12s. This does *not* attenuate the
+  slope — with `x` constant within a polygon the cell-level OLS slope equals the polygon-level one,
+  and a polygon's mean NDVI is exactly `natural + fraction × (crop − natural)` — but it is coarser
+  evidence than the impervious fit, which resolves to the pixel.
+- **Allocation assumes withdrawal is proportional to irrigated area**, i.e. a uniform application
+  depth across HUC12s. Crop mix varies; alfalfa is not cotton.
+- **The stratified slopes range +0.18 (dry) to +0.62 (green)**, and the upper end is not credible as
+  a crop endpoint — +0.62 on a 0.358 baseline implies an NDVI near 0.97. The strata are a
+  diagnostic here, not band endpoints: `Δfraction` and baseline greenness interact.
+
+The lever also moves `structural-only` → **`corroborated`**, taking the application to **four**
+corroborated levers. Its `evidence` used to read *"None. §10 finds 1/5 folds, wrong-signed"* — the
+panel's verdict, and the panel could not see a 2.5%-of-area land-cover effect against weather.
 
 ---

@@ -190,7 +190,17 @@ Against the in-repo region area of 27,779,840 acres: **irrigated fraction = 2.45
 > region's whole vegetation signal). A 45× difference. The 0.08 endpoint implies −0.1367, which is
 > the cropland-conversion case. The shipped coefficient is the historical mix.
 >
-> `ndvi_irrigated_crop` is still assumed: its predictor (a cropland mask) is not in `data/raw/`.
+> **`ndvi_irrigated_crop` is also measured now, and this one the assumption got right.**
+> [PHASE3_PLAN.md §20](PHASE3_PLAN.md). No cropland mask exists in `data/raw/`, so the predictor is
+> HUC12 irrigation withdrawal turned into irrigated area by one calibration on the whole record.
+> Same difference-in-differences design: **+0.3353** baseline-controlled (HC1 t = +33.4), giving
+> **0.5520** against the **0.55** assumed below — 0.4% from the assumed midpoint and well inside the
+> assumed band. The cross-section is unusable and says so: binned by irrigated fraction, NDVI *dips*
+> before it rises, because the zero-irrigation cells include the mountains. irrigation → NDVI moves
+> +9.30 → **+9.35**, i.e. nothing visible changes, which is the point.
+>
+> So of the two endpoints assumed below, one was 5.5× too strong and one was very nearly exact.
+> Only measurement told them apart.
 
 
 The plan says both endpoints are "measurable in the project's own MOD13A3 pixels". They were not
