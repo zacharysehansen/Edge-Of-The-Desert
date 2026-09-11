@@ -105,6 +105,17 @@ WARP_NODATA_FLOOR = -9998.0
 # leans on cells that mostly do not exist; this one is anchored where they do.
 CORE_IMPERVIOUS_MIN = 25.0
 
+# The difference-in-differences windows. Five years each end, so weather averages
+# out and what is left is the land-cover change.
+EARLY_YEARS = range(2000, 2005)
+LATE_YEARS = range(2019, 2024)
+DID_EARLY_IMPERVIOUS_YEAR = 2001
+DID_LATE_IMPERVIOUS_YEAR = 2021
+MIN_MONTHS_PER_WINDOW = 12
+
+# A cell counts as urbanised if it gained this many points of impervious cover.
+URBANISED_MIN_POINTS = 10.0
+
 
 def month_of(path: Path) -> str:
     """MOD13A3.AYYYYDDD... -> 'YYYY-MM'."""
@@ -236,6 +247,95 @@ def fit(ndvi: np.ndarray, imperv: np.ndarray, floor: float = 0.0) -> dict | None
     }
 
 
+def window_mean_ndvi(granules, years, bounds, nx, ny, cutline) -> np.ndarray:
+    """Per-cell mean NDVI across every month of `years`."""
+    total = np.zeros((ny, nx))
+    count = np.zeros((ny, nx))
+    for ym in sorted(granules):
+        if int(ym[:4]) not in years:
+            continue
+        arr = ndvi_for(granules[ym], bounds, nx, ny, cutline)
+        seen = np.isfinite(arr)
+        total[seen] += arr[seen]
+        count[seen] += 1
+    return np.where(count >= MIN_MONTHS_PER_WINDOW, total / np.maximum(count, 1), np.nan)
+
+
+def _ols_robust(y: np.ndarray, x: np.ndarray) -> tuple[float, float]:
+    """Slope and HC1 standard error."""
+    design = np.vstack([np.ones_like(y), x]).T
+    coef, *_ = np.linalg.lstsq(design, y, rcond=None)
+    resid = y - design @ coef
+    xtx_inv = np.linalg.inv(design.T @ design)
+    meat = (design * (resid**2)[:, None]).T @ design
+    se = np.sqrt(np.diag(xtx_inv @ meat @ xtx_inv)) * np.sqrt(len(y) / (len(y) - 2))
+    return float(coef[1]), float(se[1])
+
+
+def difference_in_differences(granules, bounds, nx, ny, cutline) -> dict:
+    """The better-identified estimate: difference each cell against ITSELF.
+
+    The cross-sectional fit compares Tucson to the desert around it, which cannot
+    separate "this land is paved" from "this land was always different" — cities sit
+    on valley floors, alluvial fans and washes, which were never a random sample of
+    the region. Differencing a cell against its own past removes every time-invariant
+    characteristic at once: soil, elevation, aspect, drainage, and whatever the
+    baseline vegetation was.
+
+    Regional drought and any secular greening are common to every cell, so they land
+    in the intercept rather than the slope.
+    """
+    early = window_mean_ndvi(granules, EARLY_YEARS, bounds, nx, ny, cutline)
+    late = window_mean_ndvi(granules, LATE_YEARS, bounds, nx, ny, cutline)
+    imp_early = impervious_for(DID_EARLY_IMPERVIOUS_YEAR, bounds, nx, ny)
+    imp_late = impervious_for(DID_LATE_IMPERVIOUS_YEAR, bounds, nx, ny)
+
+    d_ndvi = (late - early).ravel()
+    d_imp = ((imp_late - imp_early) / 100.0).ravel()
+    base = early.ravel()
+    keep = np.isfinite(d_ndvi) & np.isfinite(d_imp) & np.isfinite(base)
+    d_ndvi, d_imp, base = d_ndvi[keep], d_imp[keep], base[keep]
+
+    slope, se = _ols_robust(d_ndvi, d_imp)
+
+    # What the cell WAS before it was paved turns out to be the whole story, so it is
+    # reported rather than averaged away. Strata are quantiles of the 2000-04 mean.
+    cuts = np.nanquantile(base, [0.5, 0.8, 0.95])
+    strata = {}
+    for label, sel in [
+        ("dry_desert", base < cuts[0]),
+        ("typical", (base >= cuts[0]) & (base < cuts[1])),
+        ("green", (base >= cuts[1]) & (base < cuts[2])),
+        ("very_green_cropland_riparian", base >= cuts[2]),
+    ]:
+        if sel.sum() < 500:  # noqa: PLR2004
+            continue
+        s, e = _ols_robust(d_ndvi[sel], d_imp[sel])
+        strata[label] = {
+            "n": int(sel.sum()),
+            "n_urbanised": int((d_imp[sel] > URBANISED_MIN_POINTS / 100).sum()),
+            "slope": s, "se": e, "t": s / e if e else float("nan"),
+            "baseline_ndvi_mean": float(base[sel].mean()),
+        }
+
+    urbanised = d_imp > URBANISED_MIN_POINTS / 100
+    control = d_imp < 0.005  # noqa: PLR2004
+    return {
+        "early_years": [min(EARLY_YEARS), max(EARLY_YEARS)],
+        "late_years": [min(LATE_YEARS), max(LATE_YEARS)],
+        "n_cells": int(keep.sum()),
+        "slope": slope, "se": se, "t": slope / se if se else float("nan"),
+        "regional_drift_intercept": float(d_ndvi[control].mean()),
+        "urbanised": {
+            "n": int(urbanised.sum()),
+            "mean_d_ndvi": float(d_ndvi[urbanised].mean()),
+            "mean_d_impervious_pts": float(d_imp[urbanised].mean() * 100),
+        },
+        "control": {"n": int(control.sum()), "mean_d_ndvi": float(d_ndvi[control].mean())},
+        "baseline_quantiles": [float(c) for c in cuts],
+        "by_prior_land_cover": strata,
+    }
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--years", type=int, nargs="*", default=None)
@@ -271,10 +371,12 @@ def main() -> None:
             log.info("  %s  (%d/%d)  slope=%+.4f", ym, i, len(months), whole["slope"])
 
     frame = pd.DataFrame(rows)
-    report(frame)
+    log.info("difference-in-differences ...")
+    did = difference_in_differences(granules, bounds, nx, ny, cutline)
+    report(frame, did)
 
 
-def report(frame: pd.DataFrame) -> None:
+def report(frame: pd.DataFrame, did: dict) -> None:
     natural = json.loads((ROOT / "frontend" / "computed_stats.json").read_text())
     ndvi_natural = natural["OUTPUT_STATS"]["ndvi"]["baseline"]
 
@@ -307,8 +409,21 @@ def report(frame: pd.DataFrame) -> None:
         print("  extrapolation to 100% is actually anchored:")
         print(f"    slope median {core.median():+.4f}   endpoint median {frame['core_endpoint'].median():.4f}")
 
+    print("\n  DIFFERENCE-IN-DIFFERENCES (the adopted estimate)")
+    print(f"    each cell against itself, {did['early_years'][0]}-{did['early_years'][1]}"
+          f" vs {did['late_years'][0]}-{did['late_years'][1]}, n={did['n_cells']:,}")
+    print(f"    slope {did['slope']:+.4f}  (HC1 SE {did['se']:.4f}, t={did['t']:+.1f})")
+    print(f"    cross-sectional slope, for comparison: {frame['slope'].median():+.4f}")
+    print(f"    regional drift in unurbanised cells: {did['control']['mean_d_ndvi']:+.5f}")
+    print("\n    by what the cell WAS before it was paved:")
+    for label, s in did["by_prior_land_cover"].items():
+        print(f"      {label:30s} base NDVI {s['baseline_ndvi_mean']:.3f}  "
+              f"n={s['n']:>6,} urbanising={s['n_urbanised']:>5,}  "
+              f"slope {s['slope']:+.4f} (t={s['t']:+.1f})")
+
     payload = {
         "source": "PHASE3_PARAMS.md §4b; measured by scripts/phase3/ndvi_endpoints.py",
+        "difference_in_differences": did,
         "grid": "MODIS sinusoidal 926.63 m, eight-county cutline",
         "n_months": int(len(frame)),
         "span": [frame["month"].iloc[0], frame["month"].iloc[-1]],

@@ -1,5 +1,68 @@
 {
   "source": "PHASE3_PARAMS.md \u00a74b; measured by scripts/phase3/ndvi_endpoints.py",
+  "difference_in_differences": {
+    "early_years": [
+      2000,
+      2004
+    ],
+    "late_years": [
+      2019,
+      2023
+    ],
+    "n_cells": 130833,
+    "slope": -0.03556435543830342,
+    "se": 0.0024149230981232624,
+    "t": -14.726910130571845,
+    "regional_drift_intercept": 0.016583310365319487,
+    "urbanised": {
+      "n": 3896,
+      "mean_d_ndvi": 0.0012681752998574673,
+      "mean_d_impervious_pts": 36.551692962646484
+    },
+    "control": {
+      "n": 124380,
+      "mean_d_ndvi": 0.016583310365319487
+    },
+    "baseline_quantiles": [
+      0.20097966101694914,
+      0.2933318644067797,
+      0.452535593220339
+    ],
+    "by_prior_land_cover": {
+      "dry_desert": {
+        "n": 65416,
+        "n_urbanised": 1877,
+        "slope": -0.002658869427592475,
+        "se": 0.001370989088319689,
+        "t": -1.9393804445600928,
+        "baseline_ndvi_mean": 0.1526878101467788
+      },
+      "typical": {
+        "n": 39250,
+        "n_urbanised": 1238,
+        "slope": -0.022071749435967385,
+        "se": 0.003222106083782644,
+        "t": -6.85010017114517,
+        "baseline_ndvi_mean": 0.23812218138714913
+      },
+      "green": {
+        "n": 19625,
+        "n_urbanised": 677,
+        "slope": -0.1224067389213554,
+        "se": 0.0076921128954393694,
+        "t": -15.913279041176057,
+        "baseline_ndvi_mean": 0.36005437438924476
+      },
+      "very_green_cropland_riparian": {
+        "n": 6542,
+        "n_urbanised": 104,
+        "slope": -0.1792016410375532,
+        "se": 0.023987045308276174,
+        "t": -7.470767605367545,
+        "baseline_ndvi_mean": 0.5204051693405432
+      }
+    }
+  },
   "grid": "MODIS sinusoidal 926.63 m, eight-county cutline",
   "n_months": 287,
   "span": [

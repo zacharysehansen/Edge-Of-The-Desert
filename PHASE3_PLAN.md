@@ -1645,10 +1645,84 @@ landscaping beats creosote. A value of 0.08 describes asphalt, not a kilometre o
 - **Region area from the reprojected cutline** is 27,795,794 acres against the repo's
   `region_acres` of 27,779,840 — 0.06% apart.
 
+### The cross-section was the wrong design, and the right one says something else
+
+`MEASURED`. Everything above is a **cross-section**: it compares Tucson to the desert around it. That
+cannot separate *"this land is paved"* from *"this land was always different"* — cities in this
+region sit on valley floors, alluvial fans and along washes, which were never a random sample of
+the eight counties. So the cross-sectional slope is confounded by siting.
+
+The record contains the better design. Impervious cover genuinely moved over the period —
+**4,879 cells gained more than 10 points and 1,728 gained more than 40** — so each cell can be
+differenced against **its own past** rather than against its neighbours, which removes every
+time-invariant characteristic at once: soil, elevation, aspect, drainage, and whatever grew there
+before. Mean NDVI over 2000–2004 against 2019–2023, mean impervious in 2001 against 2021, across
+130,833 cells:
+
+| design | slope | |
+|---|---|---|
+| cross-section, 287 months | −0.0250 | confounded by siting |
+| **difference-in-differences** | **−0.0356** | HC1 t = **−14.7** |
+| + controlling for 2001 impervious | −0.0382 | t = −15.9 |
+| matched urbanised-vs-control contrast | −0.0419 | 3,896 vs 124,380 cells |
+
+Four designs, −0.025 to −0.042. The regional drift common to every cell — unurbanised cells greened
+by **+0.0166** over the same window — lands in the intercept, which is what a DiD is for.
+
+### The finding: it is not the concrete, it is what the concrete replaced
+
+Splitting the DiD by each cell's own pre-2005 NDVI is where the answer actually lives:
+
+| what the cell was before | baseline NDVI | urbanising cells | slope | t |
+|---|---|---|---|---|
+| dry desert | 0.153 | 1,877 | **−0.0027** | −1.9 |
+| typical | 0.238 | 1,238 | −0.0221 | −6.9 |
+| green | 0.360 | 677 | −0.1224 | −15.9 |
+| **cropland / riparian** | 0.520 | 104 | **−0.1792** | −7.5 |
+
+**A 45× difference, and it resolves the whole question.** Paving dry desert costs essentially
+nothing — desert NDVI is already about what pavement reads, so there is nothing to lose. Paving
+cropland costs −0.179, which is **83% of the region's entire vegetation signal** for that cell.
+
+It also rehabilitates the assumption this section started by overturning. §4b's 0.08 endpoint
+implies a slope of −0.1367, which is close to the cropland-conversion row. **The assumption was not
+absurd; it was describing the wrong half of the region** — the farmland that suburbs eat, not the
+creosote flats they also eat.
+
+### Why the lever stays small anyway, and why that is not a defect
+
+The coefficient that ships is the **historical mix** (−0.0356), because the slider adds impervious
+cover the way this region actually adds it — some onto farmland, much more onto desert. The lever
+is small for two multiplied reasons, and neither is a modelling failure:
+
+```
+  local effect of fully paving a cell        −0.0356 NDVI   = −16.4% of the vegetation signal
+  × the slider's whole range (+2.0 points)   = 2% of the region
+  = region-wide                              −0.81 score points
+```
+
+The same coefficient, if the **entire eight counties** were paved, is **−40.5 score points**. So the
+physics is not weak — the *instrument* is. An eight-county mean NDVI is a poor detector of
+urbanization, because urbanization is a small-area, high-intensity change and a regional mean is
+built to average exactly that away.
+
+**That is worth stating plainly on the card rather than hiding behind a small number.** It is also
+why urbanization's honest signature in this application is not NDVI at all: the same slider moves
+**surface water +3.30** through storm runoff, four times its NDVI effect, because runoff integrates
+over the same small area without diluting it.
+
+### One caveat on the cropland row
+
+Pinal County fallowed farmland under CAP cuts over the same period in which it urbanized. Those two
+are correlated, so the −0.1792 stratum may carry some fallowing that is not attributable to
+pavement. The DiD design absorbs fallowing that happened *without* urbanization — those cells are
+controls — but not a correlated shock. The stratum is reported, not adopted; the shipped coefficient
+is the whole-region mix.
+
 ### How it is adopted, and the one subtlety
 
-`ndvi_impervious` ships as **0.1917 = ndvi_natural + measured slope**, `status: MEASURED`, band
-0.1710 … 0.2075 from the slope's IQR — *not* as the directly measured 0.2046. The difference is
+`ndvi_impervious` ships as **0.1811 = ndvi_natural + the DiD slope**, `status: MEASURED`, band
+0.1811 … 0.1917 spanning the two designs — *not* as the directly measured 0.2046. The difference is
 deliberate. `ndvi_natural` (0.2167) is a p50 over months of the whole-region mean, while the
 quantity the lever needs is the NDVI of *the land actually being paved*, which is the regression's
 zero-impervious intercept (0.2310). Those differ by +0.0143. Stating the endpoint relative to
@@ -1656,17 +1730,24 @@ zero-impervious intercept (0.2310). Those differ by +0.0143. Stating the endpoin
 that mismatch instead of inheriting it. The directly measured 0.2046 is recorded in the constant's
 own note and in `ndvi_endpoints.json`.
 
-The band is the **interquartile range across months**, not a per-pixel standard error. 131,000
-MODIS cells in one month are nowhere near independent, and an OLS standard error over them would
-manufacture a precision this has no claim to.
+The band spans the two designs — the DiD at one end and the cross-section at the other — rather
+than either one's standard error. 131,000 MODIS cells are nowhere near independent, so a per-pixel
+OLS error would manufacture a precision this has no claim to; and the spread *between* designs is
+the larger and more honest uncertainty anyway.
+
+The DiD was chosen on identification, **before its magnitude was known**. It happens to come out 42%
+larger than the cross-section, which is the direction that requires care given
+[PHASE3_PARAMS.md §2](PHASE3_PARAMS.md)'s prohibition on tuning levers upward — so the reason is
+recorded here and in the constant's own note: differencing a cell against itself removes a confound
+the cross-section cannot, and that was true before the number came back.
 
 ### Consequence, and a caveat that has to travel with it
 
 | | before | after |
 |---|---|---|
-| urbanization → NDVI | −3.73 | **−0.68** |
+| urbanization → NDVI | −3.73 | **−0.97** |
 
-The lever gets 5.5× weaker, and that is the correct direction: §4b's own text already said *"both
+The lever gets 3.8× weaker, and that is the correct direction: §4b's own text already said *"both
 are physically tiny, and that is the correct answer, not a bug"* — it just had the wrong endpoint.
 [§11.4](#114-7s-acceptance-criteria-need-restructuring) is why this is a pass and not a failure:
 magnitude is reported, not gated.

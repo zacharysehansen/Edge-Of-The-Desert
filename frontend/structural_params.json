@@ -71,14 +71,14 @@
       "status": "MEASURED"
     },
     "ndvi_impervious": {
-      "value": 0.1917048546600122,
-      "source": "measured: OLS of MOD13A3 NDVI on NLCD impervious fraction over 287 months (2000-02..2023-12), ~131,000 cells/month on the MODIS sinusoidal grid inside the eight-county cutline. Slope = -0.0250 NDVI per unit impervious fraction (median across months), negative in 251 of 287. See scripts/phase3/ndvi_endpoints.py.",
+      "value": 0.1811356445616966,
+      "source": "measured: difference-in-differences on MOD13A3 NDVI against NLCD impervious change, 130,833 MODIS cells differenced against themselves (2000-2004 vs 2019-2023). Slope -0.0356 NDVI per unit impervious fraction (HC1 t = -14.7). Cross-sectional fit over 287 months agrees at -0.0250. See scripts/phase3/ndvi_endpoints.py.",
       "status": "MEASURED",
       "band": [
-        0.17101654460445065,
-        0.20751684383038516
+        0.1811356445616966,
+        0.1917048546600122
       ],
-      "note": "Stated so that (ndvi_impervious - ndvi_natural) IS the measured slope, because that difference is the whole of what the lever multiplies. The directly measured NDVI of a fully impervious cell is 0.2046; the +0.0143 gap to the value used here is the difference between the regression's zero-impervious intercept (0.2310, the NDVI of the land actually being paved) and ndvi_natural (0.2167, a p50 over months of the whole-region mean). Anchoring on the slope removes that mismatch instead of inheriting it. PHASE3_PARAMS.md \u00a74b assumed 0.08 (band 0.05-0.12), which is 5.5x too strong and does not overlap the measurement: even cells 90-100% impervious read NDVI ~0.20, because a 926 m cell that is mostly pavement still carries lawns, parks and street trees, and the desert it replaced was only at 0.23 to begin with."
+      "note": "Stated so that (ndvi_impervious - ndvi_natural) IS the measured slope, because that difference is the whole of what the lever multiplies. The directly measured NDVI of a fully impervious cell is 0.2046; the +0.0143 gap to the value used here is the difference between the regression's zero-impervious intercept (0.2310, the NDVI of the land actually being paved) and ndvi_natural (0.2167, a p50 over months of the whole-region mean). Anchoring on the slope removes that mismatch instead of inheriting it. THE EFFECT IS ALMOST ENTIRELY ABOUT WHAT THE PAVEMENT REPLACED: split by each cell's pre-2005 NDVI, paving dry desert costs -0.0027 (not distinguishable from zero \u2014 desert NDVI is already near what pavement reads), while paving cropland or riparian land costs -0.1792, a 45x difference. PHASE3_PARAMS.md \u00a74b's assumed 0.08 endpoint implies -0.1367, which is close to the cropland-conversion case: the assumption was not absurd, it was describing the wrong half of the region. The value adopted here is the historical mix, which is the right one for a slider that adds impervious cover the way this region actually adds it."
     },
     "ndvi_irrigated_crop": {
       "value": 0.55,

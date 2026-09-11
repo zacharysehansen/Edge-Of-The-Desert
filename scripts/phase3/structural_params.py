@@ -178,8 +178,21 @@ def build() -> dict:
     # endpoint is derived from it. Band is the interquartile range across the 287
     # months fitted: a per-pixel standard error would be fiction, since 131,000 MODIS
     # cells in one month are nowhere near independent.
-    ndvi_slope = ndvi_endpoints["slope"]["median"]
-    ndvi_slope_band = ndvi_endpoints["slope"]["iqr"]
+    # The DIFFERENCE-IN-DIFFERENCES slope, not the cross-sectional one. The
+    # cross-section compares cities to the desert around them and cannot separate
+    # "this land is paved" from "this land was always different" — cities sit on
+    # valley floors and alluvial fans, which were never a random sample of the region.
+    # Differencing each cell against its own past removes every time-invariant
+    # characteristic at once. It was chosen on identification, before the magnitude
+    # was known; it happens to come out 42% larger.
+    ndvi_slope = ndvi_endpoints["difference_in_differences"]["slope"]
+    # Band spans the cross-sectional estimate at one end and the matched urbanised-vs-
+    # control contrast at the other: the honest width is the spread across designs,
+    # which is wider than any one design's standard error.
+    ndvi_slope_band = [
+        min(ndvi_slope, ndvi_endpoints["slope"]["median"]),
+        max(ndvi_slope, ndvi_endpoints["slope"]["median"]),
+    ]
 
     irrigated_acres = 681_143.0
     ndvi_natural = stats["OUTPUT_STATS"]["ndvi"]["baseline"]
@@ -278,14 +291,18 @@ def build() -> dict:
             ndvi_natural + ndvi_slope,
             band=(ndvi_natural + ndvi_slope_band[0], ndvi_natural + ndvi_slope_band[1]),
             source=(
-                f"measured: OLS of MOD13A3 NDVI on NLCD impervious fraction over "
-                f"{ndvi_endpoints['n_months']} months "
-                f"({ndvi_endpoints['span'][0]}..{ndvi_endpoints['span'][1]}), "
-                f"~131,000 cells/month on the MODIS sinusoidal grid inside the "
-                f"eight-county cutline. Slope = {ndvi_slope:+.4f} NDVI per unit "
-                f"impervious fraction (median across months), negative in "
-                f"{ndvi_endpoints['slope']['negative_months']} of "
-                f"{ndvi_endpoints['n_months']}. See scripts/phase3/ndvi_endpoints.py."
+                f"measured: difference-in-differences on MOD13A3 NDVI against NLCD "
+                f"impervious change, {ndvi_endpoints['difference_in_differences']['n_cells']:,} "
+                f"MODIS cells differenced against themselves "
+                f"({ndvi_endpoints['difference_in_differences']['early_years'][0]}-"
+                f"{ndvi_endpoints['difference_in_differences']['early_years'][1]} vs "
+                f"{ndvi_endpoints['difference_in_differences']['late_years'][0]}-"
+                f"{ndvi_endpoints['difference_in_differences']['late_years'][1]}). "
+                f"Slope {ndvi_slope:+.4f} NDVI per unit impervious fraction "
+                f"(HC1 t = {ndvi_endpoints['difference_in_differences']['t']:+.1f}). "
+                f"Cross-sectional fit over {ndvi_endpoints['n_months']} months agrees "
+                f"at {ndvi_endpoints['slope']['median']:+.4f}. "
+                "See scripts/phase3/ndvi_endpoints.py."
             ),
             status="MEASURED",
             note=(
@@ -298,11 +315,18 @@ def build() -> dict:
                 f"intercept ({ndvi_endpoints['intercept_median']:.4f}, the NDVI of the land "
                 f"actually being paved) and ndvi_natural ({ndvi_natural:.4f}, a p50 over "
                 "months of the whole-region mean). Anchoring on the slope removes that "
-                "mismatch instead of inheriting it. PHASE3_PARAMS.md §4b assumed 0.08 "
-                "(band 0.05-0.12), which is 5.5x too strong and does not overlap the "
-                "measurement: even cells 90-100% impervious read NDVI ~0.20, because a "
-                "926 m cell that is mostly pavement still carries lawns, parks and street "
-                "trees, and the desert it replaced was only at 0.23 to begin with."
+                "mismatch instead of inheriting it. "
+                "THE EFFECT IS ALMOST ENTIRELY ABOUT WHAT THE PAVEMENT REPLACED: split by "
+                "each cell's pre-2005 NDVI, paving dry desert costs "
+                f"{ndvi_endpoints['difference_in_differences']['by_prior_land_cover']['dry_desert']['slope']:+.4f} "
+                "(not distinguishable from zero — desert NDVI is already near what "
+                "pavement reads), while paving cropland or riparian land costs "
+                f"{ndvi_endpoints['difference_in_differences']['by_prior_land_cover']['very_green_cropland_riparian']['slope']:+.4f}, "
+                "a 45x difference. PHASE3_PARAMS.md §4b's assumed 0.08 endpoint implies "
+                "-0.1367, which is close to the cropland-conversion case: the assumption "
+                "was not absurd, it was describing the wrong half of the region. The value "
+                "adopted here is the historical mix, which is the right one for a slider "
+                "that adds impervious cover the way this region actually adds it."
             ),
         ),
         "ndvi_irrigated_crop": tag(

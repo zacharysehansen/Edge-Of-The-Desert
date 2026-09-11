@@ -175,12 +175,22 @@ Against the in-repo region area of 27,779,840 acres: **irrigated fraction = 2.45
 > [PHASE3_PLAN.md §17](PHASE3_PLAN.md). OLS of MOD13A3 NDVI on NLCD impervious fraction, 287
 > months, ~131,000 cells each, on the MODIS grid inside the eight-county cutline. Slope
 > **−0.0250** (IQR −0.0457 … −0.0092); endpoint at 100% impervious **0.2046** (IQR 0.1982 …
-> 0.2135), against the **0.08 (band 0.05–0.12)** assumed below — the bands do not overlap. Even
-> 90–100% impervious cells read NDVI ≈ 0.20: a 926 m cell that is mostly pavement still carries
-> lawns and street trees, and the desert it replaced was only at 0.23. Ships as
-> `ndvi_impervious = 0.1917`, stated relative to `ndvi_natural` so the difference *is* the measured
-> slope. urbanization → NDVI goes −3.73 → **−0.68**. `ndvi_irrigated_crop` is still assumed: its
-> predictor (a cropland mask) is not in `data/raw/`.
+> 0.2135), against the **0.08 (band 0.05–0.12)** assumed below.
+>
+> **The adopted value comes from a difference-in-differences**, not that cross-section: each MODIS
+> cell differenced against its own past (2000–04 vs 2019–23, 130,833 cells), which removes the
+> siting confound — cities are built on valley floors, not on a random sample of the region. Slope
+> **−0.0356** (HC1 t = −14.7). Ships as `ndvi_impervious = 0.1811`, stated relative to
+> `ndvi_natural` so the difference *is* the measured slope. urbanization → NDVI goes −3.73 →
+> **−0.97**.
+>
+> **The assumption below was not absurd — it was describing the wrong half of the region.** Split by
+> what each cell was before it was paved: dry desert **−0.0027** (indistinguishable from zero;
+> desert NDVI is already about what pavement reads), cropland/riparian **−0.1792** (83% of the
+> region's whole vegetation signal). A 45× difference. The 0.08 endpoint implies −0.1367, which is
+> the cropland-conversion case. The shipped coefficient is the historical mix.
+>
+> `ndvi_irrigated_crop` is still assumed: its predictor (a cropland mask) is not in `data/raw/`.
 
 
 The plan says both endpoints are "measurable in the project's own MOD13A3 pixels". They were not
