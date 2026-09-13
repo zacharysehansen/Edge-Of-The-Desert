@@ -364,6 +364,9 @@ python scripts/phase3/slider_sensitivity.py --mode acceptance
 # Layer 1 must stay climate-only: no human lever may move the learned output
 python scripts/phase3/slider_sensitivity.py --mode no-double-count
 
+# (§32: the §13 switch that would integrate the learned residual over the scenario was
+# re-tested under declared criteria by scripts/phase3/experiment_integrate_learned.py and
+# stays OFF — a positive multiplier cannot fix a sign, and it sends slow outputs off the scale.)
 # the learned CLIMATE responses must carry their physical sign in every month
 # (rain raises storage, greenness and flow and lowers depth and fire; heat the reverse).
 # Added 2026-09-12 after §27 and §29 found four wrong-signed responses by hand. It exits

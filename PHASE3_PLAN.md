@@ -51,7 +51,11 @@ that is wrong-signed in six months of the year), and
 constraint ships for streamflow at no cost and does nothing, because the deployed streamflow model
 is a ridge; it does not ship for NDVI, which loses 0.037; the ridge has learned a derivative, which
 is right for a fast river and wrong for a sustained slider, and passes the sign test 12 of 12 as a
-one-month pulse; PDSI → streamflow is a genuine wrong sign either way).
+one-month pulse; PDSI → streamflow is a genuine wrong sign either way), and
+[§32](#32-13-revisited-integrating-the-learned-residual-does-not-ship-and-cannot-fix-a-sign) (§13's
+switch flipped under declared criteria: it multiplies every climate response by a positive factor
+of 2.8 to 11, sends groundwater to −187 and streamflow to +114 points, and leaves every sign
+exactly where it was, because a positive multiplier cannot change one. Off it stays).
 
 For the readable version of what the finished model *does* — every path from a slider to an
 output, and the reasoning behind each — see [DISCUSSION.md](DISCUSSION.md). This document is the
@@ -3141,3 +3145,66 @@ which is collinearity with rain absorbing a negative partial effect. It is 1 to 
   §4b mean-reverting form, now gives sustained responses with the pulse's signs is a testable
   question with the sign gate as its criterion. It is the next experiment for this card, and it
   is not taken here.
+
+## 32. §13 revisited: integrating the learned residual does not ship, and cannot fix a sign `MEASURED`
+
+[§31](#31-the-constraint-experiment-and-what-the-streamflow-model-turned-out-to-be) left one
+experiment open: whether the sustained-scenario display of the residual models — a one-step change
+shown as if it were a level — improves if Layer 3 integrates the learned climate residual over the
+scenario the way it integrates the structural forcing. [§13](#13-layer-2-and-layer-3-built-measured)
+had said no with human deltas still inside Layer 1; Layer 1 is climate-only now and two of the
+residual models are linear, so the question was re-asked.
+`scripts/phase3/experiment_integrate_learned.py` → `model/experiment_integrate_learned.json`: the
+shipped stack with the switch flipped in memory, judged by criteria declared in its docstring —
+no new sign failures, rain → streamflow must pass, no climate swing beyond 100 points, human gates
+untouched.
+
+### What the switch does
+
+| climate slider → output | off | **on** | multiplier at 12 mo |
+|---|---|---|---|
+| rain → GRACE | +7.6 | +74.2 | 9.75 |
+| rain → NDVI | +5.2 | +22.1 | 4.28 |
+| rain → groundwater | −17.0 | **−187.1** | 11.02 |
+| rain → streamflow | +40.1 | **+113.7** | 2.83 |
+| heat → groundwater | +0.9 | +9.3 | 11.02 |
+| PDSI → streamflow | −3.1 | −8.7 | 2.83 |
+
+The human rows are bit-identical, the acceptance and no-double-count gates pass, and the
+climate-sign gate reports **five failures before and five after, the same five**. Rain → streamflow
+still fails.
+
+```
+  [PASS]  no new sign failures            5 vs 5
+  [FAIL]  rain -> streamflow passes       FAIL
+  [FAIL]  largest climate swing <= 100    187.1
+  verdict: DOES NOT SHIP
+```
+
+### Why it was never going to fix the sign
+
+§4b's closed form is `z_n = (s/λ)(1 − (1−λ)^n)`: the one-step residual `s` times a positive
+constant. A positive multiplier cannot change a sign. The wrong-signed April is in `s` itself — the
+derivative structure §31 read off the ridge, evaluated on a catalog where every lag already carries
+the scenario — and integrating it just makes a wrong-signed month bigger. This should have been
+said before the run rather than after, and it is said here so the next reader does not run it a
+third time.
+
+What integration does do is scale, and the scale is the second failure: for the slow outputs the
+multiplier is 10 to 11, which takes the Cochise water table to −187 points (−3.9 ft for a wet
+year, on a 2-ft card) and GRACE to +74. §13's +104 for streamflow is back as +114. The switch
+stays off, for the same reason as §13 and one more: the models carry no dynamics of their own, and
+a fitted λ applied to a one-step residual is not a substitute for them.
+
+### What would actually answer the sustained question
+
+A change model answers a level question only by being *rolled out*: month 1 with the scenario in
+the current month and normals in the lags, month 2 with one month of scenario in the lags, and so
+on, each step's prediction feeding the next step's anchor. That is [§4a](#4a-the-layer-3-experiment-measured)'s
+rollout mode, which exists in `slider_sensitivity.py`, and which was unbounded for the XGBoost
+models because they carry no restoring force. Whether it is bounded for the two ridges is a
+question, not a plan; the fast outputs it matters for are still the XGBoost NDVI and the ridge
+streamflow with its derivative, and the streamflow rollout would compound the same derivative. The
+honest state of the sustained display is what §31 said: label the learned climate term as a
+one-month response, and let the duration selector act on the structural layer, where it already
+does.
