@@ -42,7 +42,11 @@ at +0.01. What to do about it is a target decision, left open), and
 the output is the Cochise well index, shipped as a four-input ridge with skill +0.23 and every
 climate sign physical; the Lake Mead lever comes off that card; the municipal levers are scaled to
 Cochise's share; the storage coefficient is recalibrated; and the irrigation lever now saturates a
-score scale that is two feet wide).
+score scale that is two feet wide), and
+[§30](#30-a-climate-sign-gate-and-what-it-found-measured) (the learned climate responses now have
+declared physical signs checked in every month; both ridge models pass everywhere, and five
+XGBoost responses in NDVI and surface water fail, one of them the streamflow-versus-rain response
+that is wrong-signed in six months of the year).
 
 For the readable version of what the finished model *does* — every path from a slider to an
 output, and the reasoning behind each — see [DISCUSSION.md](DISCUSSION.md). This document is the
@@ -2966,3 +2970,75 @@ clamping, at the cost of the one rule every card shares.
 - **Out-of-sample rows.** The daily well pull stops at 2020-12; NWIS runs to 2025. Sixty new months
   would be the first genuinely held-out test of the Cochise model, and the way to judge the
   one-column GLDAS model (t = 2.08 against the pipeline here) without another post-hoc comparison.
+
+## 30. A climate-sign gate, and what it found `MEASURED`
+
+[§7](#7-acceptance-criteria) gates every human lever's sign in all 12 months and has since §13. The
+learned climate responses had no such gate, and [§27](#27-grace-ships-as-the-linear-model-the-retrain-and-what-moved-measured)
+and [§29](#29-the-groundwater-output-is-the-cochise-index-and-it-forecasts-measured) found four
+wrong-signed ones by reading sweep tables. `slider_sensitivity.py --mode climate-signs` now declares
+the sign each climate slider must have on each output — rain raises storage, greenness and flow and
+lowers depth and fire; heat does the reverse; no expectation for birds under heat — swings each
+slider across its policy range in every month, and fails any pair with a wrong-signed month above
+0.5 points (below that the model is saying "no response", which is not a sign). It exits nonzero.
+
+**One declaration was corrected after the first run, and this is the record of it.** PDSI →
+wildfire was declared "−" and failed 11 of 12 months at +1.6 to +5.5 points: sustained wetness
+*raising* fire. `features.py` documents why that is not wrong: "wet winter → dry summer (fuel growth
+then ignition)" and "prior 2-year precipitation total (fuel load accumulation)". The PDSI slider is
+a wetness index held for the whole scenario, reaching the fire model through 12-month rolls, so
+both mechanisms are in play and no single sign follows from physics. The entry is now `None`.
+Same-month rain → wildfire keeps its "−" and passes in all 12 months at 4.6 to 26.2 points, which is
+the suppression mechanism showing where it should.
+
+### What passes and what fails
+
+| climate slider → output | expected | months ok | verdict |
+|---|---|---|---|
+| rain → GRACE | + | 12/12 | pass |
+| rain → NDVI | + | 8/12 | **fail** |
+| rain → groundwater depth | − | 12/12 | pass |
+| rain → streamflow | + | **6/12** | **fail** |
+| rain → wildfire | − | 12/12 | pass |
+| rain → wildlife | + | 12/12 | pass |
+| heat → GRACE | − | 12/12 | pass |
+| heat → NDVI | − | 10/12 | **fail** |
+| heat → groundwater depth | + | 12/12 | pass |
+| heat → streamflow | − | 12/12 | pass |
+| heat → wildfire | + | 12/12 | pass |
+| PDSI → GRACE, groundwater | (no PDSI input) | — | pass |
+| PDSI → NDVI | + | 7/12 | **fail** |
+| PDSI → streamflow | + | **0/12** | **fail** |
+| PDSI → wildfire | none | — | pass |
+| PDSI → wildlife | + | 12/12 | pass |
+
+**The two ridge models pass everywhere. Every failure is an XGBoost.** Month by month, in score
+points for the slider's full swing:
+
+```
+                              Jan   Feb   Mar   Apr   May   Jun   Jul   Aug   Sep   Oct   Nov   Dec
+rain  -> NDVI          [+]   -2.1  +5.9  +6.9  +3.2  +1.0  -0.1  +5.2 +17.9  +9.4  -0.8  -2.6  -1.4
+rain  -> streamflow    [+]   +4.0  +2.3  -1.0  -6.9  -3.5  -0.9 +36.7 +14.5  -3.3  -5.3  -0.4  +8.9
+heat  -> NDVI          [-]   +1.2  -3.5  -0.5  +0.2  +0.1  +0.4  -2.7  +0.2  -5.1  +2.4  -0.4  -0.2
+PDSI  -> NDVI          [+]   +2.0  +1.4  +1.5  +1.7  +1.8  +0.7  -1.4  -3.3  -1.9  -4.0  -2.9  -0.3
+PDSI  -> streamflow    [+]   -1.1  -1.1  -1.1  -1.1  -1.1  -1.1  -1.1  -1.1  -1.1  -1.1  -1.1  -1.1
+```
+
+The one that matters is **rain → streamflow**. The +36.7 in July is the number every sweep table in
+this document has shown, and it is real. But the same model says more rain means *less* flow in
+March through June and September through November, by up to 6.9 points, in months where the rain
+slider's whole swing is 0.14 to 0.5 mm/day. A tree ensemble fit to a monsoon-dominated record has
+learned July and does something else the rest of the year. Streamflow is the project's best model
+(skill +0.68), so this is not a reason to replace it; it is a reason to constrain it. PDSI →
+streamflow is a smaller version of the same thing: −1.1 in every month, a constant wrong-signed
+offset from a slow index. The three NDVI failures are small (mostly 1–4 points) and month-scattered,
+the signature of a tree splitting on month.
+
+### What to do about it, not done here
+
+XGBoost accepts `monotone_constraints`: a declaration that the response must be non-decreasing in
+a named feature. Declaring rain and PDSI monotone-positive for streamflow and NDVI (and the lag and
+rolling families with them) is the principled fix, and it is a modelling change to two shipped
+models with skill, so it is an experiment with a rule — does the constrained model keep its
+out-of-fold skill? — and a decision, not a patch. Until it is taken, the gate is in the README as
+a known failure with a count, and a change in that count is what a regression looks like.

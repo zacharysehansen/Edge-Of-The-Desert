@@ -19,6 +19,12 @@ Three modes:
 
   --mode lambda    Fit the per-target mean-reversion rate from the observed panel.
 
+  --mode climate-signs
+                   PHASE3_PLAN.md §30. The learned climate responses have declared
+                   physical signs too: rain raises storage, greenness and flow and
+                   lowers depth and fire; heat does the reverse. Swings each climate
+                   slider in every month and fails on any material wrong-signed
+                   response. §27 and §29 found four before this gate existed.
   --mode acceptance
                    The PHASE3_PLAN.md §7 guard, restructured per §11.4. Sign
                    stability across all 12 months is the HARD GATE, because that is
@@ -507,6 +513,77 @@ def expected_signs(runner: "Runner") -> dict[tuple[str, str], int | None]:
     }
 
 
+# The physical sign of each learned climate response, in the output's own units
+# (groundwater is depth to water, so "wetter" is negative there). None = no
+# expectation declared. Written 2026-09-12 (PHASE3_PLAN.md §30), before the first run
+# of the gate, from water balance rather than from what the models happen to do:
+#   rain / wetter drought index  ->  more stored water, greener, more flow, less fire,
+#                                    shallower water table, more birds (riparian);
+#   heat                         ->  the reverse, through evapotranspiration; no
+#                                    expectation for birds.
+# One entry was corrected AFTER the first run, and the correction is recorded in
+# PHASE3_PLAN.md §30 with the reason: PDSI -> wildfire was declared "-" and is now
+# None. The PDSI slider is a wetness index HELD for the whole scenario and reaches
+# the fire model through 12-month rolls, and features.py documents two opposing
+# mechanisms for sustained wetness — moisture suppresses ignition, and a wet year
+# grows the fine fuel that burns the next season ("wet winter -> dry summer",
+# "prior 2-year precipitation total = fuel load"). Same-month rain -> wildfire keeps
+# its "-", and passes.
+CLIMATE_EXPECTED_SIGNS: dict[str, dict[str, int | None]] = {
+    "precipitation_mm_day": {
+        "grace": +1, "ndvi": +1, "groundwater": -1, "surface_water": +1, "wildfire": -1, "wildlife": +1,
+    },
+    "temperature_2m_c": {
+        "grace": -1, "ndvi": -1, "groundwater": +1, "surface_water": -1, "wildfire": +1, "wildlife": None,
+    },
+    "nclimdiv_pdsi": {
+        "grace": +1, "ndvi": +1, "groundwater": -1, "surface_water": +1, "wildfire": None, "wildlife": +1,
+    },
+}
+# A wrong-signed month below this many score points is "no response", not a sign.
+CLIMATE_SIGN_MATERIAL_POINTS = 0.5
+
+
+def climate_signs(runner: Runner, months: int) -> int:
+    """Every learned climate response must hold its declared physical sign in all
+    12 months wherever it is material. Returns the number of failing pairs."""
+    print(f"\n=== climate-signs: learned responses vs physics, 12 months (duration {months} mo) ===")
+    print(f"{'climate slider -> output':44s}{'expect':>7s}{'months ok':>11s}{'min pts':>9s}{'max pts':>9s}  verdict")
+    failures = 0
+    for slider, table in CLIMATE_EXPECTED_SIGNS.items():
+        policy = runner.slider_stats[slider]["policy"]
+        for output, sign in table.items():
+            effects = []
+            for month in range(1, 13):
+                lo, hi = dict(runner.default), dict(runner.default)
+                lo[slider], hi[slider] = policy["min"], policy["max"]
+                a = runner.one_step(lo, month, months)
+                b = runner.one_step(hi, month, months)
+                effects.append(runner.score(output, b[output]) - runner.score(output, a[output]))
+            magnitudes = [abs(e) for e in effects]
+            if sign is None:
+                label, agreeing, ok = "none", 12, True
+            else:
+                agreeing = sum(
+                    1 for e in effects
+                    if abs(e) < CLIMATE_SIGN_MATERIAL_POINTS or (e > 0) == (sign > 0)
+                )
+                label = "+" if sign > 0 else "-"
+                ok = agreeing == 12
+            if not ok:
+                failures += 1
+            print(
+                f"{slider[:22]:22s} -> {output:16s}{label:>7s}"
+                f"{agreeing:>8d}/12{min(magnitudes):9.2f}{max(magnitudes):9.2f}"
+                f"  {'PASS' if ok else 'FAIL'}"
+            )
+    print(
+        f"\nA month counts as wrong-signed only above {CLIMATE_SIGN_MATERIAL_POINTS} points; below that the\n"
+        "model is saying 'no response', which is not a sign. Magnitude is otherwise not gated."
+    )
+    return failures
+
+
 def acceptance(runner: Runner, months: int) -> int:
     """Sign stability across all 12 months. Returns the number of failures."""
     signs = expected_signs(runner)
@@ -612,7 +689,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument(
         "--mode",
-        choices=("sweep", "rollout", "lambda", "acceptance", "no-double-count"),
+        choices=("sweep", "rollout", "lambda", "acceptance", "no-double-count", "climate-signs"),
         default="sweep",
     )
     ap.add_argument("--months", type=int, default=12)
@@ -637,6 +714,16 @@ def main() -> None:
                 f"response is counted twice — see PHASE3_PLAN.md §11.3."
             )
         print("\nLayer 1 is bit-identical across every human lever. No double-count.")
+        return
+
+    if args.mode == "climate-signs":
+        failures = climate_signs(runner, args.months)
+        if failures:
+            raise SystemExit(
+                f"\n{failures} learned climate response(s) carry the wrong physical sign "
+                f"in at least one month. See PHASE3_PLAN.md §30."
+            )
+        print("\nEvery learned climate response holds its physical sign in all 12 months.")
         return
 
     if args.mode == "acceptance":
