@@ -367,8 +367,10 @@ python scripts/phase3/slider_sensitivity.py --mode no-double-count
 # the learned CLIMATE responses must carry their physical sign in every month
 # (rain raises storage, greenness and flow and lowers depth and fire; heat the reverse).
 # Added 2026-09-12 after §27 and §29 found four wrong-signed responses by hand. It exits
-# nonzero, and it currently FAILS on 5 of 18 pairs — see PHASE3_PLAN.md §30 before treating
-# that as a regression.
+# nonzero on the app's default 12-month scenario, and prints the same table as a one-month
+# pulse beside it. It currently FAILS 5 of 18 sustained pairs and 5 of 18 pulse pairs — see
+# PHASE3_PLAN.md §30–§31 before treating that as a regression: rain → streamflow fails
+# sustained and passes the pulse, which is a display limit of the residual architecture.
 python scripts/phase3/slider_sensitivity.py --mode climate-signs
 
 # the frontend must load and render as a BROWSER sees it, not as Node sees it

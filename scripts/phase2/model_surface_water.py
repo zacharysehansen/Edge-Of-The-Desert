@@ -109,9 +109,32 @@ IMPORTANCE_THRESHOLD = 0.005
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Monotone constraints (PHASE3_PLAN.md §31)
+# ---------------------------------------------------------------------------
+# Every XGBoost this module builds is constrained non-decreasing in the nClimDiv
+# rain and PDSI features (levels, lags, rolls, anomalies). The climate-sign gate
+# (§30) found the unconstrained model saying more rain means LESS flow in six months
+# of the year — extrapolation into months the record never tested — and the
+# declared experiment (experiment_monotone.py) measured that the constraint costs
+# nothing: target R² +0.7267 -> +0.7249, 4 of 5 folds within noise, t = -0.69.
+# `nclimdiv_precip_x_temperature` is left free; its sign is not physical on its own.
+def _monotone_sign(feature: str) -> int:
+    if feature == "nclimdiv_precip_x_temperature":
+        return 0
+    if "nclimdiv_precipitation" in feature or "nclimdiv_pdsi" in feature:
+        return 1
+    return 0
+
+
+def _monotone(columns) -> tuple[int, ...]:
+    return tuple(_monotone_sign(c) for c in columns)
+
+
 def _select_features(x: pd.DataFrame, y: pd.Series, threshold: float) -> list[str]:
     """Fit a quick XGBoost and return features above the importance threshold."""
     model = XGBRegressor(
+        monotone_constraints=_monotone(x.columns),
         n_estimators=300,
         max_depth=3,
         learning_rate=0.05,
@@ -133,10 +156,14 @@ def _select_features(x: pd.DataFrame, y: pd.Series, threshold: float) -> list[st
 # ---------------------------------------------------------------------------
 
 
-def _build(name: str, params: dict | None = None) -> Pipeline:
-    """Instantiate one candidate. `params=None` uses the fixed competition config."""
+def _build(name: str, params: dict | None = None, columns=None) -> Pipeline:
+    """Instantiate one candidate. `params=None` uses the fixed competition config.
+    `columns` is the frame the pipeline will be fit on, for the monotone constraint
+    (the imputer hands XGBoost a numpy array, so the names must come from here)."""
     cfg = params if params is not None else COMPETITION_CONFIGS[name]
     if name == "xgb":
+        if columns is None:
+            raise ValueError("_build('xgb') needs `columns` for the monotone constraint")
         return Pipeline(
             [
                 ("imputer", SimpleImputer(strategy="median")),
@@ -144,6 +171,7 @@ def _build(name: str, params: dict | None = None) -> Pipeline:
                     "model",
                     XGBRegressor(
                         **cfg,
+                        monotone_constraints=_monotone(columns),
                         objective="reg:squarederror",
                         tree_method="hist",
                         random_state=RANDOM_STATE,
@@ -167,7 +195,7 @@ def _compete(x: pd.DataFrame, y: pd.Series, cv: TimeSeriesSplit) -> list[dict]:
     for name in CANDIDATES:
         scores = []
         for train_idx, test_idx in cv.split(x):
-            model = _build(name)
+            model = _build(name, columns=x.columns)
             model.fit(x.iloc[train_idx], y.iloc[train_idx])
             scores.append(r2_score(y.iloc[test_idx], model.predict(x.iloc[test_idx])))
         results.append(
@@ -361,6 +389,7 @@ def _tune_xgboost(x: pd.DataFrame, y: pd.Series, cv: TimeSeriesSplit) -> tuple:
                     tree_method="hist",
                     random_state=RANDOM_STATE,
                     verbosity=0,
+                    monotone_constraints=_monotone(x.columns),
                 ),
             ),
         ]

@@ -46,7 +46,12 @@ score scale that is two feet wide), and
 [§30](#30-a-climate-sign-gate-and-what-it-found-measured) (the learned climate responses now have
 declared physical signs checked in every month; both ridge models pass everywhere, and five
 XGBoost responses in NDVI and surface water fail, one of them the streamflow-versus-rain response
-that is wrong-signed in six months of the year).
+that is wrong-signed in six months of the year), and
+[§31](#31-the-constraint-experiment-and-what-the-streamflow-model-turned-out-to-be) (the monotone
+constraint ships for streamflow at no cost and does nothing, because the deployed streamflow model
+is a ridge; it does not ship for NDVI, which loses 0.037; the ridge has learned a derivative, which
+is right for a fast river and wrong for a sustained slider, and passes the sign test 12 of 12 as a
+one-month pulse; PDSI → streamflow is a genuine wrong sign either way).
 
 For the readable version of what the finished model *does* — every path from a slider to an
 output, and the reasoning behind each — see [DISCUSSION.md](DISCUSSION.md). This document is the
@@ -3027,12 +3032,14 @@ PDSI  -> streamflow    [+]   -1.1  -1.1  -1.1  -1.1  -1.1  -1.1  -1.1  -1.1  -1.
 The one that matters is **rain → streamflow**. The +36.7 in July is the number every sweep table in
 this document has shown, and it is real. But the same model says more rain means *less* flow in
 March through June and September through November, by up to 6.9 points, in months where the rain
-slider's whole swing is 0.14 to 0.5 mm/day. A tree ensemble fit to a monsoon-dominated record has
-learned July and does something else the rest of the year. Streamflow is the project's best model
-(skill +0.68), so this is not a reason to replace it; it is a reason to constrain it. PDSI →
-streamflow is a smaller version of the same thing: −1.1 in every month, a constant wrong-signed
-offset from a slow index. The three NDVI failures are small (mostly 1–4 points) and month-scattered,
-the signature of a tree splitting on month.
+slider's whole swing is 0.14 to 0.5 mm/day. ~~A tree ensemble fit to a monsoon-dominated record has
+learned July and does something else the rest of the year.~~ **Corrected in §31: the deployed
+streamflow model is the ridge candidate, not a tree, and the mechanism is different and more
+interesting — it has learned a derivative, and a sustained slider asks it a level question.**
+Streamflow is the project's best model (skill +0.68), so this is not a reason to replace it. PDSI →
+streamflow is a genuine wrong sign: −1.1 in every month, and it fails as a one-month pulse too. The
+three NDVI failures are small (mostly 1–4 points) and month-scattered; NDVI *is* an XGBoost, and
+that is the signature of a tree splitting on month.
 
 ### What to do about it, not done here
 
@@ -3040,5 +3047,97 @@ XGBoost accepts `monotone_constraints`: a declaration that the response must be 
 a named feature. Declaring rain and PDSI monotone-positive for streamflow and NDVI (and the lag and
 rolling families with them) is the principled fix, and it is a modelling change to two shipped
 models with skill, so it is an experiment with a rule — does the constrained model keep its
-out-of-fold skill? — and a decision, not a patch. Until it is taken, the gate is in the README as
-a known failure with a count, and a change in that count is what a regression looks like.
+out-of-fold skill? — and a decision, not a patch. **Taken: §31.** Until then the gate is in the
+README as a known failure with a count, and a change in that count is what a regression looks like.
+
+## 31. The constraint experiment, and what the streamflow model turned out to be `MEASURED`
+
+[§30](#30-a-climate-sign-gate-and-what-it-found-measured)'s proposal, run:
+`scripts/phase2/experiment_monotone.py` → `model/experiment_monotone.json`. Each model's real
+training procedure, on its own window and its own five outer folds (reproducing the shipped scores
+to the fourth decimal), run twice: as shipped, and with every XGBoost it builds carrying
+`monotone_constraints` — non-decreasing in the nClimDiv rain and PDSI families for streamflow;
+non-decreasing in rain and non-increasing in the DSCI drought index for NDVI; interactions and
+temperature free. The rule was declared in reverse, the burden on the loss: the constrained model
+ships unless it loses more than 0.03 of target R², or loses significantly (|t| ≥ 2).
+
+| model | arm | target R² | level R² | skill | Δ | wins | t | verdict |
+|---|---|---|---|---|---|---|---|---|
+| streamflow | shipped | +0.7267 | +0.7519 | +0.6833 | | | | |
+| streamflow | constrained | +0.7249 | +0.7497 | +0.6811 | −0.0018 | 4/5 | −0.69 | **ships** |
+| NDVI | shipped | +0.5453 | +0.7862 | +0.2588 | | | | |
+| NDVI | constrained | +0.5085 | +0.7699 | +0.2424 | −0.0368 | 3/5 | −0.62 | **does not ship** |
+
+NDVI's loss is one fold (2015–2017: 0.462 → 0.195) and it crosses the material line; the
+unconstrained NDVI stands and its small, month-scattered sign failures stay on the record. Streamflow
+ships constrained, at a cost of nothing — and then the retrained model's sign gate did not improve,
+which was the declared trigger for stopping and reporting rather than iterating.
+
+### The constraint was inert, because the streamflow model is not a tree
+
+`surface_water_cv_results.json` says `winner: ridge`, before and after. The in-fold competition
+has been picking the ridge candidate for this model all along; the XGBoost only ever runs the
+feature selection. So a constraint on XGBoost changed the selected set (26 → 23 features, the
+retrained model is kept as the declared outcome) and never touched the estimator the app runs.
+§30's sentence about a tree ensemble learning July was wrong, and is struck there.
+
+What the ridge actually learned, read off the exported graph's coefficients on the rain features
+(per raw unit):
+
+```
+nclimdiv_precipitation_mm_day                +0.21      this month's rain
+nclimdiv_precipitation_mm_day_lag1           -0.19      last month's rain
+nclimdiv_precipitation_mm_day_anomaly        +0.20      this month vs the trailing year
+nclimdiv_precipitation_mm_day_anomaly_roll3  -0.19      the last three months vs the trailing year
+```
+
+**It is a derivative.** Flow-change this month rises with rain this month and falls with rain last
+month: the model has learned that a fast-memory river responds to *changes* in rain, which is
+exactly right for forecasting the residual over last month. A sustained slider then asks it a
+question the structure cannot answer: with a year of extra rain, this month's rain and last month's
+move together, the +0.21 and −0.19 nearly cancel, and what is left is decided by the shape of each
+month's climatology. In April the March swing exceeds April's, so the net is negative (−5 points,
+with `lag1` contributing −0.088 and the anomaly −0.082); in July the current month dominates
+(+40 points, +0.31 from this month's rain alone); in October the roll term wins and it is negative
+again. None of that is the model being wrong about rain.
+
+### The pulse
+
+Run the same gate as a **one-month pulse** — the delta applied to the current month only, which is
+the question the residual model was trained on — and the picture changes:
+
+| pair | sustained 12 mo | 1-month pulse |
+|---|---|---|
+| rain → streamflow | 8/12 | **12/12**, +4 to +44 points |
+| heat → streamflow | 12/12 | 11/12 (one month at +0.57) |
+| *pairs failing* | *5 of 18* | *5 of 18, three of them under a point* |
+| PDSI → streamflow | 0/12 | **0/12**, −1.24 |
+| rain → NDVI | 8/12 | 11/12 |
+| heat → NDVI | 10/12 | 11/12 |
+| PDSI → NDVI | 7/12 | 9/12 |
+
+The gate now runs both: the app's default duration is gated, the pulse is reported beside it, and
+the docstring says what the difference means. A pair that fails the sustained test and passes the
+pulse is a **display limit of the residual architecture**: [§13](#13-layer-2-and-layer-3-built-measured)
+chose not to integrate the learned residual over the scenario, so for a sustained scenario the card
+shows a one-step change as if it were a level. A pair that fails both is a **wrong sign in the
+model**. PDSI → streamflow is the second kind: the PDSI features carry mixed and net-negative
+coefficients (`roll6` +0.083 against `roll3` −0.048, `lag3` −0.024, `roll12` −0.021, level −0.005),
+which is collinearity with rain absorbing a negative partial effect. It is 1 to 3 points.
+
+### What follows
+
+- **The monotone constraint stays in `model_surface_water.py`.** It costs nothing, it is declared,
+  and it would bind if the competition ever picked the XGBoost again. It is not a fix for anything
+  that is wrong today.
+- **For the ridge, the analogue is sign-constrained coefficients** (non-negative on the rain family,
+  non-negative on PDSI), or dropping the collinear PDSI family from streamflow. Either is a declared
+  experiment with the same rule. The PDSI one is worth 1–3 points; the rain one is not a model
+  problem.
+- **The sustained-scenario display is the real open item, and it is §13's decision revisited.**
+  §13 declined to integrate the learned residual because, with human deltas still inside Layer 1,
+  integration amplified D2's wrong signs. Layer 1 is now climate-only and two of the residual
+  models are linear. Whether integrating the learned climate residual over the scenario, in the
+  §4b mean-reverting form, now gives sustained responses with the pulse's signs is a testable
+  question with the sign gate as its criterion. It is the next experiment for this card, and it
+  is not taken here.

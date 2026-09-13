@@ -544,10 +544,21 @@ CLIMATE_EXPECTED_SIGNS: dict[str, dict[str, int | None]] = {
 CLIMATE_SIGN_MATERIAL_POINTS = 0.5
 
 
-def climate_signs(runner: Runner, months: int) -> int:
+def climate_signs(runner: Runner, months: int, gated: bool = True) -> int:
     """Every learned climate response must hold its declared physical sign in all
-    12 months wherever it is material. Returns the number of failing pairs."""
-    print(f"\n=== climate-signs: learned responses vs physics, 12 months (duration {months} mo) ===")
+    12 months wherever it is material. Returns the number of failing pairs.
+
+    Run twice by the mode: at the app's default duration (gated) and as a ONE-MONTH
+    pulse (reported). The two answer different questions of a residual model. The
+    pulse asks "does more rain this month raise flow this month?", which is what the
+    model was trained on. The sustained scenario asks a level question of a model
+    that predicts changes: for a fast-memory river the month-to-month change under a
+    year of extra rain is small and its sign is set by the lag structure, not the
+    physics (PHASE3_PLAN.md §31). A pair that fails the sustained test and passes
+    the pulse is a display limit of the residual architecture; a pair that fails
+    both is a wrong sign in the model."""
+    kind = "GATED" if gated else "reported"
+    print(f"\n=== climate-signs: learned responses vs physics, 12 months (duration {months} mo, {kind}) ===")
     print(f"{'climate slider -> output':44s}{'expect':>7s}{'months ok':>11s}{'min pts':>9s}{'max pts':>9s}  verdict")
     failures = 0
     for slider, table in CLIMATE_EXPECTED_SIGNS.items():
@@ -717,7 +728,9 @@ def main() -> None:
         return
 
     if args.mode == "climate-signs":
-        failures = climate_signs(runner, args.months)
+        failures = climate_signs(runner, args.months, gated=True)
+        if args.months != 1:
+            climate_signs(runner, 1, gated=False)
         if failures:
             raise SystemExit(
                 f"\n{failures} learned climate response(s) carry the wrong physical sign "

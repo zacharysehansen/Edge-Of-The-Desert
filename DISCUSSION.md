@@ -62,9 +62,9 @@ Change in the 0–100 score for a full slider swing, at a 12-month scenario:
 | **Public supply** | −5.63 | 0.00 | **+11.09** | −0.72 | — | −0.18 |
 | **Urbanization** | 0.00 | −0.97 | 0.00 | **+3.30** | — | +0.82 |
 | **Lake Mead level** | +2.20 | 0.00 | — | +0.28 | — | +0.07 |
-| Precipitation | **+7.61** | +5.16 | **−16.99** | **+36.70** | −16.59 | +10.37 |
-| Temperature | −0.47 | −2.68 | +0.85 | −0.28 | **+8.77** | +1.05 |
-| Drought (PDSI) | 0.00 | −1.39 | 0.00 | −1.06 | −1.12 | **+7.35** |
+| Precipitation | **+7.61** | +5.16 | **−16.99** | **+40.14** | −16.59 | +10.37 |
+| Temperature | −0.47 | −2.68 | +0.85 | −0.36 | **+8.77** | +1.05 |
+| Drought (PDSI) | 0.00 | −1.39 | 0.00 | −3.07 | −1.12 | **+7.35** |
 
 *(Groundwater column re-measured after §29: the output is now the Cochise-basin well index, whose
 0–100 score spans only 2.06 ft, so the irrigation lever — 4.0 ft for the full swing — reads 193

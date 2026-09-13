@@ -18,7 +18,7 @@ about it. Companion to [PHASE2_REPORT.md](PHASE2_REPORT.md) (what the models sco
 
 | Model | Skill | Verdict | Binding problem | Fixable? |
 |-------|-------|---------|-----------------|----------|
-| Surface water | **+0.6833** | **works** ✅ | ~~target was 45% one dam-regulated gage~~ **FIXED**; extended to 1980–2025 | **done — see [M2](#m2-surface-water--the-target-was-mostly-one-regulated-river-fixed)** |
+| Surface water | **+0.6811** | **works** ✅ | ~~target was 45% one dam-regulated gage~~ **FIXED**; extended to 1980–2025 | **done — see [M2](#m2-surface-water--the-target-was-mostly-one-regulated-river-fixed)** |
 | Wildfire | **+0.4125** | **works** ✅ | ~~month came from a DB edit date~~ **FIXED**; extended to 1984–2023 | **done — see [M3](#m3-wildfire--the-target-was-not-measuring-wildfire-fixed)** |
 | NDVI | **+0.2588** | **works** | none — at MODIS instrument floor | already healthy |
 | Groundwater | **+0.2269** | **works** ✅ *(Cochise-basin index, four-input ridge, deployed 2026-09-12 — PHASE3_PLAN.md §28–§29)* | ~~compositional artifact~~ FIXED; ~~then P5~~ — the blend averaged a forecastable aquifer (44 Cochise wells) with an unforecastable one (14 Tucson-AMA wells carrying 81 % of the variance). Split, it forecasts | **done — the target, not the model** | ~~compositional artifact~~ **FIXED**; now [P5](#p5-monthly-pumping-is-weakly-observed-not-unobserved-measured) | target fixed — **now stop** |

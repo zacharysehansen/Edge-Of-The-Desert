@@ -3,10 +3,6 @@
     "mean": -0.7004735905264436,
     "std": 2.6710161857119656
   },
-  "nclimdiv_pdsi_lag1": {
-    "mean": -0.6937436134612586,
-    "std": 2.669566280594384
-  },
   "nclimdiv_pdsi_lag3": {
     "mean": -0.6835681667834985,
     "std": 2.667862837016217
@@ -66,14 +62,6 @@
   "nclimdiv_precipitation_mm_day_lag3": {
     "mean": 0.8453812504492475,
     "std": 0.8039310104523825
-  },
-  "nclimdiv_precipitation_mm_day_roll3": {
-    "mean": 0.8474527378686584,
-    "std": 0.5463767461029253
-  },
-  "nclimdiv_precipitation_mm_day_roll6": {
-    "mean": 0.8448139184163397,
-    "std": 0.3594933288489741
   },
   "nclimdiv_precipitation_mm_day_roll12": {
     "mean": 0.8450968356729173,

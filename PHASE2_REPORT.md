@@ -57,7 +57,7 @@ happen inside each training fold. See [scripts/phase2/metrics.py](scripts/phase2
 
 | Model | Target | Window | Rows | Feat. | Verdict | Skill | R² (level) | Persistence | R² (target) |
 |-------|--------|--------|------|-------|---------|-------|-----------|-------------|-------------|
-| **Surface Water** | Discharge log anomaly | **1980-02 → 2025-12** | **551** | 26 | **OK** | **+0.6833** | **0.7519** | 0.0686 | **0.7267** |
+| **Surface Water** | Discharge log anomaly | **1980-02 → 2025-12** | **551** | 23 | **OK** | **+0.6811** | **0.7497** | 0.0686 | **0.7249** |
 | **Wildfire** | Wildfire risk index | **1984-02 → 2023-12** | **479** | 26 | **OK** | **+0.4125** | 0.3227 | −0.0898 | 0.3227 |
 | **NDVI** | Vegetation health | 2002-10 → 2023-12 | 255 | 46 | **OK** | **+0.2588** | 0.7862 | 0.5274 | **0.5453** |
 | **Wildlife** | Bird abundance anomaly | **1968 → 2024** (annual) | **56** | 12 | **OK** | **+0.2167** | 0.2247 (LOO) | 0.0080 | — |
@@ -83,6 +83,9 @@ history at `e8d7df2`. Three things moved, for three different reasons:
    winner. Fold 0 went 0.215 → 0.423; the other four are within 0.02. `model_comparison.json`
    now records the xgboost / scikit-learn / numpy versions that produced every number.
 
+5. **Streamflow retrained under a monotone constraint (§31)**: every XGBoost the procedure builds
+   is non-decreasing in the rain and PDSI features; the constraint costs nothing (−0.0018) and is
+   inert, because the competition's winner is the ridge candidate. 26 → 23 features.
 4. **Groundwater is a different target and a different model** (PHASE3_PLAN.md §28–§29, later on
    2026-09-12). The index blended 44 Cochise County wells with 14 uncorrelated Tucson-AMA wells that
    carried 81 % of its variance and responded to nothing; it is now the Cochise index alone, and
