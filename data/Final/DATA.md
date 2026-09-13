@@ -106,7 +106,24 @@ This document catalogs all data inputs for the Southern Arizona Water and Land S
 | **Output Columns** | `year_month, gldas_surface_soil_mm, gldas_root_zone_mm, gldas_soil_moisture_mm, gldas_swe_mm, gldas_canopy_mm, gldas_tws_proxy_mm, gldas_evap_mm_day, gldas_rain_mm_day, gldas_n_cells` |
 | **Processing** | Variables `SoilMoi0_10cm_inst, SoilMoi10_40cm_inst, SoilMoi40_100cm_inst, SoilMoi100_200cm_inst, SWE_inst, CanopInt_inst, Evap_tavg, Rainf_f_tavg`; mean over the 293 land cells inside the project bounding box (same footprint as the GRACE target); kg m⁻² read as mm; fluxes × 86,400 to mm/day. Guards: 288 complete months, constant cell count, soil 322–464 mm, SWE peak in January, rain peak in August, r = 0.89 against MERRA-2 precipitation |
 | **Auth** | Earthdata Login bearer token (`~/.config/earthdata/token`, mode 600, or `$EARTHDATA_TOKEN`); GES DISC application must be approved on the account |
-| **Used By** | `scripts/phase2/experiment_grace_gldas.py` only (PHASE3_PLAN.md §25 — null as a feature block; not deployed) |
+| **Used By** | `gldas_tws_proxy_delta` is the GRACE and groundwater models' main input (PHASE3_PLAN.md §26–§29); `gldas_runoff_mm_day` and `gldas_root_zone_mm` were tested and not used (§33) |
+| **Access Date** | September 2026 |
+
+---
+
+### 4d. Humidity and Vapour Pressure Deficit (added 2026-09-13)
+
+| Field | Detail |
+|-------|--------|
+| **Description** | 2-m humidity and VPD over the study bounding box — dryness of the air, the missing fire-weather and plant-stress variable |
+| **Source** | NASA GES DISC, MERRA-2 `M2TMNXSLV` v5.12.4 (collection C1276812859-GES_DISC), DAP4 subsets via `https://opendap.earthdata.nasa.gov/collections/C1276812859-GES_DISC/granules/<granule>.dap.nc4?dap4.ce=...` |
+| **Temporal Resolution** | Monthly |
+| **Date Range** | 2000-01 through 2023-12 |
+| **Output File** | `data/Final/humidity_monthly.csv` |
+| **Output Columns** | `year_month, specific_humidity_2m, dewpoint_2m_c, air_temperature_2m_c, surface_pressure_kpa, vpd_kpa, vpd_proxy_kpa` |
+| **Processing** | Variables `QV2M, T2MDEW, T2M, PS`, bbox mean; `vpd_kpa = es(T2M) − es(T2MDEW)` (Tetens); `vpd_proxy_kpa` is the FAO-56 fallback from the Tmax/Tmin files on disk, kept as validation (r = 0.993, 40 % low). Guards: complete, 0.43–3.82 kPa, June peak |
+| **Note** | `data/raw/merra_specific_humidity_2m/` is a duplicate of the temperature files and holds no humidity |
+| **Used By** | `scripts/phase2/experiment_feature_blocks.py` only (§33 — null for wildfire and NDVI; not deployed) |
 | **Access Date** | September 2026 |
 
 ---

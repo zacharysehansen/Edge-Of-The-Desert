@@ -36,6 +36,8 @@ Output : data/Final/gldas_monthly.csv
     gldas_evap_mm_day          float evapotranspiration, mm/day
     gldas_rain_mm_day          float total precipitation forcing, mm/day (a check
                                      against the MERRA-2 series, not a new input)
+    gldas_runoff_mm_day        float surface + subsurface runoff, mm/day (§33)
+    gldas_surface_runoff_mm_day float surface runoff alone, mm/day
     gldas_n_cells              int   land cells averaged
 
 Spatial note. The mean is over the same bounding box the raster inputs use
@@ -91,7 +93,12 @@ VARIABLES = [
     "CanopInt_inst",
     "Evap_tavg",
     "Rainf_f_tavg",
+    # §33: runoff, for the streamflow probe. Qs = surface, Qsb = subsurface, kg m-2
+    # accumulated per 3-hour step; the monthly product averages those steps.
+    "Qs_acc",
+    "Qsb_acc",
 ]
+SUBSET_VERSION = "v2"  # bump when VARIABLES changes, so cached subsets are refetched
 
 # GLDAS 0.25° grid: lat -59.875..89.875 (600), lon -179.875..179.875 (1440).
 LAT0, LON0, RES = -59.875, -179.875, 0.25
@@ -133,7 +140,7 @@ def _subset_url(year: int, month: int) -> str:
 def _fetch(session: requests.Session, year: int, month: int) -> Path:
     """Return the cached subset for one month, fetching it if needed."""
     RAW_DIR.mkdir(parents=True, exist_ok=True)
-    cached = RAW_DIR / f"{SHORT_NAME}.A{year}{month:02d}.021.subset.nc4"
+    cached = RAW_DIR / f"{SHORT_NAME}.A{year}{month:02d}.021.subset.{SUBSET_VERSION}.nc4"
     if cached.exists() and cached.stat().st_size > 1000:  # noqa: PLR2004
         return cached
     url = _subset_url(year, month)
@@ -195,6 +202,9 @@ def _summarise(path: Path) -> dict:
             "gldas_tws_proxy_mm": soil + swe + canopy,
             "gldas_evap_mm_day": mean("Evap_tavg") * SECONDS_PER_DAY,
             "gldas_rain_mm_day": mean("Rainf_f_tavg") * SECONDS_PER_DAY,
+            # 3-hourly accumulations averaged over the month -> x8 steps per day
+            "gldas_runoff_mm_day": (mean("Qs_acc") + mean("Qsb_acc")) * 8.0,
+            "gldas_surface_runoff_mm_day": mean("Qs_acc") * 8.0,
             "gldas_n_cells": n_cells,
         }
 

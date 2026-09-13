@@ -159,8 +159,16 @@ evapotranspiration and rainfall forcing, averaged over the study bounding box (2
 Each month is fetched as a DAP4 subset from `opendap.earthdata.nasa.gov` (~90 KB) rather than as the
 24 MB global granule. Needs an Earthdata Login bearer token in `~/.config/earthdata/token` (mode 600)
 or `$EARTHDATA_TOKEN`, and the "NASA GESDISC DATA ARCHIVE" application approved on the account —
-until it is, every request returns `403 EULA Acceptance Failure`. `scripts/phase1/gldas.py`. Features
-for the GRACE probe only (PHASE3_PLAN.md §25); no exported model uses them.
+until it is, every request returns `403 EULA Acceptance Failure`. `scripts/phase1/gldas.py`. The
+GLDAS storage change is the GRACE and groundwater models' main input (§26–§29); runoff and
+root-zone soil moisture were tested for streamflow, wildfire and NDVI and are not used (§33).
+
+**Humidity and VPD (added 2026-09-13).** MERRA-2 M2TMNXSLV v5.12.4 (GES DISC), 2000-01 to
+2023-12: 2-m specific humidity, dew point, air temperature and surface pressure as DAP4 bounding-box
+subsets; VPD computed exactly from air and dew-point temperature. The directory
+`data/raw/merra_specific_humidity_2m/` does NOT hold humidity — it is a second copy of the
+temperature statistics files. `scripts/phase1/humidity.py`, same token and approval as GLDAS.
+Tested for wildfire and NDVI and not used (§33).
 
 **Urbanization.** USGS Annual NLCD (1985-2023), Fractional Impervious Surface product, pulled from the public cloud bucket (`s3://usgs-landcover/annual-nlcd/c1/v0/cu/mosaic/`). This is raster data covering the whole continental US, not pre-aggregated to any region, so it needs to be downloaded year by year, clipped to the eight-county boundary using a county shapefile, and averaged into a single impervious-surface percentage per year. The result is annual and needs interpolation to monthly.
 

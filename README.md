@@ -110,6 +110,7 @@ python -m scripts.phase1.wildfire_monthly
 | `lake_mead.py` | Reclamation HydroData CSVs | `lake_mead_monthly.csv` |
 | `cap_deliveries.py` | CAP delivery-report PDFs (`cap/`, fetched if absent) | `cap_deliveries_monthly.csv` |
 | `gldas.py` | GLDAS-2.1 Noah monthly subsets (`gldas/`, fetched via Earthdata token) | `gldas_monthly.csv` |
+| `humidity.py` | MERRA-2 M2TMNXSLV subsets (`merra_humidity/`, fetched via Earthdata token) | `humidity_monthly.csv` (VPD) |
 | `urbanization.py` | NLCD impervious TIFs (`NLCD/`) | `urbanization_monthly.csv` |
 | `water_stress.py` | USDM DSCI API | `water_stress_monthly.csv` |
 | `temperature.py` | MERRA-2 `.nc4` (`merra_temperature_2m/`) | `temperature_monthly.csv` |
@@ -241,6 +242,14 @@ where the blend forecasts at +0.01. Writes `model/groundwater_diagnosis.json` an
 `model/experiment_groundwater_linear_cochise.json`; the output became the Cochise index and ships
 as a four-input ridge (skill +0.23). `scripts/phase3/cochise_share.py` measures Cochise's share of
 regional pumping for the Layer 2 municipal levers.
+
+```bash
+python -m scripts.phase2.experiment_feature_blocks
+```
+
+VPD, GLDAS runoff and root-zone soil moisture offered to wildfire, NDVI and streamflow under the
+same rule, with the shipped arm keeping its full history (§33). **Six nulls**; NDVI with soil
+moisture is the near miss (+0.060, 4 of 5, t = 1.83). Writes `model/experiment_feature_blocks.json`.
 
 ### Exported artifacts (per model, written to `model/`)
 

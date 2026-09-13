@@ -113,3 +113,11 @@ The following sources provided data used in this project:
    doi:10.5067/SXAVCZFAQLNO. Soil moisture, snow water equivalent, canopy
    storage, evapotranspiration and rainfall forcing over the study bounding box,
    used as a GRACE feature probe.
+
+20. NASA GES DISC - MERRA-2 tavgM_2d_slv_Nx: 2d, Monthly mean, Time-Averaged, Single-Level Diagnostics V5.12.4 (M2TMNXSLV)
+   [https://disc.gsfc.nasa.gov/datasets/M2TMNXSLV_5.12.4/summary](https://disc.gsfc.nasa.gov/datasets/M2TMNXSLV_5.12.4/summary)
+   Global Modeling and Assimilation Office (GMAO) (2015), MERRA-2 tavgM_2d_slv_Nx,
+   Greenbelt, MD, USA, Goddard Earth Sciences Data and Information Services Center
+   (GES DISC), doi:10.5067/AP1B0BA5PD2K. 2-m specific humidity, dew point, air
+   temperature and surface pressure over the study bounding box; vapour pressure
+   deficit derived. Tested as a feature, not deployed.

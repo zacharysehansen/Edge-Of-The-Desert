@@ -55,7 +55,11 @@ one-month pulse; PDSI → streamflow is a genuine wrong sign either way), and
 [§32](#32-13-revisited-integrating-the-learned-residual-does-not-ship-and-cannot-fix-a-sign) (§13's
 switch flipped under declared criteria: it multiplies every climate response by a positive factor
 of 2.8 to 11, sends groundwater to −187 and streamflow to +114 points, and leaves every sign
-exactly where it was, because a positive multiplier cannot change one. Off it stays).
+exactly where it was, because a positive multiplier cannot change one. Off it stays), and
+[§33](#33-vpd-runoff-and-soil-moisture-acquired-six-nulls-and-one-near-miss-measured) (three
+feature blocks against three models under the declared rule: six nulls; NDVI with root-zone soil
+moisture is the near miss at +0.060, 4 of 5, t = 1.83; the 2024–2025 extension is an acquisition
+needing two more Earthdata approvals and is not done).
 
 For the readable version of what the finished model *does* — every path from a slider to an
 output, and the reasoning behind each — see [DISCUSSION.md](DISCUSSION.md). This document is the
@@ -3208,3 +3212,77 @@ streamflow with its derivative, and the streamflow rollout would compound the sa
 honest state of the sustained display is what §31 said: label the learned climate term as a
 one-month response, and let the duration selector act on the structural layer, where it already
 does.
+
+## 33. VPD, runoff and soil moisture acquired; six nulls and one near miss `MEASURED`
+
+The three cheap accuracy items proposed after [§32](#32-13-revisited-integrating-the-learned-residual-does-not-ship-and-cannot-fix-a-sign):
+vapour pressure deficit for wildfire and NDVI, GLDAS runoff for streamflow and root-zone soil
+moisture for NDVI, and extending the panel to 2025. Two were tested; the third turned out to be an
+acquisition and is reported, not done.
+
+### The data
+
+- **VPD.** `data/raw/merra_specific_humidity_2m/` was thought to hold humidity; it holds a second
+  copy of the temperature statistics files. `scripts/phase1/humidity.py` fetches MERRA-2
+  M2TMNXSLV as DAP4 bounding-box subsets (2-m specific humidity, dew point, air temperature,
+  surface pressure) and computes VPD exactly as `es(T) − es(T_dew)` → `humidity_monthly.csv`,
+  288 months. Guards: complete, 0.43–3.82 kPa, June peak with the monsoon dip in July, and
+  **r = 0.993** against the FAO-56 fallback built from the Tmax/Tmin files already on disk, which
+  runs 40 % low, the dry-air bias that fallback is known to have. M2TMNXSLV's T2M matches the
+  model's T2MMEAN to 0.000 °C.
+- **Runoff.** `gldas.py` now also fetches surface and subsurface runoff (`Qs_acc`, `Qsb_acc`), with
+  the subset cache versioned so the re-pull happened; every previously shipped column reproduces
+  exactly. Regional runoff is 0.025 mm/day, 3 % of rain — a desert — and correlates **+0.71** with
+  the streamflow anomaly on the level, which is what made it worth testing.
+
+### The test
+
+`scripts/phase2/experiment_feature_blocks.py` → `model/experiment_feature_blocks.json`. Each
+model's real training procedure, per arm, on five shared blocks inside 2000–2023 where the new
+features exist. The row rule was declared before the run and it runs the other way from §10: the
+**shipped arm keeps its full history** (wildfire to 1984, streamflow to 1980) while a challenger
+can only train on 2000+, so a block that wins wins against the model as it actually ships. The
+three-part rule as always: Δ > 0, 4 of 5 folds, |t| ≥ 2.
+
+| model | block | shipped target R² | with block | Δ | wins | t | verdict |
+|---|---|---|---|---|---|---|---|
+| streamflow | runoff | +0.7712 | +0.7441 | −0.027 | 1/5 | −1.76 | null |
+| streamflow | soil moisture | +0.7712 | +0.7092 | −0.062 | 3/5 | −1.12 | null |
+| wildfire | VPD | +0.3376 | +0.2513 | −0.086 | 2/5 | −1.27 | null |
+| wildfire | soil moisture | +0.3376 | +0.2643 | −0.073 | 2/5 | −1.10 | null |
+| NDVI | VPD | +0.5453 | +0.5575 | +0.012 | 3/5 | +0.91 | null |
+| **NDVI** | **soil moisture** | +0.5453 | **+0.6052** | **+0.060** | **4/5** | **+1.83** | **null** |
+
+**Six nulls, nothing deploys.** Two readings, one per group:
+
+- **The long-record models lose the history.** Streamflow and wildfire are trained on 45 and 40
+  years of nClimDiv, and a block that exists from 2000 forces its arm to train on half that. Both
+  lost on every block, and the first fold — where the challenger has the fewest rows — is where
+  they lost most (wildfire + VPD: 0.288 → −0.031). Runoff at r = +0.71 with streamflow did not
+  help a model already at +0.77 on those rows; the nClimDiv record carries it. This is the same
+  answer the irrigation trade gave GRACE in M4: a feature that costs rows must beat the rows, and
+  none did.
+- **NDVI with root-zone soil moisture is the near miss.** +0.060 target R², 4 of 5 folds, t = 1.83
+  against the 2.0 bar, and the two folds it moves most are the last two (0.46 → 0.57, 0.45 →
+  0.61), where the record is longest. NDVI has no history to lose — its window is the block's
+  window — so this is the one pairing where the design did not handicap the challenger, and it is
+  the one that nearly cleared. It is recorded, not re-run: the rule was fixed, and a t of 1.83 on
+  five folds is the same "one more fold would tell" that §23 said about CAP before §24 said no.
+  What would settle it honestly is rows, which is the third item.
+
+### The third item, and why it is not done
+
+Extending the panel to 2025 is 24 more months for GRACE, NDVI and wildfire, and it would be the
+first genuinely held-out test for every model changed this week. It is an acquisition, not a pull:
+MERRA-2 and GLDAS come from GES DISC, which this account is approved for; MODIS comes from LP DAAC
+and GRACE-FO from PO.DAAC, and both of those hosts answer 403 to the token — two more Earthdata
+application approvals, then roughly 1.5 GB of granules and the Phase 1 end dates. It is listed,
+with the approvals it needs, rather than started at the end of a day.
+
+### What this leaves
+
+The models are where the data puts them. Every cheap feature the physics suggests has now been
+offered to the model it should help, under the same rule, and the only one that came close is the
+one whose model had no history to trade away. The remaining routes all add rows or wells — the
+2025 extension, the well pull past 2020, the ADWR AMA wells, the per-well panel — and none of them
+is a feature.
