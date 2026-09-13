@@ -134,8 +134,10 @@ horizon sweep that measured the storage coefficient at the scenario's own durati
 takes a Colorado River cut, part of which gets replaced by pumping — so a falling Mead drives the
 water table down. The slider reads elevation, so raising Mead relieves pumping and the depth
 recovers. It is the weakest of the four despite being the best-documented mechanism (published DCP
-shortage tiers), because two untested multipliers cut it to 47.5% of its nominal strength (0.95 ×
-0.50; it was 30% until 2026-09-12, when the region turned out to contain Maricopa — §0a). See §5.
+shortage tiers), because one untested multiplier halves it: `groundwater_substitution_fraction`
+= 0.50. The other multiplier, the share of a declared Arizona cut that reaches the region, is
+**measured at 1.0** from CAP's delivery record ([PHASE3_PLAN.md §23](PHASE3_PLAN.md)); it was
+assumed 0.60 until 2026-09-12, when the region turned out to contain Maricopa (§0a). See §5.
 
 **The honest caveat.** Groundwater's *climate* column is nearly blank (−0.20 for precipitation),
 and that is partly real and partly not. Pumping genuinely is the dominant driver of Arizona water
@@ -311,15 +313,17 @@ are `UNTESTED`.** The four that are measured are the four that were argued about
 | `ndvi_impervious` | 0.1811 | 0.1710 – 0.2075 | **MEASURED** | urbanization → NDVI |
 | `stream_capture_fraction` | 0.10 | 0.05 – 0.25 | UNTESTED | all four negative streamflow paths |
 | `effluent_return_fraction` | 0.55 | 0.45 – 0.70 | UNTESTED | population → streamflow |
-| `region_share_of_az_reduction` | 0.95 | 0.85 – 1.00 | UNTESTED | every Lake Mead path |
+| `region_share_of_az_reduction` | 1.00 | 0.82 – 1.00 | **MEASURED** | every Lake Mead path |
 | `groundwater_substitution_fraction` | 0.50 | 0.30 – 0.70 | UNTESTED | every Lake Mead path |
 | `ndvi_irrigated_crop` | 0.5344 | 0.5344 – 0.5523 | **MEASURED** | irrigation → NDVI |
 | `runoff_coefficient_impervious` / `_natural` | 0.85 / 0.15 | 0.75–0.95 / 0.05–0.25 | UNTESTED | urbanization → streamflow |
 | `transfer_surface_water_to_wildlife` | 0.0536 | 0.0536 – 0.1953 | MEASURED | the entire wildlife column |
 
-**Six of these cannot currently be narrowed, and it is worth knowing which six.** Two
-(`region_share_of_az_reduction`, `groundwater_substitution_fraction`) need CAP delivery data by
-county, which is an acquisition. The other four are the streamflow group, and
+**Five of these cannot currently be narrowed, and it is worth knowing which five.** One,
+`groundwater_substitution_fraction`, needs Pinal's DCP mitigation accounting — how much lost CAP
+water was pumped instead of fallowed — which no series in the repo carries; its partner
+`region_share_of_az_reduction` was measured from CAP's delivery record in
+[PHASE3_PLAN.md §23](PHASE3_PLAN.md). The other four are the streamflow group, and
 [PHASE3_PLAN.md §21](PHASE3_PLAN.md) established that the monthly panel cannot identify any of them
 — not because the mechanisms are not real, but because a regional monthly mean over a changing gage
 network cannot see them. They stay wide, honestly.
@@ -327,9 +331,10 @@ network cannot see them. They stay wide, honestly.
 **Where the assumptions hurt most:**
 
 - **Lake Mead is the best-documented mechanism and the weakest lever in the app**, because its two
-  untested multipliers multiply: 0.95 × 0.50 = 47.5% of nominal. Its effect on groundwater spans
-  **4.3×** across the band (it was 7× when `region_share_of_az_reduction` sat at 0.60 on the
-  belief that Maricopa was outside the region — it never was, see §0a). That lever is not *small*,
+  one untested multiplier halves it: 1.0 × 0.50 = 50% of nominal. Its effect on groundwater spans
+  **4.5×** across the band (it was 7× when `region_share_of_az_reduction` sat at 0.60 on the
+  belief that Maricopa was outside the region — it never was, see §0a; that constant is now
+  measured at 1.0, so the width is `groundwater_substitution_fraction`'s). That lever is not *small*,
   it is *unknown* — a materially different statement, and the reason the card shows the range
   rather than just the point.
 - **Wildlife spans about 6×**, because it compounds the transfer edge's own band with every
@@ -375,10 +380,18 @@ are not measuring were badly wrong, and then go measure that.**
 
 Ranked, with the reasoning, in [PHASE3_PLAN.md §16](PHASE3_PLAN.md). In short:
 
-1. **CAP monthly deliveries** — one acquisition that serves two unrelated problems: the only
-   remaining monthly pumping proxy for GRACE, and the county-level data
-   `region_share_of_az_reduction` explicitly asks for (less urgently since §0a: all three CAP
-   counties are in-region, so deliveries by county would confirm a near-identity, not apportion).
+1. ~~**CAP monthly deliveries**~~ — **done, 2026-09-12** ([PHASE3_PLAN.md §23](PHASE3_PLAN.md)).
+   Acquired 1999–2026 from CAP's reports. It measured the Lake Mead lever's first link (1.0) and,
+   as a GRACE feature, won 5 of 5 folds and still failed the pre-declared t-test (t = 1.52; the
+   first, 28-row fold carries 72 % of the gain). Re-run on GRACE's full 2002–2023 window as the
+   declared last CAP run (§24): the gain shrinks to a quarter, t = 1.27, null — the fold-0 effect
+   was sample size. CAP is closed for GRACE. **GLDAS was then tried (§25): null as a feature
+   block by the same rule (t = 1.34), but a one-coefficient linear model on GLDAS's storage
+   change scores +0.244 out of fold against the shipped model's +0.021 on identical rows.** The
+   floor is the estimator, not the data. **Step 2b tested exactly that (§26): a ridge on four
+   physical inputs scores +0.28 target R² and +0.20 skill against the shipped +0.02 and −0.03,
+   4 of 5 folds, t = 2.52 — REAL.** Whether GRACE ships as that model is an architecture decision
+   that is still open; the cost is listed in §26.
 2. ~~**Corroborate the streamflow constants** with the method that worked for irrigation.~~
    **Tried; all three return nulls** ([PHASE3_PLAN.md §21](PHASE3_PLAN.md)). Population and
    impervious cover are pure trends (99.8% and 99.9% of their variance survives deseasonalising),

@@ -91,14 +91,14 @@
       "note": "PHASE3_PARAMS.md \u00a74b assumed 0.55 (band 0.45-0.65) and was very nearly right: the measurement is 0.5344, inside the assumed band and 2.8% from its midpoint (0.4% before the irrigated-acres correction of PROBLEMS.md P8; the calibration acres rose 5.5% and the slope fell by the same factor, so the lever irrigated_fraction x slope is unchanged). Stated relative to ndvi_natural so the difference IS the measured slope, as for ndvi_impervious. THE BAND IS NARROW BECAUSE TWO DESIGNS AGREE, NOT BECAUSE THE QUANTITY IS PRECISELY KNOWN: it spans the baseline-controlled and uncontrolled fits, and is deliberately not a confidence interval, since 126,655 MODIS cells are nowhere near independent. There is no cropland mask in the repo, so the predictor is HUC12 withdrawal turned into irrigated area by one calibration on the whole record - coarser than the impervious predictor, and identified off ~339 irrigated HUC12s rather than off fields. The cross-sectional fit is unusable here and visibly so (+0.0486): binned by irrigated fraction, mean NDVI DIPS before it rises, because HUC12s with no irrigation include the mountains while HUC12s with a little are low desert valleys - that fit is measuring elevation."
     },
     "region_share_of_az_reduction": {
-      "value": 0.95,
-      "source": "Arizona's shortage reduction is 'borne almost entirely by the CAP system' (ADWR-CAP joint shortage statement, 2021), and CAP delivers only to Maricopa, Pinal and Pima - all three in-region (PROBLEMS.md P8). The residual is 4th-priority on-river water outside the CAP system.",
-      "status": "UNTESTED",
+      "value": 1.0,
+      "source": "measured: (baseline - actual) annual CAP deliveries / declared AZ cut, mean 1.001 over 2022-2025 against a 2015-2019 baseline (1,406 kAF/yr); min-max over years x two baselines 0.824-1.200, shipped capped at 1.0. scripts/phase3/cap_calibration.py, from CAP's monthly delivery reports (scripts/phase1/cap_deliveries.py).",
+      "status": "MEASURED",
       "band": [
-        0.85,
+        0.824,
         1.0
       ],
-      "note": "Was 0.60 (band 0.40-0.80) on the belief that Maricopa was out-of-region; the region always contained it. Still not a measured number: CAP delivery data by county would replace it."
+      "note": "Was 0.60 (0.40-0.80) while the documents said Maricopa was out-of-region, then 0.95 (0.85-1.00) by reasoning after PROBLEMS.md P8. The delivery record says a Tier 1+ cut arrives in the region essentially in full: 2022 alone gives 0.82-0.99, and 2023-2025 exceed 1.0 because compensated conservation ran alongside the tier. The Tier 0 contributions of 2020-2021 (192 kAF) did NOT show up as lost deliveries (-0.10 and 0.43), which is why those years are reported but not judged: DCP let them be met from ICS and conservation credits."
     },
     "regional_baseline_cfs": {
       "value": 10427.716173623743,

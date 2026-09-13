@@ -108,6 +108,8 @@ python -m scripts.phase1.wildfire_monthly
 | `irrigation.py` | HUC12 withdrawal CSV | `irrigation_monthly.csv` |
 | `public_supply.py` | NWAA HUC12 CSV | `public_supply_monthly.csv` |
 | `lake_mead.py` | Reclamation HydroData CSVs | `lake_mead_monthly.csv` |
+| `cap_deliveries.py` | CAP delivery-report PDFs (`cap/`, fetched if absent) | `cap_deliveries_monthly.csv` |
+| `gldas.py` | GLDAS-2.1 Noah monthly subsets (`gldas/`, fetched via Earthdata token) | `gldas_monthly.csv` |
 | `urbanization.py` | NLCD impervious TIFs (`NLCD/`) | `urbanization_monthly.csv` |
 | `water_stress.py` | USDM DSCI API | `water_stress_monthly.csv` |
 | `temperature.py` | MERRA-2 `.nc4` (`merra_temperature_2m/`) | `temperature_monthly.csv` |
@@ -190,6 +192,38 @@ at t = +1.21, and 83% of it comes from a single 28-training-row fold. Writes
 `model/experiment_grace_nested.json`, exports nothing, retrains nothing.
 [PHASE3_PLAN.md](PHASE3_PLAN.md) §11.5.
 
+```bash
+python -m scripts.phase2.experiment_grace_cap
+```
+
+The last monthly pumping proxy: CAP deliveries (`data/Final/cap_deliveries_monthly.csv`) as a
+deseasonalized feature block for GRACE, same nested design and the same pre-declared rule.
+Verdict: **null** — +0.0665 target R², 5 of 5 folds, t = +1.52, 72% of the gain in the 28-row
+first fold. Writes `model/experiment_grace_cap.json`. [PHASE3_PLAN.md](PHASE3_PLAN.md) §23.
+`--window full` re-runs it on GRACE's own 2002–2023 window (204 rows) as the declared last CAP
+run: the gain shrinks to +0.0151, t = +1.27, **null**; writes `model/experiment_grace_cap_full.json`.
+§24. CAP is closed for GRACE.
+
+```bash
+python -m scripts.phase2.experiment_grace_gldas
+```
+
+GLDAS land-surface state (`data/Final/gldas_monthly.csv`, needs an Earthdata token in
+`~/.config/earthdata/token`) as an 8-column block for GRACE, same design and rule. Verdict:
+**null** as a feature block (+0.0682, 5 of 5 folds, t = +1.34) — but the physics check in the
+same run shows a one-coefficient linear model on GLDAS storage change scoring +0.244 out of fold
+against the shipped +0.021. Writes `model/experiment_grace_gldas.json`. §25.
+
+```bash
+python -m scripts.phase2.experiment_grace_linear
+```
+
+Step 2b: the model class, not a feature. A ridge residual model on four physical inputs (GLDAS
+storage change, rain, last month's rain, temperature anomaly) against the shipped XGBoost, same
+folds, same rule. Verdict: **REAL** — +0.2845 target R² and skill +0.2015 against +0.0210 and
+−0.0277, 4 of 5 folds, t = +2.52. GRACE's first positive result. Not deployed: that is an
+architecture change, listed in §26. Writes `model/experiment_grace_linear.json`.
+
 ### Exported artifacts (per model, written to `model/`)
 
 - `{id}.onnx` — deployable model
@@ -233,8 +267,9 @@ from the deployed models.
 learned models cannot carry, because four of the six contain no human feature at all.
 Signs and magnitudes come from water balance, land-cover arithmetic and the published
 Colorado River shortage tiers, not from fitting; each carries a `value`, `band`, `source`
-and status tag. It reads `model/aquifer_calibration.json` and `model/transfer_calibration.json`, so run
-`aquifer_calibration.py` and `transfer_calibration.py` first if the panel has changed.
+and status tag. It reads `model/aquifer_calibration.json`, `model/transfer_calibration.json`,
+`model/ndvi_endpoints.json` and `model/cap_calibration.json`, so run those calibrations first if
+the panel has changed.
 
 ### Step 2: Serve the frontend
 
@@ -300,6 +335,7 @@ python scripts/phase3/check_catalog_parity.py
 python scripts/phase3/aquifer_calibration.py    # aquifer storage + the spreading-cone horizon sweep
 python scripts/phase3/ndvi_endpoints.py         # both NDVI endpoints, from MOD13A3 + NLCD + HUC12
 python scripts/phase3/streamflow_calibration.py # the four streamflow constants — returns nulls
+python scripts/phase3/cap_calibration.py        # lost CAP delivery per declared shortage cut
 python scripts/phase3/transfer_calibration.py   # output-to-output transfer edges
 
 # every human lever must hold its declared sign in all 12 months

@@ -15,7 +15,21 @@ groundwater lever by 7.7), and
 declared parameter bands, and which constants drive its width), and
 [§22](#22-the-region-was-never-the-one-this-document-named-measured) (the county list selected
 Maricopa and Gila, not Graham and La Paz, for the life of the project; the region is kept and two
-constants that had been reasoned from the wrong map are re-derived).
+constants that had been reasoned from the wrong map are re-derived), and
+[§23](#23-cap-deliveries-acquired-the-lake-mead-lever-measured-grace-still-null-measured) (§16 item 2:
+CAP monthly deliveries acquired 1999-2026; `region_share_of_az_reduction` measured at 1.0 from the
+delivery record; as a GRACE feature the series wins 5 of 5 folds and still fails the pre-declared
+t-test — NULL), and [§24](#24-cap-on-graces-full-window-null-and-smaller-cap-is-closed-measured)
+(the same test on GRACE's own 2002–2023 window, declared as the last CAP run: the gain shrinks to a
+quarter of §23's, t = 1.27 — NULL, and CAP is closed for GRACE), and
+[§25](#25-gldas-acquired-null-by-the-rule-and-the-rule-tested-the-wrong-thing-measured) (GLDAS
+land-surface state acquired; as a feature block for the shipped GRACE model it is NULL by the same
+rule — and a one-coefficient linear model on GLDAS's storage change alone scores ten times the
+shipped model out of fold, which says the estimator is the constraint, not the data), and
+[§26](#26-the-estimator-was-the-floor-a-four-input-linear-model-gives-grace-its-first-skill-measured)
+(step 2b: a ridge residual model on four physical inputs scores +0.28 target R² and +0.20 skill
+against the shipped +0.02 and −0.03, 4 of 5 folds, t = 2.52 — **REAL**, the first positive verdict
+this document has recorded for GRACE; deployment is an architecture change and is not done here).
 
 For the readable version of what the finished model *does* — every path from a slider to an
 output, and the reasoning behind each — see [DISCUSSION.md](DISCUSSION.md). This document is the
@@ -2283,3 +2297,354 @@ apportionment, and the acquisition's whole value concentrates on the GRACE pumpi
 of the ranking stands. And the guard: `load_county_boundary()` now asserts that each FIPS code's
 shapefile `NAME` matches the name listed beside it, and was verified to fire by putting "Graham"
 back.
+
+## 23. CAP deliveries acquired; the Lake Mead lever measured; GRACE still null `MEASURED`
+
+[§16](#16-paths-forward) item 2, done. One acquisition was supposed to serve two problems — the
+last monthly pumping proxy for GRACE, and the county-level data
+`region_share_of_az_reduction` asked for — and it served exactly one of them.
+
+### The data
+
+`scripts/phase1/cap_deliveries.py` → `data/Final/cap_deliveries_monthly.csv`: **331 months,
+1999-01 to 2026-07**, total CAP deliveries in acre-feet with the M&I / agricultural / federal split.
+Source is CAP's own published delivery reports — monthly reports by classification for 1999–2018,
+year-to-date reports by contract type for 2018–2026 — not Reclamation, because Reclamation's
+series turned out to be the wrong one (below). Every year passes a guard: the twelve months must
+sum to the printed annual total within 0.2 %. Two years (2008, 2009) are scanned images; OCR
+mis-read two cells of one and could not find the other, so their four totals rows were transcribed
+from the page images and pass the guard exactly. The script fetches the PDFs if they are absent
+(`data/raw/` is not committed).
+
+**Reclamation's Havasu diversion is not a delivery series, and it took the cross-check to see it.**
+The decree accounting reports carry "Central Arizona Project, pumped from Lake Havasu" monthly;
+the row is machine-readable for 19 of 26 years and agrees with CAP's totals on the year
+(deliveries / diversion = 0.968). Month by month the two run at **r = −0.2**: CAP pumps at Havasu
+in winter to fill Lake Pleasant and delivers out of it in summer. PROBLEMS.md Option B named the
+diversion as the thing to fetch. Had it been used, the "pumping proxy" would have peaked in
+January.
+
+The series does what Option B hoped: it is 91 % a summer template, the rest is policy. Annual
+totals run 1.4–1.7 MAF through 2021, then **984 kAF (2022, Tier 1), 774 (2023, Tier 2a), 859
+and 872 (2024–25, Tier 1)** — the shortage tiers, visible in the region's water.
+
+### The Lake Mead lever's first link, measured
+
+`scripts/phase3/cap_calibration.py` → `model/cap_calibration.json`. Every acre-foot CAP does not
+deliver is undelivered inside the region (all three CAP counties are in-region,
+[§22](#22-the-region-was-never-the-one-this-document-named-measured)), so the share of a declared
+Arizona cut that reaches the region is
+`(baseline − actual annual deliveries) / declared cut`, specified before the numbers were looked at:
+Tier ≥ 1 years judged, 2015–2019 baseline (1,406 kAF/yr), band over years × two baselines.
+
+| year | tier | declared cut | delivered | drop | ratio |
+|---|---|---|---|---|---|
+| 2020 | 0 | 192 | 1,425 | −19 | −0.10 |
+| 2021 | 0 | 192 | 1,323 | 83 | 0.43 |
+| **2022** | **1** | **512** | **984** | **422** | **0.82** |
+| 2023 | 2a | 592 | 774 | 632 | 1.07 |
+| 2024 | 1 | 512 | 859 | 548 | 1.07 |
+| 2025 | 1 | 512 | 872 | 534 | 1.04 |
+
+**`region_share_of_az_reduction` ships at 1.0, band 0.82–1.0, `MEASURED`** (mean 1.001 over
+2022–2025; raw band 0.824–1.208, capped at 1.0 because the lever multiplies a *declared* cut and
+the excess in 2023–2025 is compensated system conservation running alongside the tier). The two
+Tier 0 years are reported and not judged: a 192 kAF DCP contribution that the agreement allowed to
+be met from ICS and conservation credits did not show up as lost deliveries, and the ratios say so.
+The constant has now been 0.60 (assumed, Maricopa thought out-of-region), 0.95 (reasoned, §22) and
+1.0 (measured). Every Lake Mead path scales by 1.0 / 0.95:
+
+| Lake Mead, policy min → max | grace | groundwater | surface water | wildlife |
+|---|---|---|---|---|
+| §22 | +2.09 | −6.69 | +0.27 | +0.07 |
+| **§23** | **+2.20** | **−7.04** | **+0.28** | **+0.07** |
+
+The band on Lake Mead → groundwater is 4.45× (at −64 ft for 12 months: +0.99 ft, +0.41 to +1.84),
+and it is now almost entirely `groundwater_substitution_fraction` (0.30–0.70) plus the storage
+coefficient. That is the honest picture: the tier table is published, the delivery loss is
+measured, and what remains unknown is how much of the lost water is pumped instead of fallowed.
+
+### As a GRACE feature: NULL, by the rule fixed before the run
+
+`scripts/phase2/experiment_grace_cap.py` → `model/experiment_grace_cap.json`. The same design as
+[§11.5](#115-one-open-question-and-the-experiment-that-settles-it-measured): both arms under
+`model_grace.py`'s real nested tuner, identical rows (168, 2002-10..2020-12), the same five test
+blocks, the same three-part rule declared in the docstring. The CAP block is seven columns
+(deliveries, lag1, lag3, roll3, roll6, roll12, and a 12-month trailing sum, because a storage
+integral responds to cumulative delivery), deseasonalized inside each fold like §10's human block.
+
+| arm | features | target R² | level R² | skill vs persistence |
+|---|---|---|---|---|
+| shipped | 45 | +0.0394 | +0.4389 | +0.0020 |
+| **shipped + CAP, deseasonalized** | 52 | **+0.1059** | +0.4826 | +0.0457 |
+| shipped + CAP, raw | 52 | +0.0309 | +0.4355 | −0.0014 |
+
+The shipped arm reproduces §11.5's shipped arm to the fourth decimal, so the comparison is on the
+same footing. Then:
+
+```
+  Δ target R²  +0.0665       PASS
+  wins         5 of 5        PASS
+  paired t     +1.52         FAIL  (rule: ≥ 2.0)
+```
+
+**NULL. The shipped feature set stands.** And it fails for the reason §11.5 failed: fold 0 — the
+28-training-row fold, 2005–07 — supplies **72 %** of the gain (+0.24 of +0.33 summed), which is
+what a one-fold sample-size effect looks like. Two observations that do not change the verdict,
+recorded because the next reader will make them:
+
+- The raw arm is *worse* than shipped. The signal, if there is one, is the anomaly from the summer
+  template, not the template. That is consistent with a pumping proxy and inconsistent with
+  "month_sin by another name".
+- Post hoc, folds 1–4 alone are +0.023 mean, 4 of 4, t ≈ 3.3. That is not a verdict — the rule was
+  fixed with five folds and the first fold was known to be the weak one when it was fixed — but it
+  is the reason a longer record would be worth re-running this on. The series runs to 2026; the
+  panel stops at 2020-12 because irrigation and public supply do. Extending those two is what
+  would give this test the rows it needs.
+
+The proxy-sanity numbers are in the JSON and are mostly a caution: deseasonalized CAP deliveries
+correlate **+0.46** with the HUC12 irrigation withdrawal, not negatively, because that matrix counts
+surface-water deliveries as withdrawals; it cannot be used to check substitution. The correlation
+with GRACE's monthly change is −0.19 for the month and +0.07 for the 12-month sum.
+
+### What it settles
+
+- **§16 item 2 is closed.** The acquisition is done, the first link of the Mead lever is
+  `MEASURED`, and GRACE's answer is a second independent NULL with the same fold-0 signature.
+  Five `UNTESTED` constants remain: `groundwater_substitution_fraction` and the four streamflow
+  constants ([§21](#21-the-streamflow-constants-cannot-be-identified-from-this-panel-measured)).
+- **Nothing is retrained**, so the DSCI reweighting from [§22](#22-the-region-was-never-the-one-this-document-named-measured)
+  stays latent. It rides with the next retrain, whenever something earns one.
+- **PROBLEMS.md P5 moves from "weakly observed" toward "unobserved at monthly grain."** The one
+  monthly series that responds to policy rather than the calendar lifts GRACE by a sixth of its
+  fold spread. GLDAS (§16 item 5) is the last feature route on the list, and it targets the fast
+  part of the change, not pumping.
+
+## 24. CAP on GRACE's full window: null, and smaller. CAP is closed `MEASURED`
+
+The roadmap's step 1. [§23](#23-cap-deliveries-acquired-the-lake-mead-lever-measured-grace-still-null-measured)
+was a null whose gain sat 72 % in a 28-training-row fold, and its window stopped at 2020-12 only
+because the harness inherits the human-block window where irrigation and public supply end.
+GRACE's shipped features and the CAP series both run to 2023-12 and beyond, so the honest next
+question was whether the fold-0 signature was a sample-size artifact or a real effect that more
+rows would confirm. `experiment_grace_cap.py --window full` scores the same three arms, the same
+tuner, the same block and the same three-part rule on GRACE's own window — 2002-10..2023-12, the
+204 rows `grace_cv_results.json` reports, minus the GRACE-to-GRACE-FO gap — and its docstring
+declares it the second and last CAP run before the numbers were seen.
+
+| arm | features | target R² | level R² | skill vs persistence |
+|---|---|---|---|---|
+| shipped | 45 | +0.0210 | +0.3372 | −0.0277 |
+| **shipped + CAP, deseasonalized** | 52 | **+0.0361** | +0.3473 | −0.0176 |
+| shipped + CAP, raw | 52 | +0.0286 | +0.3363 | −0.0286 |
+
+```
+  Δ target R²  +0.0151       PASS
+  wins         4 of 5        PASS
+  paired t     +1.27         FAIL  (rule: ≥ 2.0)
+```
+
+**NULL, and the direction of the change is the finding.** With 36 more months and a first fold
+that trains on more rows, the gain fell from +0.0665 to **+0.0151** — a quarter — and the first
+fold's contribution fell from +0.24 to +0.01. That is what a small-sample artifact does when the
+sample grows; a real effect would have held its size and gained significance. The post-hoc
+"folds 1–4" observation §23 recorded does not survive either: on this window the fold that loses is
+fold 3, in the middle of the record, not the first.
+
+Two things stay true and are worth keeping:
+
+- **The block is not noise.** It wins 4 of 5 here and 5 of 5 in §23, and in both runs the
+  deseasonalized arm beats the raw arm. Whatever CAP carries about pumping is real, and it is
+  worth about 0.015 of target R² on a residual whose fold-to-fold spread is 0.30. That is the
+  "weakly observed" of [PROBLEMS.md P5](PROBLEMS.md) measured with the best monthly proxy there is.
+- **The shipped arm scores lower on the full window** (+0.0210 vs +0.0394): the 2021–2023 block
+  is a shortage era the training folds never saw. GRACE's difficulty is not the feature set.
+
+**CAP is closed for GRACE.** No third window, rule or block will be tried; the series stays in
+`data/Final/` for the Lake Mead calibration ([§23](#23-cap-deliveries-acquired-the-lake-mead-lever-measured-grace-still-null-measured))
+and for the per-well groundwater design, where deliveries by customer put the proxy at the scale
+it acts on. The roadmap moves to step 2, GLDAS as GRACE features, and step 3, the per-well panel.
+
+## 25. GLDAS acquired; null by the rule; and the rule tested the wrong thing `MEASURED`
+
+The roadmap's step 2 ([§16](#16-paths-forward) item 5, PROBLEMS.md Option C). GLDAS-2.1 Noah
+land-surface state — soil moisture in four layers, snow water equivalent, canopy storage,
+evapotranspiration — is an observationally-forced estimate of the fast, weather-driven part of the
+storage change GRACE measures. It was the last feature route on the list for GRACE.
+
+### The data
+
+`scripts/phase1/gldas.py` → `data/Final/gldas_monthly.csv`: **288 months, 2000-01 to 2023-12**,
+bounding-box means over 293 land cells, fetched as DAP4 subsets (~90 KB each) from Earthdata's
+cloud OPeNDAP service rather than as 288 global 24 MB granules. Auth is an Earthdata bearer token
+outside the repo; the GES DISC application had to be approved on the account first, which the
+script's 403 message now says. Guards: complete months, constant cell count, soil moisture in
+range (322–464 mm over 0–200 cm), snow peaking in January, rain peaking in August, and the GLDAS
+rainfall forcing at **r = 0.89** with the MERRA-2 precipitation series already in the panel.
+
+### The physics, before any model
+
+On the 204 scored rows, the same-month change in GLDAS's storage proxy (soil + snow + canopy)
+correlates **+0.62** with GRACE's monthly change, **+0.54** after deseasonalizing both. The
+in-sample slope is **+0.8 m of GRACE per m of GLDAS**, which is what it should be if GLDAS's
+storage sits inside GRACE's and the remaining fifth is groundwater. (That slope also exposed a
+labelling error: `grace_groundwater.py`'s docstring says centimetres, and the raw `lwe_thickness`
+attribute says metres. The values were always metres; nothing numerical changes.)
+
+Then the number that reframes the model: **a one-coefficient OLS on that single GLDAS column, fit
+inside each fold and scored on the same five blocks, gets out-of-fold target R² of +0.244**
+(folds +0.41, +0.43, −0.24, +0.46, +0.16). The shipped 45-feature model scores **+0.021** on those
+rows.
+
+### The declared test: NULL
+
+`scripts/phase2/experiment_grace_gldas.py` → `model/experiment_grace_gldas.json`. Eight-column
+GLDAS block added to the shipped feature set, judged raw (GLDAS is a physical state, not a
+template), same nested tuner, same five blocks, same three-part rule, one run on GRACE's own window.
+
+| arm | features | target R² | level R² | skill vs persistence |
+|---|---|---|---|---|
+| shipped | 45 | +0.0210 | +0.3372 | −0.0277 |
+| **shipped + GLDAS, raw** | 53 | **+0.0891** | +0.3616 | −0.0033 |
+| shipped + GLDAS, deseasonalized | 53 | +0.0596 | +0.3602 | −0.0047 |
+
+```
+  Δ target R²  +0.0682       PASS
+  wins         5 of 5        PASS
+  paired t     +1.34         FAIL  (rule: ≥ 2.0)
+```
+
+**NULL, and the shipped feature set stands** — the rule was fixed before the run and it holds.
+Fold 2 (2011-10..2016-08, where the shipped model scores −0.38) carries 79 % of the gain, which is
+the same one-fold signature as §11.5, §23 and §24.
+
+### What the rule did and did not test
+
+The rule asks one question: does adding a block to the shipped XGBoost, under its own 60-draw
+tuner, on ~200 rows, produce a significant gain? Three blocks have now answered NULL. But the OLS
+line above is a different question with a different answer: **a single physical coefficient
+captures a signal the tuned tree ensemble cannot**, by a factor of ten out of fold, on identical
+rows. The estimator is the constraint. A 45-feature gradient-boosted model on a 200-row panel is
+free to fit anything, and fold by fold it fits the wrong thing; a model with one degree of freedom
+and the right physics cannot.
+
+This is not a result about GLDAS as a feature and it is not a licence to tune. It is the
+measurement that separates the two remaining explanations for GRACE's floor — "the data cannot
+carry a model" and "this model cannot carry the data" — and it lands on the second. PROBLEMS.md
+M4 says *"no solution available at Phase 2"*; that was written when every estimator tried was the
+same estimator.
+
+### What follows, and what is decided here
+
+Nothing ships from this section. GLDAS stays in `data/Final/`, unused by any exported model. The
+roadmap's step 2 is closed as written. What it opens is a **step 2b — a model-class experiment,
+not a feature experiment**: a linear (or ridge) residual model for GRACE on a small, physically
+chosen feature set — GLDAS storage change, precipitation, temperature, the lag-1 anchor — evaluated
+under exactly the same nested folds and the same three-part rule against the shipped model's
++0.021. If it passes, GRACE ships as a different kind of model from the other five, and that is an
+architecture decision, not a modelling one. It is left for the owner to make; the harness is one
+script away. If it is not taken, the roadmap's step 5 — formal demotion of GRACE to climatology
+plus Layer 2 — remains the honest shipping fix.
+
+One practical note for a future deployment: GLDAS's storage change is 46 % explained by the
+panel's precipitation alone and 69 % with lags, temperature and season, so a frontend driver from
+the precipitation slider (the way DSCI is driven from PDSI) is feasible; GLDAS would not need a
+control of its own.
+
+## 26. The estimator was the floor: a four-input linear model gives GRACE its first skill `MEASURED`
+
+The roadmap's step 2b, and the answer to the question
+[§25](#25-gldas-acquired-null-by-the-rule-and-the-rule-tested-the-wrong-thing-measured) left:
+is GRACE's floor the data or the model class? `scripts/phase2/experiment_grace_linear.py` →
+`model/experiment_grace_linear.json`.
+
+### The test, declared before the run
+
+Same harness as §23–§25: GRACE's own window, 204 rows, the same five test blocks, training
+strictly before each, residual over the lag-1 anchor. The shipped arm is re-run under
+`model_grace.py`'s real nested tuner so the comparison is self-contained (it reproduces §24 and
+§25's shipped arm to the fourth decimal). The judged arm is a **ridge regression on four inputs**,
+standardised, with the penalty chosen by an inner `TimeSeriesSplit(3)` inside every fold:
+
+| input | why it is there |
+|---|---|
+| `gldas_tws_proxy_delta` | the physics — soil + snow + canopy change, slope +0.8 m/m against GRACE (§25) |
+| `precipitation_mm_day` | this month's rain |
+| `precipitation_mm_day_lag1` | last month's rain, the recharge lag |
+| `temperature_2m_c_anomaly` | the evapotranspiration and drought departure |
+
+The set was fixed before the run as the smallest that names a driver for each part of the
+monthly storage change, and the docstring forbids editing it after the numbers are seen. Two
+arms are reported and not judged: the one-column OLS from §25, and a ridge on the shipped 45
+features plus the 8-column GLDAS block, to separate "linearity" from "small feature set".
+
+### The result
+
+| arm | features | target R² | level R² | skill vs persistence |
+|---|---|---|---|---|
+| shipped (XGBoost, nested) | 45 | +0.0210 | +0.3372 | −0.0277 |
+| **linear_physical (ridge)** | **4** | **+0.2845** | **+0.5664** | **+0.2015** |
+| linear_gldas1 (OLS) | 1 | +0.2442 | +0.5614 | +0.1965 |
+| linear_all (ridge) | 53 | +0.2396 | +0.5338 | +0.1688 |
+
+Persistence on these blocks is +0.3649.
+
+```
+  Δ target R²  +0.2635       PASS
+  wins         4 of 5        PASS
+  paired t     +2.52         PASS  (rule: ≥ 2.0)
+```
+
+**REAL.** The first positive verdict this document has recorded for GRACE, after five nulls
+(§10, §11.5, §23, §24, §25). Fold by fold the shipped model went −0.29 → +0.34, +0.25 → +0.48,
+−0.38 → −0.11, +0.27 → +0.47, and lost one: +0.26 → +0.24 in 2021–2023, the shortage era, where
+the shipped model was strongest and the two are within noise. The level R² of +0.57 against
+persistence +0.36 gives GRACE **+0.20 skill**; PROBLEMS.md's status table has carried −0.03 since
+the nested-CV correction.
+
+### What the two reported arms say
+
+- `linear_all` (+0.24) scores like `linear_physical`, not like the XGBoost arms. **The win is
+  linearity**, or more exactly the absence of a tree ensemble's freedom: ridge with 53 inputs still
+  cannot fit the wrong thing the way 60 draws of boosted trees can on 200 rows. The small feature
+  set adds +0.04 on top, which is the four inputs being the right four.
+- `linear_gldas1` (+0.24) is 86 % of the judged arm. Most of what GRACE's monthly change contains
+  is GLDAS's storage change, and the shipped model could not see it through 44 other columns.
+
+The full-window fit lands on alpha = 10 with standardised coefficients of +0.0076 (GLDAS
+change), +0.0011 and +0.0007 (rain, this month and last) and −0.0040 (temperature anomaly): every
+sign is the physical one, and GLDAS carries seven times the weight of rain, which is what the
++0.8 slope implied.
+
+### What this changes in the record
+
+PROBLEMS.md M4 says *"no solution available at Phase 2"* and P5 says the driver is *"weakly
+observed"*. Both were measured with one estimator class. The correct statement is now: **the
+monthly change in GRACE storage is largely the land-surface storage change, which GLDAS observes
+well, and a model with four degrees of freedom captures it where a model with hundreds could
+not.** The pumping part — the slow residual — is still unobserved, and the +0.28 target R² is a
+measurement of how much of the month-to-month signal is *not* pumping.
+
+### What is decided here, and what is not
+
+Nothing ships from this section either, and that is deliberate. The docstring declared that REAL
+means GRACE's shipping model becomes this linear model, and it does — but shipping it is an
+architecture change with a defined cost, and it is listed rather than taken:
+
+1. `scripts/phase2/model_grace.py`: estimator becomes the standardised ridge on the four inputs,
+   export via `skl2onnx` instead of `onnxmltools`; the sidecars and `historical_grace.csv` follow.
+2. `scripts/phase2/merge.py` and `features.py`: the GLDAS series joins the panel and the GLDAS
+   change is engineered as a feature.
+3. `frontend/catalog.js` and its Python mirror: GLDAS's storage change needs a driver. It is 46 %
+   explained by the precipitation slider alone and 69 % with lags, temperature and season (§25),
+   so a `gldasFromPrecip` regression in the style of `dsciFromPdsi` is the design; GLDAS gets no
+   control of its own. This is the piece that makes the GRACE card respond to the rain slider
+   through the physics rather than through a tree's memory of it.
+4. The drought-index regeneration that has waited since
+   [§22](#22-the-region-was-never-the-one-this-document-named-measured) rides with this retrain,
+   which means all six models are retrained and PHASE2_REPORT.md's leaderboard is re-measured.
+5. The six gates, `top_inputs.py`, and `generate_stats.py` run again; GRACE's card provenance
+   changes from "learned, no skill" to "learned, skill +0.20".
+
+That is one working session, and it changes what the application's GRACE output *is*. It should
+be a decision, taken with this table in front of whoever takes it, not a side effect of a probe.

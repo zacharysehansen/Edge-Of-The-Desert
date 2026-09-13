@@ -144,6 +144,24 @@ These don't exist yet in any form and require pulling new source data.
 
 Each needs filtering to the model's date range and aggregation from daily to monthly.
 
+**CAP water deliveries (added 2026-09-12).** Monthly Central Arizona Project deliveries, 1999-01
+onward, from CAP's own delivery reports at `library.cap-az.com` — "Monthly Deliveries" by
+classification (1999–2018) and "Year to Date Deliveries by Contract Type" (2018–). Reclamation's
+decree accounting reports (`usbr.gov/lc/region/g4000/4200Rpts/DecreeRpt/`) carry the diversion at
+Lake Havasu and are used only as an annual cross-check: within a year the diversion runs at
+r = −0.2 to deliveries, because CAP fills Lake Pleasant in winter and delivers from it in summer.
+2008 and 2009 are scanned images; their totals rows are transcribed in the script and checked
+against the printed annual totals. `scripts/phase1/cap_deliveries.py` fetches every PDF it lacks.
+
+**GLDAS land-surface state (added 2026-09-12).** GLDAS-2.1 Noah monthly (`GLDAS_NOAH025_M` v2.1,
+GES DISC), 2000-01 to 2023-12: soil moisture in four layers, snow water equivalent, canopy storage,
+evapotranspiration and rainfall forcing, averaged over the study bounding box (293 cells at 0.25°).
+Each month is fetched as a DAP4 subset from `opendap.earthdata.nasa.gov` (~90 KB) rather than as the
+24 MB global granule. Needs an Earthdata Login bearer token in `~/.config/earthdata/token` (mode 600)
+or `$EARTHDATA_TOKEN`, and the "NASA GESDISC DATA ARCHIVE" application approved on the account —
+until it is, every request returns `403 EULA Acceptance Failure`. `scripts/phase1/gldas.py`. Features
+for the GRACE probe only (PHASE3_PLAN.md §25); no exported model uses them.
+
 **Urbanization.** USGS Annual NLCD (1985-2023), Fractional Impervious Surface product, pulled from the public cloud bucket (`s3://usgs-landcover/annual-nlcd/c1/v0/cu/mosaic/`). This is raster data covering the whole continental US, not pre-aggregated to any region, so it needs to be downloaded year by year, clipped to the eight-county boundary using a county shapefile, and averaged into a single impervious-surface percentage per year. The result is annual and needs interpolation to monthly.
 
 New private housing permit data from FRED was considered as an alternative urbanization signal and rejected. Permits measure new construction activity rather than the existing built footprint, and only the Tucson metro area has county-level coverage in FRED, leaving seven of the eight counties unrepresented.

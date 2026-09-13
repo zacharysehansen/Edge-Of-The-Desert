@@ -22,7 +22,7 @@ about it. Companion to [PHASE2_REPORT.md](PHASE2_REPORT.md) (what the models sco
 | Wildfire | **+0.3716** | **works** ✅ | ~~month came from a DB edit date~~ **FIXED**; extended to 1984–2023 | **done — see [M3](#m3-wildfire--the-target-was-not-measuring-wildfire-fixed)** |
 | NDVI | **+0.2653** | **works** | none — at MODIS instrument floor | already healthy |
 | Groundwater | **+0.0086** | no skill, but no longer harmful ✅ | ~~compositional artifact~~ **FIXED**; now [P5](#p5-monthly-pumping-is-weakly-observed-not-unobserved-measured) | target fixed — **now stop** |
-| GRACE | −0.0349 | no skill | the observable pumping signal is too weak | **stop tuning.** Irrigation trade re-tested 2026-09-04: **null**; the full deseasonalized human block re-tested under the real nested tuner 2026-09-10: **null** (t=1.21, 83% of the gain is one 28-row fold — PHASE3_PLAN.md §11.5). Only acquisitions left: [CAP](#option-b--cap-deliveries-as-a-monthly-pumping-proxy-untested--worth-one-probe) / [GLDAS](#option-c--gldas-land-surface-state-as-features-not-a-new-target-untested) / OpenET |
+| GRACE | −0.0349 | no skill | the observable pumping signal is too weak | **stop tuning.** Irrigation trade re-tested 2026-09-04: **null**; the full deseasonalized human block re-tested under the real nested tuner 2026-09-10: **null** (t=1.21, 83% of the gain is one 28-row fold — PHASE3_PLAN.md §11.5); **CAP monthly deliveries tested 2026-09-12: null** (5/5 folds, t=1.52, 72% of the gain the same fold — §23; on the full 2002–2023 window the gain shrinks to a quarter, t=1.27 — §24, CAP closed); **GLDAS tested 2026-09-12: null as a feature block** (t=1.34), but a one-coefficient OLS on GLDAS storage change scores **+0.244** out of fold vs the shipped **+0.021** — the estimator, not the data, is the floor (§25). **Confirmed by step 2b (§26): a ridge on four physical inputs scores +0.2845 target R², +0.5664 level R², skill +0.2015, 4/5 folds, t = 2.52 — REAL. Shipping it is an architecture change, not yet taken.** Only acquisitions left: [CAP](#option-b--cap-deliveries-as-a-monthly-pumping-proxy-untested--worth-one-probe) / [GLDAS](#option-c--gldas-land-surface-state-as-features-not-a-new-target-untested) / OpenET |
 | Wildlife | **+0.2046** | **works** ✅ | ~~the target was a survey-effort index~~ **FIXED** | **done — see [M6](#m6-wildlife--the-target-was-a-survey-effort-index-fixed)** |
 
 > **2026-09-12 — the region is not the one the documents named, and it is being kept.** See
@@ -444,7 +444,21 @@ model the data actually supports (~25–40 rows). The per-well anomaly target fr
 project's own rule: fit the model the data can support instead of demanding the data serve a grain
 it was never collected at.
 
-### Option B — CAP deliveries as a *monthly* pumping proxy `UNTESTED — worth one probe`
+### Option B — CAP deliveries as a *monthly* pumping proxy `MEASURED — probed 2026-09-12: NULL`
+
+> **Probed, and it is a null with a lesson.** `scripts/phase1/cap_deliveries.py` acquired CAP's
+> monthly deliveries 1999-01..2026-07 from CAP's own reports (331 months, every year checked
+> against its printed total). Under `model_grace.py`'s real nested tuner on identical rows the
+> deseasonalized CAP block lifts target R² **+0.0394 → +0.1059, 5 of 5 folds — and t = +1.52
+> against the ≥ 2.0 rule fixed before the run**, because 72 % of the gain is the 28-row first
+> fold, the same signature as the human-block null (PHASE3_PLAN.md §11.5). Full record in
+> [PHASE3_PLAN.md §23](PHASE3_PLAN.md). Two corrections to the text below: **the Reclamation
+> Havasu diversion is the wrong series** — it runs at r = −0.2 to deliveries within a year because
+> CAP fills Lake Pleasant in winter — and the acquisition *did* pay elsewhere:
+> `region_share_of_az_reduction` is now `MEASURED` at 1.0 from the delivery drops of 2022–2025.
+> **Re-run on GRACE's full 2002–2023 window as the declared last CAP run (PHASE3_PLAN.md §24):
+> the gain shrank to +0.0151, 4 of 5 folds, t = 1.27 — NULL. The fold-0 signature was a
+> sample-size artifact. CAP is closed for GRACE.**
 
 **CAP is the substitute for pumping.** Tucson Water began shifting off groundwater onto Colorado
 River water in 2001; when CAP delivery is high, pumping is low. So CAP delivery is a genuine
@@ -472,7 +486,17 @@ noisy and has other problems ([M5](#m5-groundwater--target-fixed-now-at-its-data
 **Do not treat this as a rescue for groundwater.** It is a probe, and its main value is that it is
 cheap: the Reclamation ingest pattern is already written.
 
-### Option C — GLDAS land-surface state as *features*, not a new target `UNTESTED`
+### Option C — GLDAS land-surface state as *features*, not a new target `MEASURED — probed 2026-09-12: NULL as a feature; the estimator is the constraint`
+
+> **Probed.** `scripts/phase1/gldas.py` acquired GLDAS-2.1 Noah monthly state 2000–2023 over the
+> study box. Its same-month storage change correlates **+0.62** with GRACE's change (slope +0.8 m/m).
+> Added as an 8-column block to the shipped model under the real nested tuner: **+0.0210 → +0.0891
+> target R², 5 of 5 folds, t = 1.34 — NULL** by the pre-declared rule (PHASE3_PLAN.md §25). But a
+> **one-coefficient OLS on GLDAS's storage change alone scores +0.244 out of fold on the same
+> blocks** — ten times the shipped model. "Modest and uncertain" below was right about the feature
+> test and wrong about why: the signal is large; the 45-feature tree ensemble on 200 rows cannot
+> use it. M4's "no solution available at Phase 2" was measured with one estimator class. The open
+> item is a model-class experiment (§25), which is an architecture decision.
 
 GRACE measures total water storage (TWS): the monthly *change* is a **fast** part — soil moisture
 responding to recent weather — plus a **slow** part — groundwater responding to pumping and
@@ -991,6 +1015,15 @@ fold-to-fold spread. **Do not move GRACE's window, and do not add irrigation to 
 acquire monthly pumping data or ship this as a descriptive/diagnostic layer rather than a
 predictive model.
 
+> **Superseded 2026-09-12 — there is a solution at Phase 2, and it is not tuning.** The sentence
+> above was measured with one estimator class. PHASE3_PLAN.md §25–§26: GLDAS's land-surface
+> storage change explains most of GRACE's monthly change (r = +0.62, slope +0.8 m/m), and a **ridge
+> regression on four physical inputs** scores **+0.2845 target R² / +0.5664 level R² / skill +0.2015**
+> under the same nested folds where the shipped XGBoost scores +0.0210 / +0.3372 / −0.0277 — 4 of 5
+> folds, t = 2.52, REAL by the pre-declared rule. The tree ensemble on ~200 rows was the floor.
+> The pumping residual is still unobserved; what the linear model captures is the part of the
+> change that is *not* pumping. Deployment is an architecture change and is listed in §26.
+
 **Two live leads, both Phase 1 data-acquisition, neither inside this model's script.** (1) **CAP
 deliveries** (work item **#5**) — a monthly proxy for the Colorado-River-water *substitution* that
 offsets pumping, which a storage integral can use directly; the Reclamation HydroData ingest pattern
@@ -1160,9 +1193,9 @@ landed, which unblocked everything below them.
 | ~~**4**~~ | ~~**Wildlife: revisit the NDVI trade-off**~~ | M6 | ✅ **DONE — null, and the rows win decisively.** On identical rows NDVI adds Δρ +0.041 (p=0.495); but cutting to n=23 alone drops R² **+0.0956 → −0.1702**, below a flat line. **Keep the 1968 window.** See [M6](#m6-wildlife--the-target-was-a-survey-effort-index-fixed) |
 | ~~**4b**~~ | ~~**Audit the remaining features** the way targets were audited~~ | P7 | ✅ **DONE — all 31 columns.** Two bugs: public supply was the same national sum (34,817 → **761 MGD**); nClimDiv's `MISSING` constant matched 1 of 3 elements, leaking **−73.28 °C** and **−8.46 mm/day** (latent, outside the panel). Everything else passed — population validates to Census within 1.3% |
 | ~~**4c**~~ | ~~Audit the NDVI and GRACE targets~~ | — | ✅ **DONE — both clean.** NDVI: pixel turnover↔jump **0.000**, signs all right. GRACE: no cell churn, strong depletion trend (r **−0.84**), right drought/Mead signs — target sound, failure is data ([P5](#p5-monthly-pumping-is-weakly-observed-not-unobserved-measured)), not a target bug |
-| **5** | **Probe CAP monthly deliveries via Reclamation HydroData** | P5, M4 | the one remaining *monthly* pumping proxy. Cheap — `lake_mead.py` already ingests from this endpoint. Aimed at **GRACE**, not groundwater |
+| ~~**5**~~ | ~~**Probe CAP monthly deliveries via Reclamation HydroData**~~ | P5, M4 | ✅ **DONE 2026-09-12 — NULL for GRACE** (5/5 folds, t = 1.52; PHASE3_PLAN.md §23), but the series measured the Lake Mead lever's first link at 1.0. Not via HydroData: CAP's own reports; Reclamation's diversion is winter-weighted by Lake Pleasant. Original text: the one remaining *monthly* pumping proxy. Cheap — `lake_mead.py` already ingests from this endpoint. Aimed at **GRACE**, not groundwater |
 | ~~**6**~~ | ~~**Acquire ADWR monthly pumping**~~ | — | ❌ **DEAD.** ADWR pumpage is **annual and AMA-only**; annual data cannot move a monthly residual model. See [P5](#adwr-is-not-the-answer-this-document-used-to-say-it-was-verified) |
-| **7** | **Probe GLDAS soil moisture as a GRACE feature** | P5, M4 | informs the fast (weather-driven) part of monthly ΔTWS; new `earthaccess` feature script. Modest, uncertain — precip lags may already carry it. Do **not** decompose TWS→GWS expecting skill ([P5 Option C](#option-c--gldas-land-surface-state-as-features-not-a-new-target-untested)) |
+| ~~**7**~~ | ~~**Probe GLDAS soil moisture as a GRACE feature**~~ | P5, M4 | ✅ **DONE 2026-09-12 — NULL as a feature block (t=1.34), and the important result is elsewhere:** a one-coefficient OLS on GLDAS storage change out-scores the shipped 45-feature model ten-fold out of fold. PHASE3_PLAN.md §25. Original text: informs the fast (weather-driven) part of monthly ΔTWS; new `earthaccess` feature script. Modest, uncertain — precip lags may already carry it. Do **not** decompose TWS→GWS expecting skill ([P5 Option C](#option-c--gldas-land-surface-state-as-features-not-a-new-target-untested)) |
 
 **Do not:** tune GRACE. Tune groundwater — its target is fixed and it is at its data-limited
 ceiling. Chase surface water's skill number as if it were comparable to the old one

@@ -78,6 +78,39 @@ This document catalogs all data inputs for the Southern Arizona Water and Land S
 
 ---
 
+### 4b. CAP Water Deliveries (added 2026-09-12)
+
+| Field | Detail |
+|-------|--------|
+| **Description** | Monthly Central Arizona Project deliveries into Maricopa, Pinal and Pima counties — the substitute for groundwater pumping, and the water the Lake Mead shortage tiers remove |
+| **Source** | Central Arizona Project delivery reports: `https://library.cap-az.com/documents/departments/water-operations/monthly-delivery-report-{1999..2018}.pdf` and `.../year-to-date-by-contract-type-{2018..}.pdf`; cross-check from Reclamation decree accounting reports `https://www.usbr.gov/lc/region/g4000/4200Rpts/DecreeRpt/{year}/{year}.pdf` |
+| **Temporal Resolution** | Monthly, as published |
+| **Date Range** | 1999-01 through the current partial year (2026-07 at acquisition) |
+| **Output File** | `data/Final/cap_deliveries_monthly.csv` |
+| **Output Columns** | `year_month, cap_deliveries_af, cap_mi_af, cap_ag_af, cap_federal_af, cap_havasu_diversion_af, cap_source` |
+| **Processing** | `pdftotext -layout` on each report; the TOTAL rows are parsed and every year must sum to its printed annual total within 0.2 % or is rejected. 2008–2009 are scanned images and are transcribed in the script (`cap_source = transcribed`). Contract-type rows after 2018 are mapped onto the earlier M&I / ag / federal split; from 2023 there is no Ag Pool row (cut to zero) and ag is the residual. Reclamation's Havasu diversion is NaN where the decree row is not machine-readable (7 of 26 years) and is winter-weighted by Lake Pleasant storage, so it is an annual check only (deliveries / diversion = 0.97) |
+| **Used By** | `scripts/phase2/experiment_grace_cap.py` (GRACE feature probe — null, not deployed); `scripts/phase3/cap_calibration.py` (`region_share_of_az_reduction`, measured at 1.0) |
+| **Access Date** | September 2026 |
+
+---
+
+### 4c. GLDAS Land-Surface State (added 2026-09-12)
+
+| Field | Detail |
+|-------|--------|
+| **Description** | Monthly land-surface water state from the GLDAS-2.1 Noah model — the fast, weather-driven part of the storage change GRACE measures |
+| **Source** | NASA GES DISC, `GLDAS_NOAH025_M` v2.1 (collection C1342986036-GES_DISC), via `https://opendap.earthdata.nasa.gov/collections/C1342986036-GES_DISC/granules/<granule>.dap.nc4?dap4.ce=...` (DAP4 bounding-box subsets); fallback `https://data.gesdisc.earthdata.nasa.gov/data/GLDAS/GLDAS_NOAH025_M.2.1/<year>/<granule>` |
+| **Temporal Resolution** | Monthly |
+| **Date Range** | 2000-01 through 2023-12 |
+| **Output File** | `data/Final/gldas_monthly.csv` |
+| **Output Columns** | `year_month, gldas_surface_soil_mm, gldas_root_zone_mm, gldas_soil_moisture_mm, gldas_swe_mm, gldas_canopy_mm, gldas_tws_proxy_mm, gldas_evap_mm_day, gldas_rain_mm_day, gldas_n_cells` |
+| **Processing** | Variables `SoilMoi0_10cm_inst, SoilMoi10_40cm_inst, SoilMoi40_100cm_inst, SoilMoi100_200cm_inst, SWE_inst, CanopInt_inst, Evap_tavg, Rainf_f_tavg`; mean over the 293 land cells inside the project bounding box (same footprint as the GRACE target); kg m⁻² read as mm; fluxes × 86,400 to mm/day. Guards: 288 complete months, constant cell count, soil 322–464 mm, SWE peak in January, rain peak in August, r = 0.89 against MERRA-2 precipitation |
+| **Auth** | Earthdata Login bearer token (`~/.config/earthdata/token`, mode 600, or `$EARTHDATA_TOKEN`); GES DISC application must be approved on the account |
+| **Used By** | `scripts/phase2/experiment_grace_gldas.py` only (PHASE3_PLAN.md §25 — null as a feature block; not deployed) |
+| **Access Date** | September 2026 |
+
+---
+
 ### 5. Urbanization (Impervious Surface)
 
 | Field | Detail |

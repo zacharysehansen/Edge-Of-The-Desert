@@ -91,3 +91,25 @@ The following sources provided data used in this project:
    U.S. Geological Survey, National Water Information System.
    Daily mean depth to water level (parameters 72019, 72008, 62610, 62611) from
    monitoring wells in eight southern Arizona counties. Aggregated to monthly regional means.
+
+17. Central Arizona Project - Water Delivery Reports
+   [https://www.cap-az.com/cap-system/water-operations/deliveries/](https://www.cap-az.com/cap-system/water-operations/deliveries/)
+   Central Arizona Water Conservation District. Monthly deliveries by
+   classification (1999-2018) and year-to-date deliveries by contract type
+   (2018-present), acre-feet. Total monthly CAP deliveries used as a pumping
+   proxy probe and to calibrate the Lake Mead shortage lever.
+
+18. Bureau of Reclamation - Colorado River Accounting and Water Use Reports
+   [https://www.usbr.gov/lc/region/g4000/wtracct.html](https://www.usbr.gov/lc/region/g4000/wtracct.html)
+   U.S. Bureau of Reclamation, Lower Colorado Basin Region. Annual decree
+   accounting reports (Arizona, California, Nevada); the Central Arizona
+   Project diversion at Lake Havasu, monthly, used as a cross-check.
+
+19. NASA GES DISC - GLDAS Noah Land Surface Model L4 monthly 0.25 x 0.25 degree V2.1 (GLDAS_NOAH025_M)
+   [https://disc.gsfc.nasa.gov/datasets/GLDAS_NOAH025_M_2.1/summary](https://disc.gsfc.nasa.gov/datasets/GLDAS_NOAH025_M_2.1/summary)
+   Beaudoing, H. and M. Rodell, NASA/GSFC/HSL (2020), GLDAS Noah Land Surface
+   Model L4 monthly 0.25 x 0.25 degree V2.1, Greenbelt, Maryland, USA, Goddard
+   Earth Sciences Data and Information Services Center (GES DISC),
+   doi:10.5067/SXAVCZFAQLNO. Soil moisture, snow water equivalent, canopy
+   storage, evapotranspiration and rainfall forcing over the study bounding box,
+   used as a GRACE feature probe.

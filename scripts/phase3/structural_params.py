@@ -45,6 +45,7 @@ DATA = ROOT / "data" / "Final"
 STATS_PATH = ROOT / "frontend" / "computed_stats.json"
 CALIBRATION_PATH = ROOT / "model" / "aquifer_calibration.json"
 NDVI_ENDPOINTS_PATH = ROOT / "model" / "ndvi_endpoints.json"
+CAP_CALIBRATION_PATH = ROOT / "model" / "cap_calibration.json"
 TRANSFER_PATH = ROOT / "model" / "transfer_calibration.json"
 OUTPUT_FILE = ROOT / "frontend" / "structural_params.json"
 
@@ -74,6 +75,55 @@ def tag(value, *, band=None, source, status, note=None) -> dict:
     if note is not None:
         entry["note"] = note
     return entry
+
+
+def _region_share_constant() -> dict:
+    """Lost CAP delivery per declared Arizona cut — measured from CAP's own delivery
+    record by scripts/phase3/cap_calibration.py (PHASE3_PLAN.md §23). Every acre-foot
+    CAP does not deliver is undelivered inside the region (all three CAP counties are
+    in-region, PROBLEMS.md P8), so this is the share of the declared cut that reaches
+    the region as lost water. Falls back to the sourced assumption if the calibration
+    has not been run."""
+    if not CAP_CALIBRATION_PATH.exists():
+        return tag(
+            0.95,
+            band=(0.85, 1.00),
+            source=(
+                "Arizona's shortage reduction is 'borne almost entirely by the CAP system' "
+                "(ADWR-CAP joint shortage statement, 2021), and CAP delivers only to "
+                "Maricopa, Pinal and Pima - all three in-region (PROBLEMS.md P8)."
+            ),
+            status="UNTESTED",
+            note="run scripts/phase3/cap_calibration.py to replace this with the measurement",
+        )
+    cal = json.loads(CAP_CALIBRATION_PATH.read_text())
+    meas = cal["region_share_of_az_reduction"]
+    years = cal["specification"]["judged_years"]
+    lo, hi = meas["band"]
+    # The lever multiplies a DECLARED cut, so the shipped band is capped at 1.0: the
+    # ratios above 1 in 2023-2025 are compensated system conservation running on top
+    # of the tier, which is real water not delivered but not the tier's doing.
+    return tag(
+        min(meas["value"], 1.0),
+        band=(round(lo, 3), min(round(hi, 3), 1.0)),
+        source=(
+            f"measured: (baseline - actual) annual CAP deliveries / declared AZ cut, mean "
+            f"{meas['value']:.3f} over {years[0]}-{years[-1]} against a 2015-2019 baseline "
+            f"({cal['baseline_kaf']['2015-2019']:,.0f} kAF/yr); min-max over years x two "
+            f"baselines {lo:.3f}-{hi:.3f}, shipped capped at 1.0. scripts/phase3/cap_calibration.py, "
+            "from CAP's monthly delivery reports (scripts/phase1/cap_deliveries.py)."
+        ),
+        status="MEASURED",
+        note=(
+            "Was 0.60 (0.40-0.80) while the documents said Maricopa was out-of-region, then "
+            "0.95 (0.85-1.00) by reasoning after PROBLEMS.md P8. The delivery record says a "
+            "Tier 1+ cut arrives in the region essentially in full: 2022 alone gives 0.82-0.99, "
+            "and 2023-2025 exceed 1.0 because compensated conservation ran alongside the tier. "
+            "The Tier 0 contributions of 2020-2021 (192 kAF) did NOT show up as lost deliveries "
+            "(-0.10 and 0.43), which is why those years are reported but not judged: DCP let "
+            "them be met from ICS and conservation credits."
+        ),
+    )
 
 
 def region_acres() -> dict:
@@ -376,22 +426,7 @@ def build() -> dict:
                 "valleys - that fit is measuring elevation."
             ),
         ),
-        "region_share_of_az_reduction": tag(
-            0.95,
-            band=(0.85, 1.00),
-            source=(
-                "Arizona's shortage reduction is 'borne almost entirely by the CAP system' "
-                "(ADWR-CAP joint shortage statement, 2021), and CAP delivers only to "
-                "Maricopa, Pinal and Pima - all three in-region (PROBLEMS.md P8). The "
-                "residual is 4th-priority on-river water outside the CAP system."
-            ),
-            status="UNTESTED",
-            note=(
-                "Was 0.60 (band 0.40-0.80) on the belief that Maricopa was out-of-region; "
-                "the region always contained it. Still not a measured number: CAP delivery "
-                "data by county would replace it."
-            ),
-        ),
+        "region_share_of_az_reduction": _region_share_constant(),
         # ── surface water (PHASE3_PLAN.md §14) ──────────────────────────────
         "regional_baseline_cfs": tag(
             regional_cfs,

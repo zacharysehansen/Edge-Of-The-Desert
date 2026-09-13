@@ -13,13 +13,15 @@ Output : data/processed/grace_monthly.csv
 Columns in output:
     year_month                  - str, format YYYY-MM
     grace_groundwater_anomaly   - float, liquid water equivalent
-                                  thickness (cm) averaged over the
+                                  thickness (METRES — the raw lwe_thickness
+                                  attribute is 'm'; this docstring said cm until
+                                  2026-09-12, PHASE3_PLAN.md §25) averaged over the
                                   eight-county bounding box
     grace_available             - int, 1 if GRACE data exists for
                                   that month, 0 if filled
 
 Source: NASA GRACE / GRACE-FO JPL RL06 Mascon [3]
-    Variable: lwe_thickness (liquid water equivalent thickness, cm)
+    Variable: lwe_thickness (liquid water equivalent thickness, m)
     GRACE mission: 2002-04 through 2017-06
     GRACE-FO mission: 2018-06 through 2023-12
     Gap: 2017-07 through 2018-05 (no satellite in orbit)
@@ -359,7 +361,7 @@ def _process_all_nc_files(nc_files: list[Path]) -> pd.DataFrame:
 
     log.info(
         "GRACE extraction complete: %d months (%s to %s), "
-        "mean=%.4f cm, min=%.4f cm, max=%.4f cm.",
+        "mean=%.4f m, min=%.4f m, max=%.4f m.",
         len(combined),
         combined["year_month"].iloc[0],
         combined["year_month"].iloc[-1],
