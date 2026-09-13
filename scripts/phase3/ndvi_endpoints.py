@@ -121,11 +121,13 @@ URBANISED_MIN_POINTS = 10.0
 # the impervious one.
 IRR_EARLY_YEARS = range(2000, 2005)
 IRR_LATE_YEARS = range(2016, 2021)
-# 2017 Census of Agriculture, eight counties. Already VERIFIED in structural_params;
+# 2017 Census of Agriculture, summed over the eight counties the pipeline actually
+# selects (Maricopa 180,214 and Gila 1,296 in; Graham and La Paz out — PROBLEMS.md
+# P8; was 681,143 under the misnamed set). Already VERIFIED in structural_params;
 # used here to turn withdrawal into an irrigated AREA without assuming an
 # application depth — one calibration on the whole record, so both the spatial
 # distribution and the regional total are free to move between windows.
-IRRIGATED_ACRES = 681_143.0
+IRRIGATED_ACRES = 718_832.0
 HUC12_SHAPEFILE = ROOT / "data" / "raw" / "wbd" / "WBDHU12.shp"
 SQ_M_PER_ACRE = 4046.8564224
 

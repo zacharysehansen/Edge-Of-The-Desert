@@ -2,7 +2,7 @@
 
 ## End Goal
 
-Build a set of regression models for an eight-county southern Arizona region (Pima, Pinal, Santa Cruz, Cochise, Graham, Greenlee, Yuma, La Paz) that take in human and environmental pressure variables and predict three separate environmental outcomes. This is a planning-stage tool, meant to let someone adjust inputs like population growth, irrigation demand, or urbanization and see how vegetation health, water levels, and wildfire risk would likely respond.
+Build a set of regression models for an eight-county central and southern Arizona region (Pima, Pinal, Santa Cruz, Cochise, Maricopa, Greenlee, Yuma, Gila — the documents said Graham and La Paz until 2026-09-12; the code's FIPS list never did, see PROBLEMS.md P8) that take in human and environmental pressure variables and predict three separate environmental outcomes. This is a planning-stage tool, meant to let someone adjust inputs like population growth, irrigation demand, or urbanization and see how vegetation health, water levels, and wildfire risk would likely respond.
 
 Inputs: population, irrigation withdrawal, water management (reservoir behavior), urbanization, and water stress.
 

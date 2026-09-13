@@ -25,6 +25,9 @@ about it. Companion to [PHASE2_REPORT.md](PHASE2_REPORT.md) (what the models sco
 | GRACE | −0.0349 | no skill | the observable pumping signal is too weak | **stop tuning.** Irrigation trade re-tested 2026-09-04: **null**; the full deseasonalized human block re-tested under the real nested tuner 2026-09-10: **null** (t=1.21, 83% of the gain is one 28-row fold — PHASE3_PLAN.md §11.5). Only acquisitions left: [CAP](#option-b--cap-deliveries-as-a-monthly-pumping-proxy-untested--worth-one-probe) / [GLDAS](#option-c--gldas-land-surface-state-as-features-not-a-new-target-untested) / OpenET |
 | Wildlife | **+0.2046** | **works** ✅ | ~~the target was a survey-effort index~~ **FIXED** | **done — see [M6](#m6-wildlife--the-target-was-a-survey-effort-index-fixed)** |
 
+> **2026-09-12 — the region is not the one the documents named, and it is being kept.** See
+> [P8](#p8-the-region-was-never-the-one-the-documents-named-measured--kept-on-purpose).
+
 **Five of six models now predict something, and no model is actively harmful anymore.** GRACE is
 the only remaining failure, and its cause ([P5](#p5-monthly-pumping-is-weakly-observed-not-unobserved-measured))
 is missing data, not a missing model.
@@ -416,9 +419,10 @@ acquiring it as a top work item. **Checked, and it fails on the one axis that ma
 1. **The grain is annual, not monthly.** Non-exempt wells inside an AMA report *annual* pumpage,
    filed by March 31. There is no monthly reporting requirement anywhere in the program.
 2. **The coverage is partial.** AMA reporting only applies *inside* an AMA. Of the eight counties:
-   Pima (Tucson AMA), Pinal (Pinal AMA), Santa Cruz (Santa Cruz AMA) and parts of Cochise/Graham
-   (Douglas, Willcox AMAs) are covered. **Yuma, Greenlee and — until Ranegras Plain was designated
-   in January 2026 — La Paz are largely outside any AMA**, where pumping is essentially unmetered.
+   Maricopa (Phoenix AMA), Pima (Tucson AMA), Pinal (Pinal AMA), Santa Cruz (Santa Cruz AMA) and
+   parts of Cochise (Douglas, Willcox AMAs) are covered. **Yuma, Greenlee and Gila are largely
+   outside any AMA**, where pumping is essentially unmetered. *(County list corrected 2026-09-12 —
+   [P8](#p8-the-region-was-never-the-one-the-documents-named-measured--kept-on-purpose); it used to say Graham and La Paz.)*
 3. **Annual data cannot fix a monthly residual model, and [P4](#p4-most-inputs-carry-no-monthly-information-measured)
    already proves it.** The groundwater and GRACE models predict *month-to-month change*. An annual
    value is a step function: constant for eleven months, then it jumps. Its within-year variance is
@@ -1275,6 +1279,101 @@ are interpretable.
    sets it, so every other series is unchanged. *Latent bug, activated by the [M3](#m3-wildfire--the-target-was-not-measuring-wildfire-fixed) fix.*
 
 ---
+
+## P8. The region was never the one the documents named `MEASURED` — *kept, on purpose*
+
+**Symptom.** None, again. `scripts/phase1/region.py` declares `COUNTIES` by name and `COUNTY_FIPS`
+by code, and every filter in the pipeline runs on the code. Two codes did not match the names beside
+them:
+
+```
+"04013",  # Graham    -> 04013 is MARICOPA. Graham is 04009.
+"04007",  # La Paz    -> 04007 is GILA.     La Paz is 04012.
+```
+
+So every county-filtered series — population, irrigation and public-supply HUC12s, wells, gages,
+DSCI, nClimDiv, BBS routes, the region area, the NDVI-endpoint cutline — was built over **Pima,
+Pinal, Santa Cruz, Cochise, Maricopa, Greenlee, Yuma and Gila**, Phoenix included, while every
+document said Graham and La Paz. Found 2026-09-11 while adding a boundary argument to
+`ndvi_endpoints.py`; measured by
+[`scripts/phase3/region_variants.py`](scripts/phase3/region_variants.py) → `model/region_variants.json`,
+which rebuilds what can be rebuilt from disk under three county sets and changes nothing:
+
+| quantity | as shipped (Maricopa + Gila) | minus Maricopa | documented (Graham + La Paz) |
+|---|---|---|---|
+| county area, acres | 27,780,270 | 21,875,628 | 24,663,508 |
+| population, 2020 | **6,362,198** | 1,917,139 | **1,919,003** |
+| HUC12s with data | 1,131 | 899 | 992 |
+| irrigation, MGD | 2,526 | 1,676 | 2,361 |
+| mean NDVI | 0.2437 | 0.2518 | 0.2285 |
+| mean impervious, % | 3.173 | 1.772 | 1.594 |
+| `ndvi_impervious` DiD slope | −0.0356 | −0.0217 | −0.0189 |
+| `ndvi_irrigated` DiD slope | +0.3295 | +0.2100 | +0.3140 |
+
+Population is the number that matters: the shipped series is **3.3× the documented region's**,
+roughly 70% Phoenix. Irrigation is nearly a wash, because La Paz and Graham are irrigation-heavy
+(97,139 and 46,682 irrigated acres in 2017) and between them roughly offset Maricopa's 180,214.
+
+**Decision: the as-shipped region is kept, and the documents are corrected to it.** Not because
+re-filtering is expensive — though it is: wells and gages are pulled from NWIS per county code and
+the cached pulls cover only these eight, so the documented set needs new acquisitions and a full
+Phase 1 → 2 → 3 rerun — but because the as-shipped set is the better-posed region for what the
+application models. With Maricopa in, the region contains **all three CAP Active Management Areas**
+(Phoenix, Pinal, Tucson), which is the unit the Lake Mead shortage tiers act on. The ADWR–CAP joint
+shortage statement puts Arizona's reduction as *"borne almost entirely by the CAP system"*, and CAP
+delivers only to Maricopa, Pinal and Pima. A region that excludes Maricopa excludes CAP's largest
+customer and then has to guess what share of the cut lands inside it — which is exactly what
+`region_share_of_az_reduction = 0.60` was doing.
+
+Two things are recorded against the decision so it does not read as a rationalisation:
+
+- **The region was selected by a typo, not by design**, and Gila County in particular is incidental
+  — mountainous, 54,000 people, 1,296 irrigated acres, no AMA. It stays because removing it is a
+  rerun for no modelling gain; it contributes forest NDVI and Tonto-basin fires to the means.
+- **The name "Edge of the Desert" and the "southern Arizona" framing now overstate the border
+  focus.** The region is central *and* southern Arizona: the CAP counties plus the border counties.
+
+**What was actually wrong, and is now fixed** (2026-09-12):
+
+1. **`irrigated_fraction` mixed the two regions.** Its numerator summed the NASS 2017 irrigated
+   acres for the eight *named* counties (681,143) and divided by the area of the eight *selected*
+   ones. Same NASS table, right counties: **718,832 acres, fraction 2.588 %** (was 2.452 %). It is
+   also the calibration that turns HUC12 withdrawal into irrigated area in `ndvi_endpoints.py`, so
+   `ndvi_irrigated_crop` was re-measured — see PHASE3_PLAN.md §22. To first order the irrigation →
+   NDVI lever does not move: the lever is `irrigated_fraction × slope`, the fraction rose 5.5 % and
+   the slope, calibrated on the same acres, fell by the same factor.
+2. **`region_share_of_az_reduction` was reasoned from the wrong map.** Its source string said
+   "Pinal and Pima are in-region and Maricopa is not". Re-derived at **0.95, band 0.85–1.00**, still
+   `UNTESTED`: the residual is 4th-priority on-river water outside the CAP system. Every Lake Mead
+   path scales by 0.95 / 0.60 = 1.58×.
+3. **`water_stress.py` weighted Maricopa's DSCI by Graham's area and Gila's by La Paz's.** The
+   drought index fetched the right counties (it filters on the code) but weighted 04013 at 4,641 sq
+   mi instead of 9,226 and 04007 at 4,513 instead of 4,795. Re-fetching all eight counties from the
+   USDM API and re-weighting **reproduces the shipped column exactly** under the wrong weights, and
+   under the right ones moves it by **r = 0.99916** on levels, **0.9984** on month-to-month change,
+   mean +0.42 DSCI on a series with sd 112. The weights are corrected in the script;
+   `data/Final/water_stress_monthly.csv` is **not regenerated**, because `usdm_dsci` is a feature in
+   GRACE (6 features), NDVI (6) and groundwater (1) and regenerating it means retraining all three
+   for a 0.08 % change in correlation. `FIXED (latent)`, same status as the nClimDiv constant in P7.
+   Whoever next retrains Phase 2 should regenerate it first.
+4. **Names, everywhere.** `region.py`, the config mirror, README, PHASE1_SETUP, DATA.md,
+   PHASE3_PARAMS and the AMA-coverage list in P5 above.
+
+**What is not changed.** No model is retrained, no Phase 1 series is regenerated, and no Phase 3
+calibration other than the two constants above and the NDVI endpoint that depends on one of them.
+Every measured number in PHASE2_REPORT.md and PHASE3_PLAN.md was always a measurement on *this*
+region; only the caption was wrong.
+
+**One caveat that survives either decision.** The raster series — NDVI, impervious cover, MERRA-2
+temperature and precipitation, GRACE — clip to the bounding box, not to the counties. The box
+(−114.81, 31.33, −109.05, 34.5) covers all ten counties in play plus a sliver of Yavapai, so the
+climate inputs and the NDVI target were always a slightly larger footprint than the human inputs,
+under both readings of the county list.
+
+**Rule it adds.** A list of names and a parallel list of codes are two sources of truth.
+`load_county_boundary()` now asserts that the shapefile's `NAME` for each FIPS matches the name
+listed beside it, positionally, and raises if not — verified to fire by putting "Graham" back. The
+case for the guard is the same as for every guard in P7: this defect produced no failing test.
 
 ## The three rules worth keeping
 

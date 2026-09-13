@@ -199,7 +199,13 @@ def build() -> dict:
         max(ndvi_slope, ndvi_endpoints["slope"]["median"]),
     ]
 
-    irrigated_acres = 681_143.0
+    # 2017 Census of Agriculture Table 10, summed over the eight counties the
+    # pipeline actually selects (PROBLEMS.md P8): Cochise 86,008 + Gila 1,296 +
+    # Greenlee 5,136 + Maricopa 180,214 + Pima 30,008 + Pinal 232,224 +
+    # Santa Cruz 2,551 + Yuma 181,395. Was 681,143, which summed Graham and La Paz
+    # instead of Maricopa and Gila — a numerator over the wrong set, divided by
+    # region_acres from the right one.
+    irrigated_acres = 718_832.0
     ndvi_natural = stats["OUTPUT_STATS"]["ndvi"]["baseline"]
 
     constants = {
@@ -213,7 +219,8 @@ def build() -> dict:
             irrigated_acres,
             source=(
                 "2017 Census of Agriculture, Table 10 'Irrigation: 2017 and 2012', "
-                "USDA NASS Vol 1 Ch 2 Arizona county-level, summed over the eight counties"
+                "USDA NASS Vol 1 Ch 2 Arizona county-level, summed over the eight counties "
+                "the pipeline selects (Maricopa and Gila in, Graham and La Paz out - PROBLEMS.md P8)"
             ),
             status="VERIFIED",
         ),
@@ -351,7 +358,10 @@ def build() -> dict:
             note=(
                 "PHASE3_PARAMS.md §4b assumed 0.55 (band 0.45-0.65) and was very nearly "
                 f"right: the measurement is {ndvi_natural + irr_slope:.4f}, inside the "
-                "assumed band and 0.4% from its midpoint. Stated relative to ndvi_natural "
+                f"assumed band and {abs(ndvi_natural + irr_slope - 0.55) / 0.55:.1%} from its "
+                "midpoint (0.4% before the irrigated-acres correction of PROBLEMS.md P8; the "
+                "calibration acres rose 5.5% and the slope fell by the same factor, so the "
+                "lever irrigated_fraction x slope is unchanged). Stated relative to ndvi_natural "
                 "so the difference IS the measured slope, as for ndvi_impervious. "
                 "THE BAND IS NARROW BECAUSE TWO DESIGNS AGREE, NOT BECAUSE THE QUANTITY IS "
                 "PRECISELY KNOWN: it spans the baseline-controlled and uncontrolled fits, "
@@ -367,15 +377,20 @@ def build() -> dict:
             ),
         ),
         "region_share_of_az_reduction": tag(
-            0.60,
-            band=(0.40, 0.80),
+            0.95,
+            band=(0.85, 1.00),
             source=(
-                "CAP serves Maricopa, Pinal and Pima; Pinal and Pima are in-region and "
-                "Maricopa is not, and the Tier-1 cut fell mostly on the CAP agricultural "
-                "pool, which is predominantly Pinal"
+                "Arizona's shortage reduction is 'borne almost entirely by the CAP system' "
+                "(ADWR-CAP joint shortage statement, 2021), and CAP delivers only to "
+                "Maricopa, Pinal and Pima - all three in-region (PROBLEMS.md P8). The "
+                "residual is 4th-priority on-river water outside the CAP system."
             ),
             status="UNTESTED",
-            note="Not sourced. Should be replaced with CAP delivery data by county.",
+            note=(
+                "Was 0.60 (band 0.40-0.80) on the belief that Maricopa was out-of-region; "
+                "the region always contained it. Still not a measured number: CAP delivery "
+                "data by county would replace it."
+            ),
         ),
         # ── surface water (PHASE3_PLAN.md §14) ──────────────────────────────
         "regional_baseline_cfs": tag(

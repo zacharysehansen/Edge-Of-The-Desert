@@ -1,7 +1,7 @@
 """
 region.py
 ---------
-Single source of truth for the eight-county southern Arizona study area.
+Single source of truth for the eight-county central/southern Arizona study area.
 
 Every other script in phase1/ imports from here instead of repeating
 boundary logic. Exposes:
@@ -28,15 +28,21 @@ from shapely.geometry import box
 STATE_FIPS: str = "04"
 STATE_ABBR: str = "AZ"
 
+# The eight counties the pipeline actually selects. Until 2026-09-12 this list read
+# "Graham" and "La Paz" beside FIPS codes 04013 and 04007 — which are MARICOPA and
+# GILA. Every county-filtered series was built over the codes, so the region has
+# always been these eight; the names were wrong, not the data. The set was kept on
+# purpose (PROBLEMS.md P8): it contains all three CAP Active Management Areas
+# (Phoenix, Pinal, Tucson), which is the unit the Lake Mead shortage tiers act on.
 COUNTIES: list[str] = [
     "Pima",
     "Pinal",
     "Santa Cruz",
     "Cochise",
-    "Graham",
+    "Maricopa",
     "Greenlee",
     "Yuma",
-    "La Paz",
+    "Gila",
 ]
 
 COUNTY_FIPS: list[str] = [
@@ -44,10 +50,10 @@ COUNTY_FIPS: list[str] = [
     "04021",  # Pinal
     "04023",  # Santa Cruz
     "04003",  # Cochise
-    "04013",  # Graham
+    "04013",  # Maricopa
     "04011",  # Greenlee
     "04027",  # Yuma
-    "04007",  # La Paz
+    "04007",  # Gila
 ]
 
 # (min_lon, min_lat, max_lon, max_lat) — from bbox block in config [3]
@@ -127,6 +133,24 @@ def load_county_boundary(shapefile_path: str | Path | None = None) -> gpd.GeoDat
             f"{len(study_counties)}. Missing FIPS: {missing}. "
             "Check that COUNTY_FIPS values match the GEOID column in the shapefile."
         )
+
+    # COUNTIES and COUNTY_FIPS are two lists that claim to describe one set. For
+    # years they did not: 04013 sat beside "Graham" and 04007 beside "La Paz"
+    # while selecting Maricopa and Gila (PROBLEMS.md P8). The shapefile knows both,
+    # so make the code and the name agree, positionally, or refuse to run.
+    if "NAME" in study_counties.columns:
+        name_of = dict(zip(study_counties["GEOID"], study_counties["NAME"], strict=False))
+        mismatched = [
+            (fips, name, name_of[fips])
+            for fips, name in zip(COUNTY_FIPS, COUNTIES, strict=True)
+            if name_of[fips] != name
+        ]
+        if mismatched:
+            raise ValueError(
+                "COUNTY_FIPS and COUNTIES disagree: "
+                + "; ".join(f"{f} is {actual!r}, listed as {listed!r}" for f, listed, actual in mismatched)
+                + ". Fix region.py so the two lists describe the same counties."
+            )
 
     # Reproject to WGS84 if needed
     if study_counties.crs is None:

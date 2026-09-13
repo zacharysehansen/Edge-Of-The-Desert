@@ -12,7 +12,10 @@ paths, not one; now gated), [§11.5](#115-one-open-question-and-the-experiment-t
 long-run limit, 7.7× past the evidence; measuring it at the scenario horizon multiplies every
 groundwater lever by 7.7), and
 [§15a](#15a-parameter-bands-on-the-cards-measured) (the cards now show each lever's range over the
-declared parameter bands, and which constants drive its width).
+declared parameter bands, and which constants drive its width), and
+[§22](#22-the-region-was-never-the-one-this-document-named-measured) (the county list selected
+Maricopa and Gila, not Graham and La Paz, for the life of the project; the region is kept and two
+constants that had been reasoned from the wrong map are re-derived).
 
 For the readable version of what the finished model *does* — every path from a slider to an
 output, and the reasoning behind each — see [DISCUSSION.md](DISCUSSION.md). This document is the
@@ -2205,3 +2208,78 @@ the rainfall-runoff response to a storm, which is where impervious cover actuall
 discharge is on disk; **daily precipitation is not**, only monthly. That one needs an acquisition.
 
 ---
+
+## 22. The region was never the one this document named `MEASURED`
+
+Every "eight-county" in this document, and every county name in every other, was wrong in the same
+way. `scripts/phase1/region.py` listed `04013` as Graham and `04007` as La Paz; those codes are
+**Maricopa** and **Gila**, and every filter runs on the code. The full record — the measurement,
+the decision to keep the region, and what it changes — is
+[PROBLEMS.md P8](PROBLEMS.md#p8-the-region-was-never-the-one-the-documents-named-measured--kept-on-purpose).
+This section is the Phase 3 consequence.
+
+### Nothing measured here was measured on the wrong region
+
+Every number in §1–§21 was computed on the region the code selects, which is the region the app
+runs on. The population series that §10 found to be a pure trend is Phoenix's; the aquifer §12
+calibrated is the one under Phoenix, Pinal and Tucson; the 130,833 MODIS cells §17 differenced sit
+inside the Maricopa-and-Gila cutline. The captions were wrong, not the data, and no result in this
+document is retracted.
+
+### The region is kept, because it is the right one for the Lake Mead lever
+
+With Maricopa in, the region holds **all three CAP Active Management Areas** — Phoenix, Pinal,
+Tucson — and CAP delivers to no county outside those three. The ADWR–CAP joint shortage statement
+(2021) puts Arizona's reduction as *"borne almost entirely by the CAP system"*. So the region is,
+to within on-river 4th-priority water, the whole footprint of the shortage tiers §1 of
+PHASE3_PARAMS.md transcribed. A region without Maricopa would exclude CAP's largest customer and
+have to guess what share of the cut lands inside it — which is exactly the guess
+`region_share_of_az_reduction = 0.60` was.
+
+### Two constants had been reasoned from the wrong map
+
+| constant | was | now | why |
+|---|---|---|---|
+| `region_share_of_az_reduction` | 0.60, band 0.40–0.80 | **0.95, band 0.85–1.00** | its source string said "Maricopa is not in-region"; it always was. Still `UNTESTED` — the residual is on-river 4th-priority water, and CAP deliveries by county would replace it |
+| `irrigated_acres` | 681,143 | **718,832** | NASS 2017 Table 10 summed over the eight *named* counties (Graham 46,682 + La Paz 97,139) divided by the area of the eight *selected* ones. Maricopa (180,214) and Gila (1,296) in, the other two out; `irrigated_fraction` 2.452 % → **2.588 %** |
+
+`irrigated_acres` is also the calibration `ndvi_endpoints.py` uses to turn HUC12 withdrawal into
+irrigated area, so §20 was re-run. The baseline-controlled slope went **+0.3353 → +0.3177**, the
+t-statistic did not move (33.38 → 33.38: the regressor was rescaled, nothing else changed), and
+`ndvi_irrigated_crop` ships at **0.5344** (was 0.5520), still inside the assumed 0.45–0.65 and
+2.8 % from its midpoint rather than 0.4 %. **The irrigation → NDVI lever does not move**: it is
+`irrigated_fraction × slope`, the fraction rose 5.5 % and the slope fell by the same factor, because
+both are calibrated on the same acres. The sweep reads +9.35 before and +9.35 after.
+
+### What moved in the app
+
+Every Lake Mead path scales by 0.95 / 0.60 = 1.58×. Nothing else does.
+
+| slider (policy min → max) | grace | ndvi | groundwater | surface water | wildlife |
+|---|---|---|---|---|---|
+| Lake Mead, before | +1.32 | 0.00 | −4.22 | +0.17 | +0.04 |
+| **Lake Mead, after** | **+2.09** | 0.00 | **−6.69** | **+0.27** | **+0.07** |
+
+The Lake Mead → groundwater band narrows from **7×** ([§15a](#15a-parameter-bands-on-the-cards-measured))
+to **4.3×**: at −64 ft for 12 months, +0.94 ft of depth, band +0.43 to +1.84. It is still the
+widest human band on that card, and for the same reason — `groundwater_substitution_fraction`
+(0.30–0.70) is untouched by any of this. All six gates pass; every lever holds its sign in all 12
+months; Layer 1 is bit-identical across every human lever.
+
+### One latent fix, deliberately not propagated
+
+`water_stress.py` weighted Maricopa's DSCI by Graham's area and Gila's by La Paz's. Re-fetching all
+eight counties and re-weighting moves the index by **r = 0.99916** (levels) and **0.9984**
+(month-to-month change). The weights are corrected in the script; the CSV is not regenerated,
+because `usdm_dsci` is a feature in three learned models and regenerating it is a retrain for a
+0.08 % change in correlation. Whoever next retrains Phase 2 should regenerate it first
+(PROBLEMS.md P8, item 3).
+
+### What this does to §16
+
+Item 2 — CAP monthly deliveries — gets better, not worse: with all three CAP counties in-region,
+deliveries by county would turn `region_share_of_az_reduction` into a near-identity rather than an
+apportionment, and the acquisition's whole value concentrates on the GRACE pumping proxy. The rest
+of the ranking stands. And the guard: `load_county_boundary()` now asserts that each FIPS code's
+shapefile `NAME` matches the name listed beside it, and was verified to fire by putting "Graham"
+back.

@@ -574,7 +574,7 @@ what sounds plausible.
 - **Do not tune GRACE or groundwater.** Both are at their data-limited ceiling. Their constraint is
   what is missing from the panel, not what is wrong with the estimator.
 - **Do not acquire ADWR pumpage.** Checked: it is **annual and AMA-only**, filed by March 31, with
-  Yuma, Greenlee and (until Ranegras Plain was designated in January 2026) La Paz largely outside
+  Yuma, Greenlee and Gila largely outside
   any AMA. An annual value is a step function whose within-year variance is ~0, so its contribution
   to a monthly difference is ~0 — the same diagnosis the variance table gives `population`.
 - **Do not compare skill across a window or target change.** See

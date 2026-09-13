@@ -1,7 +1,10 @@
 # Edge of the Desert
 
-A planning-stage environmental model for an eight-county southern Arizona region
-(Pima, Pinal, Santa Cruz, Cochise, Graham, Greenlee, Yuma, La Paz). It takes human
+A planning-stage environmental model for an eight-county central and southern Arizona
+region: the three counties the Central Arizona Project serves (Maricopa, Pinal, Pima) plus
+Santa Cruz, Cochise, Greenlee, Yuma and Gila. Until 2026-09-12 every document here named
+Graham and La Paz in place of Maricopa and Gila; the code never did, and the region was kept
+deliberately — see [PROBLEMS.md P8](PROBLEMS.md). It takes human
 and climate pressures as inputs — population, irrigation, public-supply withdrawal,
 urbanization, reservoir operations, temperature, precipitation, drought — and predicts
 six environmental responses: vegetation health (NDVI), groundwater storage anomaly

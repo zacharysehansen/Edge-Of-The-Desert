@@ -55,7 +55,7 @@ part of *that* is replaced by pumping rather than by fallowing or conservation.
 
 | Parameter | Assumed | Band | Why |
 |---|---|---|---|
-| `region_share_of_az_reduction` | 0.60 | 0.4 – 0.8 | CAP serves Maricopa, Pinal and Pima. Pinal + Pima are in-region; Maricopa is not. The Tier-1 cut fell almost entirely on the CAP agricultural pool, which is predominantly Pinal. **Not sourced — should be replaced with CAP delivery data by county.** |
+| `region_share_of_az_reduction` | ~~0.60~~ **0.95** (2026-09-12) | ~~0.4 – 0.8~~ **0.85 – 1.00** | ~~CAP serves Maricopa, Pinal and Pima. Pinal + Pima are in-region; Maricopa is not.~~ **Maricopa was always in-region** ([PROBLEMS.md P8](PROBLEMS.md)), so all three CAP counties are. Arizona's reduction is "borne almost entirely by the CAP system" (ADWR–CAP joint shortage statement, 2021, <https://library.cap-az.com/documents/departments/planning/colorado-river-programs/ADWR-CAP-Shortage-Statement.pdf>); the residual is 4th-priority on-river water. **Still not a measured number — CAP delivery data by county would replace it.** |
 | `groundwater_substitution_fraction` | 0.50 | 0.3 – 0.7 | Share of lost CAP water replaced by groundwater pumping rather than fallowing. Pinal's DCP mitigation explicitly funded new wells. **Not sourced.** |
 
 Both scale the lever linearly. State them in the UI with the band.
@@ -155,19 +155,26 @@ Compute it in the parameter script from the reference-year values rather than ha
 2017*, USDA NASS Volume 1 Chapter 2, Arizona county-level data
 (<https://www.nass.usda.gov/Publications/AgCensus/2017/Full_Report/Volume_1,_Chapter_2_County_Level/Arizona/st04_2_0010_0010.pdf>):
 
-| County | Irrigated acres, 2017 |
-|---|---|
-| Cochise | 86,008 |
-| Graham | 46,682 |
-| Greenlee | 5,136 |
-| La Paz | 97,139 |
-| Pima | 30,008 |
-| Pinal | 232,224 |
-| Santa Cruz | 2,551 |
-| Yuma | 181,395 |
-| **Eight-county total** | **681,143** |
+> **Corrected 2026-09-12.** The table below summed the eight counties the documents *named*. The
+> pipeline's FIPS list selects Maricopa and Gila, not Graham and La Paz
+> ([PROBLEMS.md P8](PROBLEMS.md)), so the numerator was over one county set and the denominator
+> (`region_acres`, from the same FIPS list) over another. Same NASS table, same row:
 
-Against the in-repo region area of 27,779,840 acres: **irrigated fraction = 2.452 %**.
+| County | Irrigated acres, 2017 | in the region? |
+|---|---|---|
+| Cochise | 86,008 | yes |
+| Gila | 1,296 | **yes** (was omitted) |
+| Graham | 46,682 | **no** (was counted) |
+| Greenlee | 5,136 | yes |
+| La Paz | 97,139 | **no** (was counted) |
+| Maricopa | 180,214 | **yes** (was omitted) |
+| Pima | 30,008 | yes |
+| Pinal | 232,224 | yes |
+| Santa Cruz | 2,551 | yes |
+| Yuma | 181,395 | yes |
+| **Eight-county total, as selected** | **718,832** | (was 681,143) |
+
+Against the in-repo region area of 27,779,840 acres: **irrigated fraction = 2.588 %** (was 2.452 %).
 
 ### 4b. NDVI endpoints `UNTESTED` — `ndvi_impervious` now MEASURED
 
@@ -201,6 +208,11 @@ Against the in-repo region area of 27,779,840 acres: **irrigated fraction = 2.45
 >
 > So of the two endpoints assumed below, one was 5.5× too strong and one was very nearly exact.
 > Only measurement told them apart.
+>
+> **Re-measured 2026-09-12** after the irrigated-acres correction in §4a ([PROBLEMS.md P8](PROBLEMS.md)):
+> the calibration acres rose 681,143 → 718,832, the slope fell by the same factor (+0.3353 → +0.3177,
+> t unchanged), and `ndvi_irrigated_crop` ships at **0.5344**, 2.8 % from the assumed midpoint and
+> still inside the band. The lever `irrigated_fraction × slope` is unchanged: +9.35 before and after.
 
 
 The plan says both endpoints are "measurable in the project's own MOD13A3 pixels". They were not

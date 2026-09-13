@@ -64,17 +64,22 @@ END_MONTH = "2023-12"
 # USDM Statistics API endpoint (confirmed working — returns CSV)
 USDM_API_URL = "https://usdmdataservices.unl.edu/api/CountyStatistics/GetDSCI"
 
-# County land areas in square miles (for area weighting)
-# Source: U.S. Census Bureau
+# County land areas in square miles (for area weighting), from the TIGER 2023
+# polygons in EPSG:5070 (data/raw/tiger). Until 2026-09-12 the 04013 and 04007 rows
+# carried GRAHAM's (4,641) and LA PAZ's (4,513) areas, because region.py named those
+# counties beside these codes; the DSCI fetched for them was Maricopa's and Gila's.
+# The weights are corrected here; data/Final/water_stress_monthly.csv has NOT been
+# regenerated (PROBLEMS.md P8 — the reweighting moves the index by r = 0.9992, and
+# regenerating it means retraining GRACE, NDVI and groundwater).
 COUNTY_AREAS_SQMI = {
-    "04019": 9189,  # Pima
-    "04021": 5374,  # Pinal
-    "04023": 1238,  # Santa Cruz
-    "04003": 6219,  # Cochise
-    "04013": 4641,  # Graham
-    "04011": 1848,  # Greenlee
+    "04019": 9191,  # Pima
+    "04021": 5375,  # Pinal
+    "04023": 1237,  # Santa Cruz
+    "04003": 6217,  # Cochise
+    "04013": 9226,  # Maricopa
+    "04011": 1847,  # Greenlee
     "04027": 5519,  # Yuma
-    "04007": 4513,  # La Paz
+    "04007": 4795,  # Gila
 }
 
 TOTAL_AREA = sum(COUNTY_AREAS_SQMI.values())

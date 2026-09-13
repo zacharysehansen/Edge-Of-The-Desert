@@ -10,7 +10,7 @@
     "final_dir": "data/Final"
   },
   "study_area": {
-    "name": "Southern Arizona eight-county region",
+    "name": "Central and southern Arizona eight-county region (the three CAP counties plus the border counties)",
     "bbox": {
       "min_lon": -114.81,
       "min_lat": 31.33,
@@ -24,10 +24,10 @@
       "Pinal",
       "Santa Cruz",
       "Cochise",
-      "Graham",
+      "Maricopa",
       "Greenlee",
       "Yuma",
-      "La Paz"
+      "Gila"
     ],
     "county_fips": [
       "04019",

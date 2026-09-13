@@ -36,6 +36,19 @@ direction line under its title:
 | **Wildfire Risk Index** | **more burned area** |
 | Bird Abundance vs Normal | more birds |
 
+## 0a. Which eight counties
+
+Phoenix is in the region. Until 2026-09-12 every document said the eight counties were Pima, Pinal,
+Santa Cruz, Cochise, Graham, Greenlee, Yuma and La Paz; the FIPS codes the code filters on selected
+**Maricopa and Gila** in place of Graham and La Paz, and always had. So the population slider is
+about 70% Phoenix, the impervious signal is mostly Phoenix, and the aquifer under the groundwater
+card is the Phoenix–Pinal–Tucson corridor. The region was **kept**, because with Maricopa in it
+contains all three CAP Active Management Areas — the whole footprint of the Lake Mead shortage
+tiers — and two constants that had been reasoned as if Maricopa were outside were re-derived. The
+measurement and the reasoning are in
+[PROBLEMS.md P8](PROBLEMS.md#p8-the-region-was-never-the-one-the-documents-named-measured--kept-on-purpose)
+and [PHASE3_PLAN.md §22](PHASE3_PLAN.md).
+
 ---
 
 ## 1. The whole map, in one table
@@ -121,7 +134,8 @@ horizon sweep that measured the storage coefficient at the scenario's own durati
 takes a Colorado River cut, part of which gets replaced by pumping — so a falling Mead drives the
 water table down. The slider reads elevation, so raising Mead relieves pumping and the depth
 recovers. It is the weakest of the four despite being the best-documented mechanism (published DCP
-shortage tiers), because two untested multipliers cut it to 30% of its nominal strength. See §5.
+shortage tiers), because two untested multipliers cut it to 47.5% of its nominal strength (0.95 ×
+0.50; it was 30% until 2026-09-12, when the region turned out to contain Maricopa — §0a). See §5.
 
 **The honest caveat.** Groundwater's *climate* column is nearly blank (−0.20 for precipitation),
 and that is partly real and partly not. Pumping genuinely is the dominant driver of Arizona water
@@ -297,9 +311,9 @@ are `UNTESTED`.** The four that are measured are the four that were argued about
 | `ndvi_impervious` | 0.1811 | 0.1710 – 0.2075 | **MEASURED** | urbanization → NDVI |
 | `stream_capture_fraction` | 0.10 | 0.05 – 0.25 | UNTESTED | all four negative streamflow paths |
 | `effluent_return_fraction` | 0.55 | 0.45 – 0.70 | UNTESTED | population → streamflow |
-| `region_share_of_az_reduction` | 0.60 | 0.40 – 0.80 | UNTESTED | every Lake Mead path |
+| `region_share_of_az_reduction` | 0.95 | 0.85 – 1.00 | UNTESTED | every Lake Mead path |
 | `groundwater_substitution_fraction` | 0.50 | 0.30 – 0.70 | UNTESTED | every Lake Mead path |
-| `ndvi_irrigated_crop` | 0.5520 | 0.5520 – 0.5709 | **MEASURED** | irrigation → NDVI |
+| `ndvi_irrigated_crop` | 0.5344 | 0.5344 – 0.5523 | **MEASURED** | irrigation → NDVI |
 | `runoff_coefficient_impervious` / `_natural` | 0.85 / 0.15 | 0.75–0.95 / 0.05–0.25 | UNTESTED | urbanization → streamflow |
 | `transfer_surface_water_to_wildlife` | 0.0536 | 0.0536 – 0.1953 | MEASURED | the entire wildlife column |
 
@@ -313,10 +327,11 @@ network cannot see them. They stay wide, honestly.
 **Where the assumptions hurt most:**
 
 - **Lake Mead is the best-documented mechanism and the weakest lever in the app**, because its two
-  untested multipliers multiply: 0.60 × 0.50 = 30% of nominal. Its effect on groundwater spans
-  **7×** across the band (+0.9 to +6.5 points). That lever is not *small*, it is *unknown* — a
-  materially different statement, and the reason the card shows the range rather than just the
-  point.
+  untested multipliers multiply: 0.95 × 0.50 = 47.5% of nominal. Its effect on groundwater spans
+  **4.3×** across the band (it was 7× when `region_share_of_az_reduction` sat at 0.60 on the
+  belief that Maricopa was outside the region — it never was, see §0a). That lever is not *small*,
+  it is *unknown* — a materially different statement, and the reason the card shows the range
+  rather than just the point.
 - **Wildlife spans about 6×**, because it compounds the transfer edge's own band with every
   upstream streamflow parameter.
 - **Both NDVI endpoints are now measured, and they came out very differently.** `ndvi_impervious`
@@ -362,7 +377,8 @@ Ranked, with the reasoning, in [PHASE3_PLAN.md §16](PHASE3_PLAN.md). In short:
 
 1. **CAP monthly deliveries** — one acquisition that serves two unrelated problems: the only
    remaining monthly pumping proxy for GRACE, and the county-level data
-   `region_share_of_az_reduction` explicitly asks for.
+   `region_share_of_az_reduction` explicitly asks for (less urgently since §0a: all three CAP
+   counties are in-region, so deliveries by county would confirm a near-identity, not apportion).
 2. ~~**Corroborate the streamflow constants** with the method that worked for irrigation.~~
    **Tried; all three return nulls** ([PHASE3_PLAN.md §21](PHASE3_PLAN.md)). Population and
    impervious cover are pure trends (99.8% and 99.9% of their variance survives deseasonalising),
