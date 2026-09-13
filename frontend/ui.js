@@ -427,9 +427,21 @@ function updateProvenance(key, provenance) {
 
   if (!provenance) return;
 
+  // The learned models predict THIS MONTH's change from last month (§4). Layer 3
+  // integrates the human levers over the scenario because a storage balance
+  // accumulates and its physics is known; it does not integrate the learned climate
+  // term (§13, §32: the models carry no dynamics, and a multiplier cannot fix a sign).
+  // So this row is the model's one-step change in the selected month under the
+  // scenario's climate, NOT the effect of the whole duration -- and the card says so,
+  // rather than letting the duration selector imply it (PHASE3_PLAN.md §31).
+  const isResidual = !CLIMATE_ONLY_OUTPUTS.includes(key) && key !== 'wildlife';
   host.appendChild(provenanceRow(
-    'prov-climate', 'climate (learned model)', provenance.climatePoints,
-    TIER_BASIS.climate.detail,
+    'prov-climate',
+    isResidual ? 'climate (learned model) \u2014 this month\u2019s change' : 'climate (learned model)',
+    provenance.climatePoints,
+    TIER_BASIS.climate.detail + (isResidual
+      ? '\n\nThis is the learned model\u2019s change in the selected month under the scenario\u2019s climate, not the accumulated effect over the scenario duration. The duration selector integrates the human levers below (a storage balance accumulates); the learned climate term is not integrated, because the models carry no dynamics of their own and a fitted multiplier cannot correct a sign (PHASE3_PLAN.md \u00a731\u2013\u00a732).'
+      : ''),
   ));
 
   if (CLIMATE_ONLY_OUTPUTS.includes(key)) {
