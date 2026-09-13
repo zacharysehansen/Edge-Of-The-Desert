@@ -64,6 +64,14 @@ Both scale the lever linearly. State them in the UI with the band.
 
 ## 2. Groundwater storage balance `UNTESTED` — the weak link
 
+> **And again, 2026-09-12 — the target changed.** The groundwater output is now the Cochise
+> County well index ([PHASE3_PLAN.md §28–§29](PHASE3_PLAN.md)); `storage_af_per_ft` recalibrated on
+> it is **707,463 AF/ft at 12 months** (t = 1.44), band 466,032–707,463. Because the coefficient is
+> fitted against the *regional* irrigation anomaly, Cochise's share of that pumping (8.7 %) is
+> inside it; the municipal levers are scaled by `cochise_municipal_to_irrigation_share` = 0.191.
+> The Lake Mead lever no longer reaches the groundwater card at all — no CAP water reaches Cochise
+> County. The 244,082 figure below was the blended-index calibration.
+
 > **Superseded outright, 2026-09-10 — `A_eff` is now MEASURED, and it is neither limit.**
 > [PHASE3_PLAN.md §12a](PHASE3_PLAN.md) ran the spreading-cone test §12 called for and measured
 > the storage coefficient at each horizon. The cone does spread (809,419 → 1,627,214 acres from
@@ -249,7 +257,7 @@ its min→max range at a 12-month duration." With honestly-sourced coefficients:
 | Lever | Best path | Est. 12-mo effect | Meets ≥5? |
 |---|---|---|---|
 | Irrigation | groundwater depth | ~4 pts estimated (±factor 2 on `A_eff`) — **measured: 60.1 pts, band 51–80**, at the coefficient measured for a 12-month horizon (PHASE3_PLAN.md §12a) | **yes, by 12×** |
-| Lake Mead | groundwater depth via tiers | depends on re-ranging; 0 if the slider cannot reach 1,075 | only if re-ranged |
+| Lake Mead | ~~groundwater depth via tiers~~ GRACE only since §29 (the groundwater card is the Cochise index and no CAP water reaches it) | re-ranged in D5; `region_share` MEASURED at 1.0 (§23) | on GRACE, yes |
 | Population | groundwater depth via GPCD | small | likely no |
 | Public supply | groundwater depth | small | likely no |
 | Urbanization | NDVI | ~3.1 pts | no |

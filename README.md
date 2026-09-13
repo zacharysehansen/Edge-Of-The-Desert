@@ -42,12 +42,15 @@ data/
   Final/           clean per-variable CSVs written by Phase 1 — inputs to Phase 2
 scripts/
   phase1/          one script per source variable + run_phase1.py orchestrator
+                   (incl. cap_deliveries.py, gldas.py, humidity.py — token-fetched)
   phase2/          merge, features, baselines, model_*, export, run_phase2.py,
-                   experiment_human_block.py, experiment_grace_nested.py
+                   experiment_*.py (human_block, grace_nested, grace_cap, grace_gldas,
+                   grace_linear, groundwater_linear, monotone, feature_blocks)
   phase3/          generate_stats.py, top_inputs.py, slider_sensitivity.py,
-                   check_catalog_parity.py, check_frontend.mjs,
-                   aquifer_calibration.py, ndvi_endpoints.py,
-                   streamflow_calibration.py, structural_params.py, structural.py
+                   check_catalog_parity.py, check_frontend.mjs, structural_params.py,
+                   structural.py, and the calibrations: aquifer_, ndvi_endpoints,
+                   streamflow_, transfer_, cap_, cochise_share, groundwater_diagnosis,
+                   region_variants, experiment_integrate_learned
 model/             exported ONNX models + feature/CV JSON sidecars (Phase 2 output)
 frontend/          static web app (index.html, ui.js, models.js, catalog.js,
                    state.js, style.css)
@@ -342,8 +345,8 @@ Then open <http://localhost:8000/frontend/index.html>.
   `structural_params.json` and runs under Node (`node frontend/structural.js --dump`).
 - `ui.js` renders the controls and updates the output cards. Each lever row carries its
   **range over the declared parameter bands** alongside the point estimate, and its tooltip
-  names the constants that drive that width — twelve of Layer 2's constants ship with a
-  band — ten of which still feed a lever path, six of those still `UNTESTED`
+  names the constants that drive that width — thirteen of Layer 2's constants ship with a
+  band — eleven of which still feed a lever path, five of those still `UNTESTED`
   ([PHASE3_PLAN.md](PHASE3_PLAN.md) §15a). The range is Layer 2 parameter uncertainty only;
   the learned climate term on the same card carries its own error, which is not in it.
 

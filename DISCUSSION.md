@@ -332,7 +332,7 @@ restores GRACE storage, slightly increases streamflow — and makes the region b
 
 ## 5. What we are assuming, and where it hurts
 
-Of the twelve constants shipping with a declared band, **ten still feed a lever and six of those
+Of the thirteen constants shipping with a declared band, **eleven still feed a lever and five of those
 are `UNTESTED`.** The four that are measured are the four that were argued about most.
 
 | constant | value | band | status | what it decides |
@@ -427,8 +427,14 @@ Ranked, with the reasoning, in [PHASE3_PLAN.md §16](PHASE3_PLAN.md). In short:
    and the Cochise half alone forecasts at +0.35 target R² (skill +0.23) with every physical sign
    right. **Taken (§29): the output is the Cochise index, shipped as a four-input ridge with skill
    +0.23; the Lake Mead lever is off the card.** Open: a physical score scale for a card whose
-   historical range is 2 ft, a climate-sign gate, and extending the well pull past 2020 for a
-   genuinely held-out test.
+   historical range is 2 ft, and extending the well pull past 2020 for a genuinely held-out test.
+4. **The climate-sign gate exists now (§30–§31)** and holds five known failures. Rain → streamflow
+   fails sustained and passes as a pulse — the residual architecture showing a month as if it were
+   a year, which the card now labels. PDSI → streamflow and three small NDVI pairs are real.
+5. **Every cheap feature has been tested (§33)** — VPD, GLDAS runoff, root-zone soil moisture —
+   and none deploys; NDVI with soil moisture is the near miss at t = 1.83. What is left adds rows
+   or wells: the 2024–2025 panel extension (needs LP DAAC and PO.DAAC approvals), the NWIS well
+   pull past 2020, ADWR's AMA wells, and the per-well groundwater panel.
 2. ~~**Corroborate the streamflow constants** with the method that worked for irrigation.~~
    **Tried; all three return nulls** ([PHASE3_PLAN.md §21](PHASE3_PLAN.md)). Population and
    impervious cover are pure trends (99.8% and 99.9% of their variance survives deseasonalising),

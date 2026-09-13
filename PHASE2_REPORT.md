@@ -588,6 +588,10 @@ comparison structured in its favour. See the GRACE section above.
 
 ## Recommended next steps
 
+> **2026-09-13.** Superseded in part: GRACE and groundwater now have skill (model class and target,
+> PHASE3_PLAN.md §26–§29), and the feature probes this section recommends were run in §23–§25 and
+> §33 and are null. The live list is in PHASE3_PLAN.md §33; what follows is the record.
+
 > **See [PROBLEMS.md](PROBLEMS.md)** for the full register: every known defect, its root cause,
 > its solution, and what is measured versus merely estimated.
 

@@ -1,8 +1,14 @@
 # Phase 3 Plan — The Sliders Do Not Work
 
 **Status: complete. All seven steps of §6 are done — the sliders work, every sign is stable,
-and each output card states where its number came from. The §7 gate passes on all 20
-lever/output pairs.**
+and each output card states where its number came from. The §7 gate passes on all lever/output
+pairs (19 since §29 took the Lake Mead lever off the groundwater card).**
+
+**State as of 2026-09-13 (§22–§33):** the region is the CAP counties plus the border counties
+(§22); all six models have skill, GRACE and groundwater as four-input ridges (§27, §29), groundwater
+on the Cochise well index; 15 levers, 4 corroborated; 13 banded constants, 6 `MEASURED`, 5 live
+`UNTESTED`; the climate-sign gate (§30) holds five known failures explained in §31; every cheap
+feature has been tested and none deploys (§33). What remains adds rows or wells, not features.
 
 **Addenda since, each closing an item this document left open:**
 [§11.3](#113-a-double-counting-hazard-the-plan-does-not-cover-verified) (the double-count was eight

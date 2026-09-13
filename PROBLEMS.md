@@ -1187,6 +1187,13 @@ number remains the headline.)*
 
 # Part 3 — Recommended order of work
 
+> **2026-09-13.** Items 5 and 7 below are done (both null for GRACE as features; GRACE then got
+> skill from a model-class change, PHASE3_PLAN.md §26–§27), groundwater got skill from a target
+> change (§28–§29), and every cheap feature was tested in §33. The current order of work is the
+> closing list of [PHASE3_PLAN.md §33](PHASE3_PLAN.md): the 2024–2025 panel extension (two
+> Earthdata approvals), the NWIS well pull past 2020, ADWR's AMA wells, the per-well groundwater
+> panel. The table below is the record of how the list got there.
+
 Ranked by expected gain per unit of effort. `nclimdiv.py` and the per-station anomaly targets have
 landed, which unblocked everything below them.
 
