@@ -131,7 +131,7 @@ const OUTPUT_DEFS = {
   // so it moves with the roster as much as with the water; the models are trained on the
   // centered version instead. Groundwater is still "depth to water", so positive = deeper
   // = less water = worse. Surface water is a log ratio, so 0 = normal flow and +0.7 ≈ 2x.
-  groundwater:  { label: "Groundwater Depth vs Normal", unit: "ft",       higherIsBetter: false, rising: "water table DEEPER \u2014 less water", feedsInto: null       },
+  groundwater:  { label: "Well Depth vs Normal (Cochise basins)", unit: "ft", higherIsBetter: false, rising: "water table DEEPER \u2014 less water", feedsInto: null       },
   // Structural, not learned: the wildlife model has no discharge feature either, but
   // there is a real riparian transfer edge in Layer 2 carrying it (structural.js).
   surface_water:{ label: "Streamflow vs Normal",        unit: "log ratio", higherIsBetter: true,  rising: "more flow past the gages", feedsInto: "wildlife" },

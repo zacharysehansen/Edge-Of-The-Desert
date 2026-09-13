@@ -497,7 +497,20 @@ _MONTHLY_MODEL_SPECS: dict[str, dict] = {
         "extended": False,
         # depth_to_water_ft_mean is the *same measurement* as the target, just averaged
         # without centering. Leaving it in X would hand the model the answer.
-        "also_exclude": ["depth_to_water_ft_mean", "n_wells"],
+        # The blend over every county (`depth_to_water_anomaly_ft_allwells`) is caught
+        # by the target-prefix rule; its well count is not.
+        "also_exclude": ["depth_to_water_ft_mean", "n_wells", "n_wells_all"],
+        # PHASE3_PLAN.md §29: groundwater is a ridge on four climate inputs, like GRACE
+        # (§26). Chosen over the retrained in-fold competition because the declared
+        # forecast test between them is a null and the competition's climate responses
+        # carry the wrong physical sign (rain deepens, heat shallows). Editing this list
+        # is a new pre-declared experiment, not a tweak.
+        "fixed_features": [
+            "gldas_tws_proxy_delta",
+            "precipitation_mm_day",
+            "precipitation_mm_day_lag1",
+            "temperature_2m_c_anomaly",
+        ],
     },
     "surface_water": {
         "target": "discharge_log_anomaly",

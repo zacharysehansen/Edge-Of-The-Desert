@@ -1,66 +1,18 @@
 {
-  "month_cos": {
-    "mean": 0.010803768967052183,
-    "std": 0.7102604445694788
+  "gldas_tws_proxy_delta": {
+    "mean": -0.051194783470265945,
+    "std": 12.46391854587046
   },
-  "grace_groundwater_anomaly_lag3": {
-    "mean": -0.03688908675799087,
-    "std": 0.03998569340306144
+  "precipitation_mm_day": {
+    "mean": 0.7994483196347031,
+    "std": 0.7966960150115262
   },
-  "mead_pool_elevation_roll6": {
-    "mean": 1107.167398325723,
-    "std": 23.433630228772497
+  "precipitation_mm_day_lag1": {
+    "mean": 0.804781799086758,
+    "std": 0.7974448237786506
   },
-  "irrigation_total_withdrawal_mgd": {
-    "mean": 2560.1327168949774,
-    "std": 1569.2202551307473
-  },
-  "impervious_pct": {
-    "mean": 1.1193990867579908,
-    "std": 0.0950339866732706
-  },
-  "temperature_2m_c_roll6": {
-    "mean": 19.115407990867578,
-    "std": 4.993356467473532
-  },
-  "discharge_log_anomaly_lag1": {
-    "mean": -0.11464766302845715,
-    "std": 0.4846041139832544
-  },
-  "temperature_2m_c_anomaly_lag1": {
-    "mean": 0.04641830289193328,
-    "std": 7.767520522609177
-  },
-  "ndvi_roll3": {
-    "mean": 0.22245061491628618,
-    "std": 0.023484857933492614
-  },
-  "discharge_log_anomaly": {
-    "mean": -0.11688671595226197,
-    "std": 0.48547680946866517
-  },
-  "grace_groundwater_anomaly": {
-    "mean": -0.038460575342465754,
-    "std": 0.04129786832701581
-  },
-  "month_sin": {
-    "mean": -0.006237558921390139,
-    "std": 0.7070791429434027
-  },
-  "precipitation_mm_day_roll6": {
-    "mean": 0.8047299566210049,
-    "std": 0.31556395937642495
-  },
-  "mead_total_release": {
-    "mean": 12657.145453424659,
-    "std": 3325.0865173391817
-  },
-  "mead_pool_elevation": {
-    "mean": 1105.9498529680366,
-    "std": 22.98798249169279
-  },
-  "impervious_pct_lag1": {
-    "mean": 1.1177305936073059,
-    "std": 0.0959548652744065
+  "temperature_2m_c_anomaly": {
+    "mean": -0.036826179604261516,
+    "std": 7.789689420965561
   }
 }

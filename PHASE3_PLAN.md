@@ -32,7 +32,17 @@ against the shipped +0.02 and −0.03, 4 of 5 folds, t = 2.52 — **REAL**, the 
 this document has recorded for GRACE; deployment is an architecture change and is not done here),
 and [§27](#27-grace-ships-as-the-linear-model-the-retrain-and-what-moved-measured) (it is done:
 GRACE ships as the ridge, the drought index is regenerated, all six models are retrained, every
-gate passes, and the GRACE card's rain response is now +7.6 points and correctly signed).
+gate passes, and the GRACE card's rain response is now +7.6 points and correctly signed), and
+[§28](#28-the-groundwater-index-is-two-aquifers-and-only-one-of-them-is-predictable-measured)
+(groundwater: the linear model is NULL — the estimator is not its floor; the target is: 44 of 66
+wells are in Cochise County, 3 are in the Phoenix and Pinal AMAs, the Cochise and Pima sub-indices
+are uncorrelated, and the Cochise index alone forecasts at +0.35 target R² where the blend forecasts
+at +0.01. What to do about it is a target decision, left open), and
+[§29](#29-the-groundwater-output-is-the-cochise-index-and-it-forecasts-measured) (option A taken:
+the output is the Cochise well index, shipped as a four-input ridge with skill +0.23 and every
+climate sign physical; the Lake Mead lever comes off that card; the municipal levers are scaled to
+Cochise's share; the storage coefficient is recalibrated; and the irrigation lever now saturates a
+score scale that is two feet wide).
 
 For the readable version of what the finished model *does* — every path from a slider to an
 output, and the reasoning behind each — see [DISCUSSION.md](DISCUSSION.md). This document is the
@@ -2734,3 +2744,225 @@ part of the change; the slow part still belongs to Layer 2, where it always did.
 zero skill for the fifth consecutive re-run and stays there until the per-well design (roadmap step
 3) is tried. And the four GRACE inputs are fixed: a fifth is a new experiment with a declared rule,
 not an edit.
+
+## 28. The groundwater index is two aquifers, and only one of them is predictable `MEASURED`
+
+The roadmap's steps 1 and 2 for the groundwater model, run together. Step 2 is a null by its
+declared rule. Step 1 explains the null, and is the result.
+
+### Step 1: what the target is an index of
+
+`scripts/phase3/groundwater_diagnosis.py` → `model/groundwater_diagnosis.json`. The target
+`depth_to_water_anomaly_ft` is the mean of per-well anomalies over whichever USGS daily-value
+wells report each month — 10 to 42 of 66. The rebuild reproduces the shipped series exactly
+(r = 1.000000). By county:
+
+| county | wells | median reporting per month | with 10+ years |
+|---|---|---|---|
+| Cochise | 44 | 20 | 14 |
+| Pima | 14 | 10 | 11 |
+| Yuma | 5 | 1 | 1 |
+| Maricopa | 2 | 0 | 0 |
+| Pinal | 1 | 1 | 1 |
+
+The USGS daily-value service does not monitor the Phoenix AMA; ADWR does. So the region's pumping
+heartland, where all of its CAP water goes and where Layer 2's Lake Mead mechanism acts, has three
+wells in the index. Cochise County — the Willcox and Douglas basins, agricultural pumping outside
+any AMA for most of the record, no CAP water at all — has 44, and is 59 % of the roster in a typical
+month (25 % to 76 %).
+
+**The two halves do not move together.** Over 252 shared months the Cochise and Pima sub-indices
+correlate **−0.13** in level and **+0.07** in month-to-month change. Their trends are +0.01 ft/yr
+(Cochise, flat) and **−2.39 ft/yr** (Pima — the water table *rising* 2.4 ft a year under the Tucson
+AMA's managed recharge). Their month-to-month volatility is 0.47 ft (Cochise) against **2.98 ft**
+(Pima). So although Cochise supplies six wells in ten, the shipped index's monthly change is
+**81 % Pima** (r = +0.81 with the Pima change, +0.31 with Cochise): ten wells in a managed, injected,
+recovered aquifer set the noise, and thirty wells in a climate-and-pumping aquifer are averaged
+into it. Roster churn, the artifact P3 fixed, is no longer the problem: a fixed roster of the 27
+wells with ten or more years reproduces the shipped monthly change at r = +0.96.
+
+**And the Cochise half is the one the panel can see.** Monthly change of each index against the
+drivers, Pearson r:
+
+| index | GLDAS storage change | rain | irrigation (deseasonalized) | CAP (deseasonalized) |
+|---|---|---|---|---|
+| shipped | −0.20 | −0.14 | +0.14 | +0.07 |
+| **Cochise** | **−0.59** | **−0.44** | **+0.25** | +0.12 |
+| Pima | −0.08 | −0.05 | +0.12 | +0.06 |
+
+Every Cochise sign is physical (wet month → water table up → depth down; more pumping → depth
+down), and the GLDAS correlation is as strong as GRACE's. The Pima wells respond to nothing in the
+panel, because what moves them is Tucson Water's recharge and recovery schedule, which is an
+operations decision, not weather and not the regional irrigation total.
+
+### Step 2: the declared test, and its null
+
+`scripts/phase2/experiment_groundwater_linear.py` → `model/experiment_groundwater_linear.json`.
+The §26 design on groundwater: a ridge on five physical inputs (irrigation deseasonalized in-fold,
+GLDAS storage change, rain, rain lag 1, temperature anomaly) against the shipped in-fold
+competition, re-run, same five blocks, same rule.
+
+| arm | features | target R² | level R² | skill |
+|---|---|---|---|---|
+| shipped (in-fold competition) | 16 | −0.0048 | +0.4141 | +0.0146 |
+| linear_physical (judged) | 5 | +0.0128 | +0.4245 | +0.0250 |
+| linear_climate | 4 | +0.0115 | +0.4198 | +0.0204 |
+| linear_gldas1 | 1 | +0.0248 | +0.4305 | +0.0311 |
+
+```
+  Δ target R²  +0.0175       PASS
+  wins         4 of 5        PASS
+  paired t     +0.83         FAIL  (rule: ≥ 2.0)
+```
+
+**NULL.** Every arm, linear or not, sits at ±0.02 on this target. For groundwater the estimator
+was never the floor; there is nothing in the blended index for any model class to learn.
+
+### The exploratory number that says what to do — labelled as such
+
+Not a declared test and not a verdict: the same five-input ridge, the same folds, applied to each
+sub-index as its own residual target.
+
+| target | target R² (five folds) | level R² | persistence | skill |
+|---|---|---|---|---|
+| shipped index | +0.013 (−0.05, 0.00, 0.04, 0.06, 0.02) | 0.42 | 0.40 | +0.03 |
+| **Cochise sub-index** | **+0.353 (0.10, 0.26, 0.54, 0.51, 0.35)** | 0.56 | 0.33 | **+0.23** |
+| Cochise, 10-year+ wells only | +0.329 | 0.50 | 0.27 | +0.24 |
+| Pima sub-index | −0.005 | 0.35 | 0.34 | +0.01 |
+
+Five positive folds on the Cochise index, a skill of +0.23 that matches the deployed GRACE, and a
+Pima index that is exactly as unpredictable as the blend. **The groundwater model has been at zero
+for five re-runs because its target averages a forecastable aquifer with an unforecastable one,
+and the unforecastable one carries the variance.**
+
+### What this means, and what is not decided here
+
+Nothing ships from this section. The choice is about what the groundwater output *is*, and it
+belongs to the owner:
+
+- **A. Make the output the Cochise index.** "Well depth vs normal, Willcox and Douglas basins." It
+  is 44 of the 66 wells, it is the region's unregulated agricultural pumping, the irrigation lever
+  is physically right for it (and the §12 calibration would need re-running on it, with the
+  storage coefficient likely to change), and it forecasts. The Lake Mead lever would have to come
+  **off** that card: no CAP water reaches Cochise County, and a CAP-substitution mechanism applied
+  to those wells is wrong in a way the current blend merely hides.
+- **B. Two groundwater outputs.** The Cochise index as above, plus a Tucson AMA index that carries
+  the Lake Mead and CAP mechanism and is honest about having no forecast skill from ten wells. The
+  second becomes a real model only when ADWR's GWSI wells for the three AMAs are acquired (roadmap
+  step 4), which puts the target where Layer 2's mechanism already is.
+- **C. Keep the blend and relabel it.** Honest, and it forecasts nothing.
+
+The per-well panel (roadmap step 3) is still worth building, but this section changes what it is
+for: not to rescue the blend, but to give the Cochise model its wells' own basins and, once ADWR
+data exists, to hold the AMA wells beside them.
+
+## 29. The groundwater output is the Cochise index, and it forecasts `MEASURED`
+
+Option A of [§28](#28-the-groundwater-index-is-two-aquifers-and-only-one-of-them-is-predictable-measured),
+taken. `depth_to_water_anomaly_ft` is now the per-well anomaly index over the 44 Cochise County
+wells (`groundwater_levels.py`, `TARGET_COUNTY_FIPS = 4003`); the old blend over every county is kept
+beside it as `depth_to_water_anomaly_ft_allwells`, and reproduces the previous target to the last
+digit. The card is "Well Depth vs Normal (Cochise basins)". The index's standard deviation is
+0.65 ft where the blend's was 1.18; its 5th-to-95th-percentile range, which is the card's 0–100
+scale, is **2.06 ft** where the blend's was 19.2.
+
+### The model, and how it was chosen
+
+The declared test (`experiment_groundwater_linear.py`, second run, rule and tie-break in its
+docstring) compared the five-input ridge against "the shipped arm" on the Cochise target. The
+ridge lost every fold (t = −2.54): **NULL**, and by the declared consequence the in-fold
+competition was retrained on the new target. Then two things surfaced, and both are recorded
+because they changed what shipped:
+
+1. **The experiment's "shipped" arm was not the shipped pipeline.** It ran the in-fold competition
+   on the 16 features the old model had exported, where the real pipeline selects in-fold from 63.
+   That arm scored +0.456 target R²; the real pipeline, retrained, scored **+0.156** (skill +0.07).
+   Against the real pipeline, on the same five blocks (the fold boundaries were checked to be
+   identical), the linear arms score: five-input ridge Δ +0.197, 4 of 5, t = 1.84; climate-only
+   ridge Δ +0.200, 4 of 5, t = 1.81; one-column OLS on GLDAS change Δ +0.244, 4 of 5, t = 2.08.
+   The declared comparison, executed correctly, is a null by 0.16 of a t-statistic. It does not
+   license the linear model on forecast grounds.
+2. **The retrained pipeline's climate responses have the wrong physical sign.** In the sweep, more
+   rain deepened the Cochise water table (+2.97 points) and hotter months made it shallower
+   (−5.01). The climate-only ridge on the same target has every sign physical: GLDAS storage
+   change −0.19, rain −0.06, rain lag −0.05, temperature anomaly +0.06 (standardised; positive
+   is deeper). And the pipeline's winning candidate is the XGBoost-plus-elastic-net "blend", whose
+   ONNX export drops the elastic-net half, so its shipped file is not the model that was scored.
+
+So the decision was made on signs, not on the score: the declared forecast test says the two are
+not distinguishable, and between forecast-equivalent candidates the one whose responses carry the
+physical sign ships — the same standard [§19](#19-the-signs-that-look-wrong-and-which-one-actually-was-verified)
+applies to the human levers and [§27](#27-grace-ships-as-the-linear-model-the-retrain-and-what-moved-measured)
+found violated in two learned climate terms. **Groundwater ships as a standardised ridge on four
+climate inputs** — GLDAS storage change, rain, rain lag 1, temperature anomaly — pinned in
+`features.py` as `fixed_features`, exported through skl2onnx with the scaler inside and
+round-tripped through onnxruntime, exactly as GRACE is. The in-fold competition stays in
+`model_groundwater.py` for the experiment scripts and trains nothing.
+
+| groundwater | skill | level R² | target R² | persistence |
+|---|---|---|---|---|
+| blend target, competition (pre-§28) | −0.0123 | 0.3872 | −0.1075 | 0.3995 |
+| Cochise target, competition retrained | +0.0695 | 0.4009 | +0.1563 | 0.3313 |
+| **Cochise target, four-input ridge (ships)** | **+0.2269** | **0.5582** | **+0.3565** | 0.3313 |
+
+Folds of the shipped model, target R²: 0.08, 0.26, 0.56, 0.51, 0.37. This is the first
+groundwater model in the project's history with skill, and it took a target change plus a sign
+test, not a feature or a tuner.
+
+### What changed in Layer 2
+
+- **`storage_af_per_ft` recalibrated on the Cochise index** (`aquifer_calibration.py`): 707,463
+  AF/ft at the 12-month horizon (t = 1.44), band 466,032–707,463; the 1-month coefficient is
+  321,539 (t = 2.84) and the irrigation regression holds its sign under climate (t = 1.78) and
+  trend (t = 1.70) controls. The first run of the calibration after the target change came back
+  identical to the old one and was caught: it had read the processed panel before the retrain
+  rewrote it. Regeneration order matters and is now in the checks note.
+- **The Lake Mead → groundwater lever is removed.** No CAP water reaches Cochise County; a
+  CAP-substitution mechanism has nothing to act on there. It stays on GRACE, which integrates the
+  CAP basins, and returns to a groundwater card only when a Tucson-AMA index exists (ADWR wells,
+  roadmap step 4).
+- **The population and public-supply levers are scaled by `cochise_municipal_to_irrigation_share`
+  = 0.191** (band 0.128–0.270), `MEASURED` by `cochise_share.py` from the HUC12 matrices assigned
+  to counties by representative point: Cochise has 8.7 % of regional irrigation withdrawal and
+  1.7 % of regional public supply (75 % of which is Maricopa). The storage coefficient is
+  calibrated on regional irrigation, so it already carries the irrigation share; a municipal lever
+  built from a regional withdrawal has to be scaled by the ratio of the two shares, or Phoenix's
+  taps would be credited to Willcox's water table. Implemented as an optional `scale` field on a
+  lever, in `structural.js` and the Python mirror alike, and the band machinery picks it up.
+
+### The sweep
+
+| slider (policy min → max) | groundwater before | **groundwater after** |
+|---|---|---|
+| population | +6.09 | +6.09 |
+| irrigation | +60.11 | **+193.22** |
+| public supply | +18.03 | +11.09 |
+| urbanization | 0.00 | 0.00 |
+| Lake Mead | −7.04 | **0.00** (lever removed) |
+| precipitation | −0.40 | **−16.99** |
+| temperature | −0.51 | +0.85 |
+| drought (PDSI) | 0.00 | 0.00 |
+
+All six gates pass. The climate rows are now physical and large: rain matters to the Cochise water
+table, which the blend had hidden.
+
+**The irrigation row saturates the card, and that is the yardstick, not the physics.** +193 points
+is 4.0 ft for the full −60 % to +40 % swing of regional irrigation held for a year, on an index whose
+entire historical range is 2.06 ft. The feet are credible: Cochise's own irrigation is ~9 % of the
+regional total, and the Willcox basin declines 2–5 ft a year under actual pumping. What is small
+is the index's historical variation, because a per-well anomaly over a slowly declining basin is
+smooth. The output score is defined as the 5th–95th percentile of the historical series for every
+output; on this one that makes the bar clamp at 100 for most of the irrigation slider's range. That
+is reported here rather than fixed, because the fix is a decision about the score definition, not
+about the model: a physical scale for this card (±5 ft, say) would keep the arithmetic and stop the
+clamping, at the cost of the one rule every card shares.
+
+### Two things this leaves open
+
+- **A climate-sign gate.** The acceptance gate checks every human lever's sign in all 12 months. It
+  has no declared signs for the learned climate responses, and §27 and §29 have now found four
+  wrong-signed ones in two models. The table is short — rain lowers depth, raises GRACE, streamflow
+  and NDVI, lowers fire; heat does the reverse — and it belongs in `slider_sensitivity.py`.
+- **Out-of-sample rows.** The daily well pull stops at 2020-12; NWIS runs to 2025. Sixty new months
+  would be the first genuinely held-out test of the Cochise model, and the way to judge the
+  one-column GLDAS model (t = 2.08 against the pipeline here) without another post-hoc comparison.

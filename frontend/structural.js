@@ -110,7 +110,14 @@ const CFS_PER_CMS = 35.3147;
 function leverContribution(lever, deltas, month) {
     const delta = deltas[lever.slider] ?? 0;
     if (delta === 0) return 0;
+    // An optional constant that scales the whole lever (§29: municipal pumping on the
+    // Cochise groundwater card is scaled by Cochise's share of it). Part of the band
+    // machinery automatically, since it is a constant with a declared band.
+    const scale = lever.scale ? value(C[lever.scale]) : 1;
+    return scale * pathContribution(lever, delta);
+}
 
+function pathContribution(lever, delta) {
     switch (lever.path) {
         case 'pumping_to_depth':
             return pumpingAfPerMonth(lever.slider, delta) / value(C.storage_af_per_ft);

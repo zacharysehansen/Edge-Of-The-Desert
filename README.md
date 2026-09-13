@@ -135,10 +135,11 @@ python -m scripts.phase1.wildfire_monthly
 
 Phase 2 merges the `data/Final/` CSVs into panels, engineers lag/rolling/anomaly/
 seasonal features, computes persistence baselines, trains one model per response, and
-exports each to ONNX with JSON sidecars. The full pipeline runs in a few minutes. Five models
-are gradient-boosted or in-fold-selected ensembles; **GRACE is a ridge regression on four
-physical inputs** led by GLDAS land-surface storage change
-([PHASE3_PLAN.md §26–§27](PHASE3_PLAN.md)), which is what gave it skill.
+exports each to ONNX with JSON sidecars. The full pipeline runs in a few minutes. Four models
+are gradient-boosted or in-fold-selected ensembles; **GRACE and groundwater are ridge regressions
+on four climate inputs** led by GLDAS land-surface storage change
+([PHASE3_PLAN.md §26–§27, §29](PHASE3_PLAN.md)), which is what gave each of them skill. The
+groundwater target is the **Cochise County** well index, not the eight-county blend (§28–§29).
 
 ### Run the full pipeline
 
@@ -226,6 +227,20 @@ storage change, rain, last month's rain, temperature anomaly) against the shippe
 folds, same rule. Verdict: **REAL** — +0.2845 target R² and skill +0.2015 against +0.0210 and
 −0.0277, 4 of 5 folds, t = +2.52. GRACE's first positive result. Not deployed: that is an
 architecture change, listed in §26. Writes `model/experiment_grace_linear.json`.
+
+```bash
+python scripts/phase3/groundwater_diagnosis.py
+python -m scripts.phase2.experiment_groundwater_linear
+```
+
+The same two steps for groundwater (§28). The linear model is **null** (t = 0.83): the estimator
+is not that model's floor. The diagnosis is: the index averages 44 Cochise wells with 14 Pima
+wells that are uncorrelated with them, and the Cochise half alone forecasts at +0.35 target R²
+where the blend forecasts at +0.01. Writes `model/groundwater_diagnosis.json` and
+`model/experiment_groundwater_linear.json`. Re-run on the Cochise target (§29) it writes
+`model/experiment_groundwater_linear_cochise.json`; the output became the Cochise index and ships
+as a four-input ridge (skill +0.23). `scripts/phase3/cochise_share.py` measures Cochise's share of
+regional pumping for the Layer 2 municipal levers.
 
 ### Exported artifacts (per model, written to `model/`)
 

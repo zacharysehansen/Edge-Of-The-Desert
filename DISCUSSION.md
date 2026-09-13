@@ -21,7 +21,7 @@ less flow. The same applies to public supply. If you read the table as "irrigati
 streamflow" you have read the direction backwards — which is easy, and is why the app's sliders are
 the better way to look at it.
 
-**2. "Groundwater Depth vs Normal" measures depth *downward*.** `depth_to_water_anomaly_ft` is how
+**2. "Well Depth vs Normal (Cochise basins)" measures depth *downward*.** `depth_to_water_anomaly_ft` is how
 far you drill before hitting water. A **bigger** number means the water table is **lower**, i.e.
 less water. So pumping harder makes this go **up**, and that is correct. Three of the six outputs
 are named for a quantity that rises when things get worse, which is why every card now prints a
@@ -31,7 +31,7 @@ direction line under its title:
 |---|---|
 | GRACE Groundwater Anomaly | more water stored |
 | NDVI Vegetation Health | greener |
-| **Groundwater Depth vs Normal** | **water table DEEPER — less water** |
+| **Well Depth vs Normal (Cochise basins)** | **water table DEEPER — less water** |
 | Streamflow vs Normal | more flow past the gages |
 | **Wildfire Risk Index** | **more burned area** |
 | Bird Abundance vs Normal | more birds |
@@ -57,14 +57,19 @@ Change in the 0–100 score for a full slider swing, at a 12-month scenario:
 
 | | GRACE | NDVI | Groundwater depth | Streamflow | Wildfire | Wildlife |
 |---|---|---|---|---|---|---|
-| **Population** | −3.09 | 0.00 | **+9.90** | +1.74 | — | +0.43 |
-| **Irrigation** | **−18.76** | **+9.30** | **+60.11** | −2.37 | — | −0.59 |
-| **Public supply** | −5.63 | 0.00 | **+18.03** | −0.72 | — | −0.18 |
+| **Population** | −3.09 | 0.00 | +6.09 | +1.74 | — | +0.43 |
+| **Irrigation** | **−18.76** | **+9.35** | **+193.22** | −2.37 | — | −0.59 |
+| **Public supply** | −5.63 | 0.00 | **+11.09** | −0.72 | — | −0.18 |
 | **Urbanization** | 0.00 | −0.97 | 0.00 | **+3.30** | — | +0.82 |
-| **Lake Mead level** | +1.32 | 0.00 | −4.22 | +0.17 | — | +0.04 |
-| Precipitation | **+7.61** | +5.16 | −0.40 | **+36.70** | −16.59 | +10.37 |
-| Temperature | −0.47 | −2.68 | −0.51 | −0.28 | **+8.77** | +1.05 |
+| **Lake Mead level** | +2.20 | 0.00 | — | +0.28 | — | +0.07 |
+| Precipitation | **+7.61** | +5.16 | **−16.99** | **+36.70** | −16.59 | +10.37 |
+| Temperature | −0.47 | −2.68 | +0.85 | −0.28 | **+8.77** | +1.05 |
 | Drought (PDSI) | 0.00 | −1.39 | 0.00 | −1.06 | −1.12 | **+7.35** |
+
+*(Groundwater column re-measured after §29: the output is now the Cochise-basin well index, whose
+0–100 score spans only 2.06 ft, so the irrigation lever — 4.0 ft for the full swing — reads 193
+points and the card clamps. The Lake Mead lever is off this card: no CAP water reaches Cochise
+County. Rain now lowers depth, as it should.)*
 
 *(Climate rows re-measured after the 2026-09-12 retrain — [PHASE3_PLAN.md §27](PHASE3_PLAN.md).
 GRACE's rain response went from −3.38 to +7.61: the old XGBoost had it wrong-signed, the ridge has
@@ -97,7 +102,7 @@ individual row:
 | Streamflow | **0.3511** | **~2.8 months** | this month's weather, near enough |
 
 An aquifer remembers; a river does not. That single fact is why irrigation moves groundwater depth
-by 60 points and streamflow by 2, even though both are driven by the same pumping. Streamflow
+by two whole scale-widths and streamflow by 2 points, even though both are driven by the same pumping. Streamflow
 forgets the pumping almost as fast as it happens; the water table integrates it.
 
 It is also why **climate dominates streamflow (+36.70 for precipitation) and humans dominate
@@ -108,16 +113,26 @@ claims about which one a 12-month integral is capable of accumulating.
 
 ## 3. Output by output
 
-### 3.1 Groundwater depth — the clean one, and the biggest human effect in the app
+### 3.1 Groundwater depth — now the Cochise basins, and the card that clamps
 
-**Every pumping lever pushes the water table down, and nothing else does much.**
+**Since 2026-09-12 this card is the Willcox and Douglas basins** ([PHASE3_PLAN.md §28–§29](PHASE3_PLAN.md)).
+The old index averaged 44 Cochise County wells with 14 Tucson-AMA wells that move with Tucson's
+recharge schedule rather than with weather or pumping; the two halves were uncorrelated, and the
+blend forecast nothing for five re-runs. The Cochise index alone forecasts (skill +0.23), and it is
+what the card now shows. Two consequences follow. **The Lake Mead lever is gone from this card**,
+because no CAP water reaches Cochise County and a CAP-substitution mechanism has nothing to act on
+there; it stays on GRACE. And **the municipal levers are scaled by 0.19**, Cochise's share of
+regional public-supply pumping over its share of irrigation, so that Phoenix's taps are not
+credited to Willcox's water table.
 
-| | at slider max | in feet, 12 months |
+**Every pumping lever pushes the water table down, and rain lifts it.** Full slider swing, 12 months:
+
+| | in points | in feet |
 |---|---|---|
-| Irrigation +40% | +24.0 pts | **+4.62 ft deeper** |
-| Public supply +60% | +10.8 pts | +2.08 ft |
-| Population +3 M | +8.5 pts | +1.63 ft |
-| Lake Mead −95 ft | −1.1 pts | −0.22 ft |
+| Irrigation −60 % → +40 % | **+193** (clamps at 100) | **+4.0 ft deeper** |
+| Public supply −40 % → +60 % | +11.1 | +0.23 ft |
+| Population −0.5 M → +3 M | +6.1 | +0.13 ft |
+| Precipitation, dry → wet | −17.0 | −0.35 ft (shallower) |
 
 The mechanism is the most direct in the model and has no intermediate steps:
 
@@ -125,17 +140,21 @@ The mechanism is the most direct in the model and has no intermediate steps:
 Δpumping (AF/month)  ÷  S_y·A (AF per foot)  =  Δdepth per month   →  integrated over the scenario
 ```
 
-The arithmetic is checkable by hand. +40% irrigation is +1,098 MGD ≈ 1.2 million acre-feet over a
-year; divided by the storage coefficient of 244,082 AF/ft that is ~5 feet of drawdown, less a
-little as recharge partially catches up — 4.62 ft. Nothing in that chain is fitted to make the
-answer come out.
+The arithmetic is checkable by hand. A 100-point swing of regional irrigation is ~2,720 MGD ≈ 3.0
+million acre-feet a year; divided by the storage coefficient of 707,463 AF/ft (calibrated on the
+Cochise index against regional irrigation, so Cochise's ~9 % share is inside it) that is ~4.3 ft,
+less a little as recharge catches up — 4.0 ft. The feet are credible for a basin that declines 2–5
+ft a year under real pumping. **The points are not the problem either: the card's 0–100 scale is the
+index's own 5th–95th percentile, and that is 2.06 ft**, because a per-well anomaly over a slowly
+declining basin is smooth. A physical scale for this card is an open decision (§29).
 
 **Why it is trustworthy.** This is one of only three `corroborated` levers, meaning the structural
 mechanism *and* an independent empirical check agree on the sign after climate and trend controls.
 It was measured twice: a distributed-lag regression on the project's own panel (t = +3.16), and a
 horizon sweep that measured the storage coefficient at the scenario's own duration.
 
-**Lake Mead is negative here and that is the interesting part.** A *lower* reservoir means Arizona
+**Lake Mead used to be on this card and is not anymore** — see above; the paragraph that follows
+describes the mechanism as it now applies to GRACE. A *lower* reservoir means Arizona
 takes a Colorado River cut, part of which gets replaced by pumping — so a falling Mead drives the
 water table down. The slider reads elevation, so raising Mead relieves pumping and the depth
 recovers. It is the weakest of the four despite being the best-documented mechanism (published DCP
@@ -318,7 +337,8 @@ are `UNTESTED`.** The four that are measured are the four that were argued about
 
 | constant | value | band | status | what it decides |
 |---|---|---|---|---|
-| `storage_af_per_ft` | 244,082 | 184,023 – 289,336 | **MEASURED** | every groundwater lever |
+| `storage_af_per_ft` | 707,463 | 466,032 – 707,463 | **MEASURED** | every groundwater lever (Cochise index, §29) |
+| `cochise_municipal_to_irrigation_share` | 0.191 | 0.128 – 0.270 | **MEASURED** | population and public-supply → groundwater |
 | `ndvi_impervious` | 0.1811 | 0.1710 – 0.2075 | **MEASURED** | urbanization → NDVI |
 | `stream_capture_fraction` | 0.10 | 0.05 – 0.25 | UNTESTED | all four negative streamflow paths |
 | `effluent_return_fraction` | 0.55 | 0.45 – 0.70 | UNTESTED | population → streamflow |
@@ -400,7 +420,15 @@ Ranked, with the reasoning, in [PHASE3_PLAN.md §16](PHASE3_PLAN.md). In short:
    floor is the estimator, not the data. **Step 2b tested exactly that (§26): a ridge on four
    physical inputs scores +0.28 target R² and +0.20 skill against the shipped +0.02 and −0.03,
    4 of 5 folds, t = 2.52 — REAL.** Whether GRACE ships as that model is an architecture decision
-   that is still open; the cost is listed in §26.
+   that is still open; the cost is listed in §26. *(Taken: §27.)*
+3. **Groundwater is two aquifers in one index** ([PHASE3_PLAN.md §28](PHASE3_PLAN.md)). Forty-four
+   of its 66 wells are in Cochise County and ten are in the Tucson AMA; the two halves are
+   uncorrelated, the Tucson wells carry 81 % of the variance and respond to nothing in the panel,
+   and the Cochise half alone forecasts at +0.35 target R² (skill +0.23) with every physical sign
+   right. **Taken (§29): the output is the Cochise index, shipped as a four-input ridge with skill
+   +0.23; the Lake Mead lever is off the card.** Open: a physical score scale for a card whose
+   historical range is 2 ft, a climate-sign gate, and extending the well pull past 2020 for a
+   genuinely held-out test.
 2. ~~**Corroborate the streamflow constants** with the method that worked for irrigation.~~
    **Tried; all three return nulls** ([PHASE3_PLAN.md §21](PHASE3_PLAN.md)). Population and
    impervious cover are pure trends (99.8% and 99.9% of their variance survives deseasonalising),

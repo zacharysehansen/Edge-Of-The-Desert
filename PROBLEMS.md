@@ -21,7 +21,7 @@ about it. Companion to [PHASE2_REPORT.md](PHASE2_REPORT.md) (what the models sco
 | Surface water | **+0.6833** | **works** ✅ | ~~target was 45% one dam-regulated gage~~ **FIXED**; extended to 1980–2025 | **done — see [M2](#m2-surface-water--the-target-was-mostly-one-regulated-river-fixed)** |
 | Wildfire | **+0.4125** | **works** ✅ | ~~month came from a DB edit date~~ **FIXED**; extended to 1984–2023 | **done — see [M3](#m3-wildfire--the-target-was-not-measuring-wildfire-fixed)** |
 | NDVI | **+0.2588** | **works** | none — at MODIS instrument floor | already healthy |
-| Groundwater | −0.0123 | no skill, but no longer harmful ✅ | ~~compositional artifact~~ **FIXED**; now [P5](#p5-monthly-pumping-is-weakly-observed-not-unobserved-measured) | target fixed — **now stop** |
+| Groundwater | **+0.2269** | **works** ✅ *(Cochise-basin index, four-input ridge, deployed 2026-09-12 — PHASE3_PLAN.md §28–§29)* | ~~compositional artifact~~ FIXED; ~~then P5~~ — the blend averaged a forecastable aquifer (44 Cochise wells) with an unforecastable one (14 Tucson-AMA wells carrying 81 % of the variance). Split, it forecasts | **done — the target, not the model** | ~~compositional artifact~~ **FIXED**; now [P5](#p5-monthly-pumping-is-weakly-observed-not-unobserved-measured) | target fixed — **now stop** |
 | GRACE | **+0.2015** | **works** ✅ *(ridge on 4 physical inputs, deployed 2026-09-12 — PHASE3_PLAN.md §27)* | ~~the observable pumping signal is too weak~~ the XGBoost was the floor (§25–§26); the pumping residual is still unobserved | ~~**stop tuning.**~~ done — model class, not tuning. Irrigation trade re-tested 2026-09-04: **null**; the full deseasonalized human block re-tested under the real nested tuner 2026-09-10: **null** (t=1.21, 83% of the gain is one 28-row fold — PHASE3_PLAN.md §11.5); **CAP monthly deliveries tested 2026-09-12: null** (5/5 folds, t=1.52, 72% of the gain the same fold — §23; on the full 2002–2023 window the gain shrinks to a quarter, t=1.27 — §24, CAP closed); **GLDAS tested 2026-09-12: null as a feature block** (t=1.34), but a one-coefficient OLS on GLDAS storage change scores **+0.244** out of fold vs the shipped **+0.021** — the estimator, not the data, is the floor (§25). **Confirmed by step 2b (§26): a ridge on four physical inputs scores +0.2845 target R², +0.5664 level R², skill +0.2015, 4/5 folds, t = 2.52 — REAL. Shipping it is an architecture change, not yet taken.** Only acquisitions left: [CAP](#option-b--cap-deliveries-as-a-monthly-pumping-proxy-untested--worth-one-probe) / [GLDAS](#option-c--gldas-land-surface-state-as-features-not-a-new-target-untested) / OpenET |
 | Wildlife | **+0.2167** | **works** ✅ | ~~the target was a survey-effort index~~ **FIXED** | **done — see [M6](#m6-wildlife--the-target-was-a-survey-effort-index-fixed)** |
 
@@ -1059,6 +1059,17 @@ skill and stays there until monthly pumping data exists" — was correct, and th
 confirms it. Extending to 1980–2025 via [P1](#p1-phase-1-throws-away-decades-of-available-data-verified)
 is now *safe* (the target fix landed first, which was the requirement) but there is no reason to
 expect it to buy skill: more rows of an unobserved driver is still an unobserved driver.
+
+> **Superseded 2026-09-12 — PHASE3_PLAN.md §28.** The linear-model test that rescued GRACE is a
+> NULL here (t = 0.83): the estimator is not the floor. The target is. Two thirds of the wells are
+> in Cochise County (Willcox/Douglas basins, no CAP) and ten are in the Tucson AMA under managed
+> recharge; the two sub-indices correlate −0.13 in level and +0.07 in change, and the Pima wells
+> supply 81 % of the blend's monthly variance while responding to nothing in the panel. The Cochise
+> sub-index on its own forecasts at **+0.35 target R², skill +0.23** with every physical sign right
+> (GLDAS −0.59, rain −0.44, irrigation +0.25). "Nothing available moves this model" was true of the
+> blend. Splitting the target does — **and it was split (§29): the output is now the Cochise index,
+> shipped as a four-input ridge, skill +0.2269.** The Lake Mead lever is off that card (no CAP water
+> reaches Cochise County) and the municipal levers are scaled to Cochise's share of pumping.
 
 **Nothing available moves this model.** ADWR pumpage — which this document used to name as the fix — is **annual and AMA-only**, and annual data cannot move a monthly residual model ([P5](#adwr-is-not-the-answer-this-document-used-to-say-it-was-verified)). The one remaining monthly proxy, CAP deliveries (work item **#6**), is aimed at GRACE and is **not** expected to rescue groundwater. Leave this model where it is.
 

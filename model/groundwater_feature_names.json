@@ -1,18 +1,6 @@
 [
-  "month_cos",
-  "grace_groundwater_anomaly_lag3",
-  "mead_pool_elevation_roll6",
-  "irrigation_total_withdrawal_mgd",
-  "impervious_pct",
-  "temperature_2m_c_roll6",
-  "discharge_log_anomaly_lag1",
-  "temperature_2m_c_anomaly_lag1",
-  "ndvi_roll3",
-  "discharge_log_anomaly",
-  "grace_groundwater_anomaly",
-  "month_sin",
-  "precipitation_mm_day_roll6",
-  "mead_total_release",
-  "mead_pool_elevation",
-  "impervious_pct_lag1"
+  "gldas_tws_proxy_delta",
+  "precipitation_mm_day",
+  "precipitation_mm_day_lag1",
+  "temperature_2m_c_anomaly"
 ]

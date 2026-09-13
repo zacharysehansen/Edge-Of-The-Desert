@@ -45,14 +45,14 @@
       ]
     },
     "storage_af_per_ft": {
-      "value": 244082.08972498632,
-      "source": "measured at the {horizon['default_scenario_months']}-month scenario horizon by aquifer_calibration.py's spreading-cone sweep: total drawdown over the window regressed on total volume pumped across it, climate and trend controlled, Newey-West. 244,082 AF/ft (t = +1.78), i.e. A_eff = 1,627,214 acres. The band is the plateau across 3-24 month horizons.",
+      "value": 707462.8828830041,
+      "source": "measured at the {horizon['default_scenario_months']}-month scenario horizon by aquifer_calibration.py's spreading-cone sweep: total drawdown over the window regressed on total volume pumped across it, climate and trend controlled, Newey-West. 707,463 AF/ft (t = +1.44), i.e. A_eff = 4,716,419 acres. The band is the plateau across 3-24 month horizons.",
       "status": "MEASURED",
       "band": [
-        184023.082174835,
-        289336.474061503
+        466032.4584786653,
+        707462.8828830041
       ],
-      "note": "Still the dominant uncertainty in Layer 2, but no longer a choice between two assumptions. PHASE3_PLAN.md \u00a712 prescribed the short-run limit (110,891 AF/ft) and the first implementation shipped the long-run one (1,875,168); the sweep measured that the cone spreads but plateaus at two to three times the irrigated area, so the long-run figure is 7.7x past the end of the evidence and the short-run figure understates a 12-month scenario by 2.2x. See \u00a712."
+      "note": "Still the dominant uncertainty in Layer 2, but no longer a choice between two assumptions. PHASE3_PLAN.md \u00a712 prescribed the short-run limit (356,176 AF/ft) and the first implementation shipped the long-run one (1,875,168); the sweep measured that the cone spreads but plateaus at two to three times the irrigated area, so the long-run figure is 2.7x past the end of the evidence and the short-run figure understates a 12-month scenario by 2.0x. See \u00a712."
     },
     "grace_units_per_af": {
       "value": 1.0971799263726346e-08,
@@ -169,6 +169,16 @@
       ],
       "note": "The trend-controlled (conservative) estimate ships; the band's upper end is the climate-only fit, which is significant (t = +2.19, p = 0.029). The sign is positive in both, unlike Mead, which flipped."
     },
+    "cochise_municipal_to_irrigation_share": {
+      "value": 0.1913137351125163,
+      "source": "Cochise County's share of regional public-supply withdrawal (0.0166) over its share of regional irrigation withdrawal (0.0869), HUC12 matrices assigned to counties by representative point (157 of 1133 regional HUC12s). Band: year-by-year extremes of each share.",
+      "status": "MEASURED",
+      "band": [
+        0.1276,
+        0.2696
+      ],
+      "note": "Applied to the population and public-supply levers on the groundwater card only. Municipal pumping is 75% Maricopa and 17% Pima; almost none of it is under the Cochise wells, and the irrigation-calibrated storage coefficient would otherwise credit Phoenix's taps to Willcox's water table."
+    },
     "groundwater_substitution_fraction": {
       "value": 0.5,
       "source": "share of lost CAP water replaced by pumping rather than fallowing; Pinal's DCP mitigation explicitly funded new wells",
@@ -274,9 +284,10 @@
       "output": "groundwater",
       "kind": "rate",
       "path": "pumping_to_depth",
+      "scale": "cochise_municipal_to_irrigation_share",
       "sign": 1,
       "tier": "structural-only",
-      "mechanism": "Same storage balance; municipal groundwater is pumped from the same aquifer.",
+      "mechanism": "Same storage balance, scaled by Cochise's share of municipal pumping relative to its share of irrigation (the coefficient is calibrated on irrigation) \u2014 \u00a729.",
       "evidence": "None. PHASE3_PLAN.md \u00a712 finds t = +0.17 / -0.11 / +0.91 across specifications."
     },
     {
@@ -286,22 +297,11 @@
       "output": "groundwater",
       "kind": "rate",
       "path": "pumping_to_depth",
+      "scale": "cochise_municipal_to_irrigation_share",
       "sign": 1,
       "tier": "structural-only",
-      "mechanism": "\u0394population \u00d7 per-capita municipal groundwater draw, into the storage balance.",
+      "mechanism": "\u0394population \u00d7 per-capita municipal groundwater draw, into the storage balance, scaled to the Cochise wells' share of municipal pumping (\u00a729).",
       "evidence": "None. PHASE3_PLAN.md \u00a710 finds 0/5 folds and an effect of -0.113 sd, wrong-signed."
-    },
-    {
-      "id": "mead_to_groundwater",
-      "via": "DCP shortage tier",
-      "slider": "mead_pool_elevation",
-      "output": "groundwater",
-      "kind": "rate",
-      "path": "mead_tier_to_depth",
-      "sign": -1,
-      "tier": "structural-only",
-      "mechanism": "Elevation \u2192 DCP shortage tier \u2192 Arizona reduction (kAF/yr) \u2192 in-region share \u2192 share replaced by pumping \u2192 storage balance. A lower reservoir means more pumping.",
-      "evidence": "Published law (LBOps Table 1), but no panel support: PHASE3_PLAN.md \u00a712 finds the wrong sign in every specification and t falling to +0.12 under a time control. \u00a710's 5/5-fold agreement was five folds sharing one secular trend."
     },
     {
       "id": "irrigation_to_grace",
@@ -347,7 +347,7 @@
       "sign": 1,
       "tier": "structural-only",
       "mechanism": "A lower reservoir substitutes pumping for CAP water, drawing down storage.",
-      "evidence": "None; see mead_to_groundwater."
+      "evidence": "None (PHASE3_PLAN.md \u00a712 found the wrong sign in every specification). Regional: GRACE integrates the CAP basins, unlike the Cochise well index."
     },
     {
       "id": "population_to_surface_water",

@@ -28,6 +28,19 @@ the roster no longer shifts it.
 Sign convention follows the raw measurement: this is *depth to water*, so **positive
 means deeper than that well's normal, i.e. less groundwater**.
 
+**The index is over the COCHISE COUNTY wells (2026-09-12, PHASE3_PLAN.md §28-§29).**
+The daily pull holds 66 wells: 44 in Cochise County (the Willcox and Douglas basins,
+agricultural pumping, no CAP water), 14 in Pima (the Tucson AMA, under managed
+recharge), and 8 elsewhere. The two big groups are uncorrelated (level r = -0.13,
+month-to-month r = +0.07), and the ten Pima wells, six times as volatile, supplied
+81% of the blended index's monthly variance while responding to nothing in the
+panel. The Cochise sub-index responds to storage change, rain and pumping with the
+physical signs and forecasts (skill +0.23); the blend forecast nothing for five
+re-runs. So `depth_to_water_anomaly_ft` is now the Cochise index, and the old blend is
+kept beside it as `depth_to_water_anomaly_ft_allwells` for the record. The output is
+therefore "well depth vs normal, Willcox-Douglas basins", and PHASE3_PLAN.md §29
+removes the Lake Mead lever from it: no CAP water reaches those basins.
+
 Note the centering constant is a full-record mean, so it is not available in real time.
 That is standard for a station anomaly index, and it is a per-well *constant* -- it
 leaks no month-specific information across months -- but the index is defined relative
@@ -66,6 +79,8 @@ DEPTH_CD = "72019"
 
 # A well needs enough of a record for its own long-term mean to mean anything.
 MIN_MONTHS_PER_WELL = 24
+# The county whose wells define the target (see the docstring). 04003 = Cochise.
+TARGET_COUNTY_FIPS = 4003
 
 
 BASE_URL = "https://waterservices.usgs.gov/nwis/dv/"
@@ -166,15 +181,23 @@ def aggregate_monthly(daily: pd.DataFrame) -> pd.DataFrame:
         "value"
     ].transform("mean")
 
-    monthly = (
-        long_record.groupby("year_month")
-        .agg(
-            depth_to_water_anomaly_ft=("anomaly", "mean"),
-            n_wells=("site_no", "nunique"),
-        )
-        .join(raw, how="outer")
-        .reset_index()
+    # The target: Cochise wells only. The blend over every county is kept as a
+    # second column so the two can always be compared (PHASE3_PLAN.md §28).
+    county_of = depth.groupby("site_no")["county_fips"].first().astype(int)
+    long_record["county_fips"] = long_record["site_no"].map(county_of)
+    cochise = long_record[long_record["county_fips"] == TARGET_COUNTY_FIPS]
+    if cochise.empty:
+        raise ValueError(f"No wells with county_fips == {TARGET_COUNTY_FIPS} in the daily pull.")
+
+    target = cochise.groupby("year_month").agg(
+        depth_to_water_anomaly_ft=("anomaly", "mean"),
+        n_wells=("site_no", "nunique"),
     )
+    blend = long_record.groupby("year_month").agg(
+        depth_to_water_anomaly_ft_allwells=("anomaly", "mean"),
+        n_wells_all=("site_no", "nunique"),
+    )
+    monthly = target.join(blend, how="outer").join(raw, how="outer").reset_index()
     return monthly.sort_values("year_month").reset_index(drop=True)
 
 

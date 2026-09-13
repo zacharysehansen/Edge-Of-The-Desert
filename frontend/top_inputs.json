@@ -59,33 +59,27 @@
     ]
   },
   "groundwater": {
-    "summary": "temperature, season, GRACE storage",
+    "summary": "land-surface storage change (GLDAS), precipitation, temperature",
     "top": [
+      {
+        "label": "land-surface storage change (GLDAS)",
+        "family": "climate",
+        "share": 0.5253
+      },
+      {
+        "label": "precipitation",
+        "family": "climate",
+        "share": 0.3001
+      },
       {
         "label": "temperature",
         "family": "climate",
-        "share": 0.1483
-      },
-      {
-        "label": "season",
-        "family": "season",
-        "share": 0.1382
-      },
-      {
-        "label": "GRACE storage",
-        "family": "response",
-        "share": 0.1295
+        "share": 0.1746
       }
     ],
-    "feature_count": 16,
-    "human_feature_count": 5,
-    "human_features": [
-      "impervious_pct",
-      "impervious_pct_lag1",
-      "irrigation_total_withdrawal_mgd",
-      "mead_pool_elevation",
-      "mead_pool_elevation_roll6"
-    ]
+    "feature_count": 4,
+    "human_feature_count": 0,
+    "human_features": []
   },
   "surface_water": {
     "summary": "precipitation, drought (PDSI), temperature",

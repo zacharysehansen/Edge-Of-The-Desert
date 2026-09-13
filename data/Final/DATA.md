@@ -241,7 +241,7 @@ This document catalogs all data inputs for the Southern Arizona Water and Land S
 
 | Field | Detail |
 |-------|--------|
-| **Description** | Regional mean depth to water level from USGS monitoring wells — in-situ complement to GRACE satellite anomaly [2] |
+| **Description** | Per-well depth-to-water anomaly index over the **Cochise County** USGS monitoring wells (Willcox and Douglas basins) — in-situ complement to GRACE. **Changed 2026-09-12 (PHASE3_PLAN.md §28–§29):** the previous index blended 44 Cochise wells with 14 Tucson-AMA wells that were uncorrelated with them and carried 81 % of the variance; the blend is kept as a second column |
 | **Source** | USGS National Water Information System (NWIS) Daily Values Service [2] |
 | **Specific Endpoint** | `https://waterservices.usgs.gov/nwis/dv/` with `siteType=GW` |
 | **Parameters** | 72019 (depth to water level, ft below land surface), 72008 (depth to water in well, periodic), 62610 (GW level above NGVD 1929, ft), 62611 (GW level above NAVD 1988, ft) |
@@ -250,8 +250,8 @@ This document catalogs all data inputs for the Southern Arizona Water and Land S
 | **Spatial Resolution** | Individual monitoring wells, queried by county FIPS for eight counties [1] |
 | **Date Range** | 2000-01 through 2020-12 [1] |
 | **Output File** | `data/Final/groundwater_levels_monthly.csv` |
-| **Output Columns** | `year_month, depth_to_water_ft_mean` [1] |
-| **Processing** | Daily values fetched per county per parameter per year (JSON format), combined, aggregated to monthly regional mean using parameter 72019 as primary [1] |
+| **Output Columns** | `year_month, depth_to_water_anomaly_ft` (Cochise index, the target), `n_wells` (Cochise wells reporting), `depth_to_water_anomaly_ft_allwells` (the old eight-county blend), `n_wells_all`, `depth_to_water_ft_mean` (raw roster mean, diagnostic only) |
+| **Processing** | Daily values fetched per county per parameter per year, parameter 72019 only; well-month means; wells with ≥ 24 months; each well centred on its own record mean; the target averages the Cochise wells (county_fips 4003), the blend averages all. 4–28 Cochise wells report per month (median 20) |
 | **Row Count** | 252 monthly rows (full coverage) [1] |
 | **Access Date** | June 2025 |
 

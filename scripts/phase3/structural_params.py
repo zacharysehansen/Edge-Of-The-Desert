@@ -46,6 +46,7 @@ STATS_PATH = ROOT / "frontend" / "computed_stats.json"
 CALIBRATION_PATH = ROOT / "model" / "aquifer_calibration.json"
 NDVI_ENDPOINTS_PATH = ROOT / "model" / "ndvi_endpoints.json"
 CAP_CALIBRATION_PATH = ROOT / "model" / "cap_calibration.json"
+COCHISE_SHARE_PATH = ROOT / "model" / "cochise_share.json"
 TRANSFER_PATH = ROOT / "model" / "transfer_calibration.json"
 OUTPUT_FILE = ROOT / "frontend" / "structural_params.json"
 
@@ -75,6 +76,38 @@ def tag(value, *, band=None, source, status, note=None) -> dict:
     if note is not None:
         entry["note"] = note
     return entry
+
+
+def _cochise_share_constant() -> dict:
+    """The groundwater output is the Cochise County well index (PHASE3_PLAN.md §28-§29).
+    `storage_af_per_ft` is calibrated by regressing that index on the REGIONAL
+    irrigation anomaly, so the fitted coefficient already carries Cochise's share of
+    regional irrigation inside it: fitted = S_y·A_cochise / share_irr. A municipal
+    lever built from a regional withdrawal therefore has to be scaled by
+    share_municipal / share_irr, not by share_municipal alone. Measured from the
+    HUC12 matrices by scripts/phase3/cochise_share.py."""
+    cs = json.loads(COCHISE_SHARE_PATH.read_text())
+    irr, ps = cs["irrigation"], cs["public_supply"]
+    ratio = ps["share"] / irr["share"]
+    lo = ps["share_band_by_year"][0] / irr["share_band_by_year"][1]
+    hi = ps["share_band_by_year"][1] / irr["share_band_by_year"][0]
+    return tag(
+        ratio,
+        band=(round(lo, 4), round(hi, 4)),
+        source=(
+            f"Cochise County's share of regional public-supply withdrawal ({ps['share']:.4f}) over "
+            f"its share of regional irrigation withdrawal ({irr['share']:.4f}), HUC12 matrices "
+            f"assigned to counties by representative point ({ps['n_huc12_cochise']} of "
+            f"{ps['n_huc12_regional']} regional HUC12s). Band: year-by-year extremes of each share."
+        ),
+        status="MEASURED",
+        note=(
+            "Applied to the population and public-supply levers on the groundwater card only. "
+            "Municipal pumping is 75% Maricopa and 17% Pima; almost none of it is under the "
+            "Cochise wells, and the irrigation-calibrated storage coefficient would otherwise "
+            "credit Phoenix's taps to Willcox's water table."
+        ),
+    )
 
 
 def _region_share_constant() -> dict:
@@ -505,6 +538,7 @@ def build() -> dict:
                 "sign is positive in both, unlike Mead, which flipped."
             ),
         ),
+        "cochise_municipal_to_irrigation_share": _cochise_share_constant(),
         "groundwater_substitution_fraction": tag(
             0.50,
             band=(0.30, 0.70),
@@ -568,9 +602,13 @@ LEVERS = [
         "output": "groundwater",
         "kind": "rate",
         "path": "pumping_to_depth",
+        "scale": "cochise_municipal_to_irrigation_share",
         "sign": +1,
         "tier": "structural-only",
-        "mechanism": "Same storage balance; municipal groundwater is pumped from the same aquifer.",
+        "mechanism": (
+            "Same storage balance, scaled by Cochise's share of municipal pumping relative to "
+            "its share of irrigation (the coefficient is calibrated on irrigation) — §29."
+        ),
         "evidence": "None. PHASE3_PLAN.md §12 finds t = +0.17 / -0.11 / +0.91 across specifications.",
     },
     {
@@ -580,30 +618,19 @@ LEVERS = [
         "output": "groundwater",
         "kind": "rate",
         "path": "pumping_to_depth",
+        "scale": "cochise_municipal_to_irrigation_share",
         "sign": +1,
         "tier": "structural-only",
-        "mechanism": "Δpopulation × per-capita municipal groundwater draw, into the storage balance.",
+        "mechanism": (
+            "Δpopulation × per-capita municipal groundwater draw, into the storage balance, "
+            "scaled to the Cochise wells' share of municipal pumping (§29)."
+        ),
         "evidence": "None. PHASE3_PLAN.md §10 finds 0/5 folds and an effect of -0.113 sd, wrong-signed.",
     },
-    {
-        "id": "mead_to_groundwater",
-        "via": "DCP shortage tier",
-        "slider": "mead_pool_elevation",
-        "output": "groundwater",
-        "kind": "rate",
-        "path": "mead_tier_to_depth",
-        "sign": -1,
-        "tier": "structural-only",
-        "mechanism": (
-            "Elevation → DCP shortage tier → Arizona reduction (kAF/yr) → in-region share "
-            "→ share replaced by pumping → storage balance. A lower reservoir means more pumping."
-        ),
-        "evidence": (
-            "Published law (LBOps Table 1), but no panel support: PHASE3_PLAN.md §12 finds the "
-            "wrong sign in every specification and t falling to +0.12 under a time control. "
-            "§10's 5/5-fold agreement was five folds sharing one secular trend."
-        ),
-    },
+    # No Lake Mead → groundwater lever. The groundwater output is the Cochise County
+    # well index (§28-§29), and no CAP water reaches Cochise County, so a
+    # CAP-substitution mechanism has nothing to act on there. The lever returns when
+    # a Tucson-AMA index exists (roadmap step 4, ADWR wells).
     {
         "id": "irrigation_to_grace",
         "slider": "irrigation_total_withdrawal_mgd",
@@ -648,7 +675,7 @@ LEVERS = [
         "sign": +1,
         "tier": "structural-only",
         "mechanism": "A lower reservoir substitutes pumping for CAP water, drawing down storage.",
-        "evidence": "None; see mead_to_groundwater.",
+        "evidence": "None (PHASE3_PLAN.md §12 found the wrong sign in every specification). Regional: GRACE integrates the CAP basins, unlike the Cochise well index.",
     },
     # ── surface water (PHASE3_PLAN.md §14) ───────────────────────────────────
     # Three paths with OPPOSING signs, which is the point: more people means more

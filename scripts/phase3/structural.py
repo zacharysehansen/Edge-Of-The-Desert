@@ -87,6 +87,10 @@ class Structural:
         delta = deltas.get(lever["slider"], 0.0)
         if delta == 0:
             return 0.0
+        scale = self.c[lever["scale"]] if lever.get("scale") else 1.0
+        return scale * self._path_contribution(lever, delta)
+
+    def _path_contribution(self, lever: dict, delta: float) -> float:
         path = lever["path"]
 
         if path == "pumping_to_depth":

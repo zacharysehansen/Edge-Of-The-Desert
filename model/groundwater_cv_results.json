@@ -1,104 +1,85 @@
 {
   "model_id": "groundwater",
+  "estimator": "ridge on four climate inputs (PHASE3_PLAN.md \u00a729)",
   "formulation": "residual_over_lag1",
   "cv_method": "nested TimeSeriesSplit(5 outer / 3 inner)",
-  "winner": "xgb",
-  "competition": [
-    {
-      "name": "xgb",
-      "mean_r2": 0.012238005987428347,
-      "std_r2": 0.03221274174579833
-    },
-    {
-      "name": "xgb_tight",
-      "mean_r2": -0.020847407578123534,
-      "std_r2": 0.058866397622941866
-    },
-    {
-      "name": "blend",
-      "mean_r2": -0.04912514940951107,
-      "std_r2": 0.11446626843801108
-    },
-    {
-      "name": "elastic",
-      "mean_r2": -0.23981436579272913,
-      "std_r2": 0.28355525551920024
-    },
-    {
-      "name": "ridge",
-      "mean_r2": -0.5289451402559922,
-      "std_r2": 0.45708455044641383
-    }
-  ],
   "window_start": "2002-10",
   "window_end": "2020-12",
   "n_rows": 219,
-  "n_features": 16,
-  "n_features_dropped": 47,
+  "n_features": 4,
+  "winner": "ridge_fixed_features",
   "best_params": {
-    "subsample": 0.6,
-    "reg_lambda": 20,
-    "reg_alpha": 1.0,
-    "n_estimators": 200,
-    "min_child_weight": 30,
-    "max_depth": 2,
-    "learning_rate": 0.02,
-    "colsample_bytree": 0.4
+    "alpha": 31.622776601683793
   },
-  "cv_mean_r2": 0.38717666888811025,
-  "cv_std_r2": 0.4036121685238588,
-  "cv_mean_mae": 0.6657770388588458,
-  "cv_std_mae": 0.23498248728397023,
-  "cv_target_r2": -0.10752066219202552,
-  "baseline_lag1_r2": 0.3994801967719197,
-  "skill_r2": -0.01230352788380945,
-  "train_r2": 0.9674870351901315,
-  "train_mae": 0.6230569001270887,
+  "coefficients": {
+    "intercept": -0.001158743094168081,
+    "standardised": {
+      "gldas_tws_proxy_delta": -0.1923448775325507,
+      "precipitation_mm_day": -0.05719225998009215,
+      "precipitation_mm_day_lag1": -0.05268173209550525,
+      "temperature_2m_c_anomaly": 0.06394790297695116
+    },
+    "raw": {
+      "gldas_tws_proxy_delta": -0.015467489621419743,
+      "precipitation_mm_day": -0.07195126337059717,
+      "precipitation_mm_day_lag1": -0.06621451658166451,
+      "temperature_2m_c_anomaly": 0.008228107848868724
+    }
+  },
+  "cv_mean_r2": 0.5582337121154917,
+  "cv_std_r2": 0.3023466458650583,
+  "cv_mean_mae": 0.26887542328432135,
+  "cv_std_mae": 0.07979436870646704,
+  "cv_target_r2": 0.3564731253140348,
+  "baseline_lag1_r2": 0.3313434555050079,
+  "skill_r2": 0.2268902566104838,
+  "train_r2": 0.6943177045004141,
+  "train_mae": 0.2610175452232917,
   "folds": [
     {
       "fold": 0,
       "test_start": "2006-01",
       "test_end": "2008-12",
       "test_size": 36,
-      "r2": 0.6348199287703955,
-      "mae": 0.9883471166938269,
-      "target_r2": -0.45417817102429314
+      "r2": -0.0370494792013476,
+      "mae": 0.4021277044172932,
+      "target_r2": 0.08428103324237257
     },
     {
       "fold": 1,
       "test_start": "2009-01",
       "test_end": "2011-12",
       "test_size": 36,
-      "r2": 0.7419895843882063,
-      "mae": 0.5736609647829826,
-      "target_r2": -0.10712095546197098
+      "r2": 0.7589844552311642,
+      "mae": 0.31826143875053575,
+      "target_r2": 0.2585949785690057
     },
     {
       "fold": 2,
       "test_start": "2012-01",
       "test_end": "2014-12",
       "test_size": 36,
-      "r2": -0.22456958627428492,
-      "mae": 0.505410908577378,
-      "target_r2": 0.017302658968016082
+      "r2": 0.620248880259068,
+      "mae": 0.1898065908247916,
+      "target_r2": 0.5586345578308407
     },
     {
       "fold": 3,
       "test_start": "2015-01",
       "test_end": "2017-12",
       "test_size": 36,
-      "r2": 0.0361407490434964,
-      "mae": 0.890899942520011,
-      "target_r2": 0.030807568958520215
+      "r2": 0.6840276715260325,
+      "mae": 0.213529777150147,
+      "target_r2": 0.5093043270212767
     },
     {
       "fold": 4,
       "test_start": "2018-01",
       "test_end": "2020-12",
       "test_size": 36,
-      "r2": 0.7475026685127379,
-      "mae": 0.37056626172003015,
-      "target_r2": -0.024414412400399765
+      "r2": 0.764957032762541,
+      "mae": 0.2206516052788392,
+      "target_r2": 0.37155072990667826
     }
   ]
 }

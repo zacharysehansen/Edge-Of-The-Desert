@@ -37,6 +37,8 @@ import pandas as pd
 from onnxmltools import convert_xgboost
 from onnxmltools.convert.common.data_types import FloatTensorType
 from skl2onnx import convert_sklearn
+from sklearn.pipeline import Pipeline, make_pipeline
+from sklearn.linear_model import RidgeCV
 from sklearn.linear_model import ElasticNet, Ridge
 from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
@@ -258,8 +260,110 @@ def _fit_predict(x_tr: pd.DataFrame, y_tr: pd.Series, x_te: pd.DataFrame) -> np.
     return model.predict(x_te[selected])
 
 
+# ---------------------------------------------------------------------------
+# The shipping estimator since PHASE3_PLAN.md §29: a standardised ridge on the four
+# climate inputs features.py pins as `fixed_features`. The in-fold competition below
+# is kept as `_fit_predict` so experiment scripts can still reproduce the pre-§29
+# "shipped" arm; it trains nothing when `fixed_features` is set.
+# ---------------------------------------------------------------------------
+RIDGE_ALPHAS = np.logspace(-3, 3, 13)
+
+
+def _make_ridge() -> Pipeline:
+    return make_pipeline(
+        StandardScaler(),
+        RidgeCV(alphas=RIDGE_ALPHAS, cv=TimeSeriesSplit(n_splits=INNER_SPLITS)),
+    )
+
+
+def _fit_predict_ridge(x_tr: pd.DataFrame, y_tr: pd.Series, x_te: pd.DataFrame) -> np.ndarray:
+    return _make_ridge().fit(x_tr, y_tr).predict(x_te)
+
+
+def _train_ridge(x: pd.DataFrame, y: pd.Series) -> dict:
+    """Mirror of model_grace.py's training path (§26-§27)."""
+    lag1_col = "depth_to_water_anomaly_ft_lag1"
+    lag1 = x[lag1_col].copy()
+    x_train = x.drop(columns=[lag1_col])
+    feature_names = list(x_train.columns)
+    y_residual = y - lag1
+
+    scores = nested_cv_evaluate(
+        fit_predict=_fit_predict_ridge, x=x_train, y_level=y, y_target=y_residual, cv=CV, anchor=lag1
+    )
+    baseline_r2 = persistence_r2(y_level=y, lag1_level=lag1, cv=CV)
+
+    best_model = _make_ridge().fit(x_train, y_residual)
+    ridge = best_model.named_steps["ridgecv"]
+    scaler = best_model.named_steps["standardscaler"]
+    train_pred = best_model.predict(x_train) + lag1.values
+    abs_coef = np.abs(ridge.coef_)
+    share = abs_coef / abs_coef.sum() if abs_coef.sum() > 0 else abs_coef
+    importance = dict(sorted(zip(feature_names, share.tolist(), strict=True), key=lambda kv: kv[1], reverse=True))
+    coefficients = {
+        "intercept": float(ridge.intercept_),
+        "standardised": dict(zip(feature_names, ridge.coef_.tolist(), strict=True)),
+        "raw": dict(zip(feature_names, (ridge.coef_ / scaler.scale_).tolist(), strict=True)),
+    }
+    feature_stats = {c: {"mean": float(x_train[c].mean()), "std": float(x_train[c].std())} for c in feature_names}
+
+    # skl2onnx needs its own FloatTensorType; the module-level one is onnxmltools'
+    # (used by the XGBoost export), and the two are not interchangeable.
+    from skl2onnx.common.data_types import FloatTensorType as SklFloatTensorType  # noqa: PLC0415
+
+    onnx_model = convert_sklearn(
+        best_model, initial_types=[("features", SklFloatTensorType([None, len(feature_names)]))], target_opset=17
+    )
+    with open(MODEL_DIR / f"{MODEL_ID}.onnx", "wb") as f:
+        f.write(onnx_model.SerializeToString())
+    print(f"  ONNX exported → {MODEL_DIR / f'{MODEL_ID}.onnx'}")
+
+    sess = ort.InferenceSession(str(MODEL_DIR / f"{MODEL_ID}.onnx"), providers=["CPUExecutionProvider"])
+    probe = np.zeros((1, len(feature_names)), dtype=np.float32)
+    got = float(sess.run(None, {sess.get_inputs()[0].name: probe})[0].ravel()[0])
+    want = float(best_model.predict(pd.DataFrame(probe, columns=feature_names))[0])
+    if abs(got - want) > 1e-5:  # noqa: PLR2004
+        raise RuntimeError(f"ONNX round-trip mismatch: onnx {got:.8f} vs sklearn {want:.8f}")
+
+    historical = pd.DataFrame({"year_month": y.index.astype(str), "depth_actual": y.values, "depth_predicted": train_pred})
+    cv_results = {
+        "model_id": MODEL_ID,
+        "estimator": "ridge on four climate inputs (PHASE3_PLAN.md §29)",
+        "formulation": "residual_over_lag1",
+        "cv_method": f"nested TimeSeriesSplit({N_SPLITS} outer / {INNER_SPLITS} inner)",
+        "window_start": str(y.index[0]),
+        "window_end": str(y.index[-1]),
+        "n_rows": len(y),
+        "n_features": len(feature_names),
+        "winner": "ridge_fixed_features",
+        "best_params": {"alpha": float(ridge.alpha_)},
+        "coefficients": coefficients,
+        "cv_mean_r2": scores["cv_mean_r2"],
+        "cv_std_r2": scores["cv_std_r2"],
+        "cv_mean_mae": scores["cv_mean_mae"],
+        "cv_std_mae": scores["cv_std_mae"],
+        "cv_target_r2": scores["cv_target_r2"],
+        "baseline_lag1_r2": baseline_r2,
+        "skill_r2": skill_score(scores["cv_mean_r2"], baseline_r2),
+        "train_r2": float(r2_score(y, train_pred)),
+        "train_mae": float(mean_absolute_error(y, train_pred)),
+        "folds": scores["folds"],
+    }
+    _save_json(cv_results, MODEL_DIR / f"{MODEL_ID}_cv_results.json")
+    _save_json(feature_names, MODEL_DIR / f"{MODEL_ID}_feature_names.json")
+    _save_json(feature_stats, MODEL_DIR / f"{MODEL_ID}_feature_stats.json")
+    _save_json(importance, MODEL_DIR / f"{MODEL_ID}_feature_importance.json")
+    historical.to_csv(MODEL_DIR / f"historical_{MODEL_ID}.csv", index=False)
+    return cv_results
+
+
 def train_and_evaluate() -> dict:  # noqa: C901, PLR0912, PLR0915
     """Build, tune, evaluate, and export the groundwater well level model."""
+    from scripts.phase2.features import _MONTHLY_MODEL_SPECS  # noqa: PLC0415
+
+    if _MONTHLY_MODEL_SPECS["groundwater"].get("fixed_features"):
+        x, y = build_all()["groundwater"]
+        return _train_ridge(x, y)
     datasets = build_all()
     x, y = datasets[MODEL_ID]
 

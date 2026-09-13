@@ -1,0 +1,269 @@
+{
+  "question": "does a linear residual model on five physical inputs beat the shipped in-fold competition for groundwater?",
+  "rule": {
+    "delta_target_r2_gt_0": true,
+    "wins_required": 4,
+    "t_required": 2.0,
+    "judged_arm": "linear_physical"
+  },
+  "rows_scored": 219,
+  "rows": [
+    "2002-10",
+    "2020-12"
+  ],
+  "physical_features": [
+    "irrigation_total_withdrawal_mgd",
+    "gldas_tws_proxy_delta",
+    "precipitation_mm_day",
+    "precipitation_mm_day_lag1",
+    "temperature_2m_c_anomaly"
+  ],
+  "deseasonalized": [
+    "irrigation_total_withdrawal_mgd"
+  ],
+  "arms": {
+    "shipped": {
+      "n_features": 16,
+      "features": null,
+      "deseasonalized_columns": [],
+      "target_r2": -0.004786091598831721,
+      "level_r2": 0.414068045173894,
+      "skill_vs_persistence": 0.014587848401974302,
+      "persistence_level_r2": 0.3994801967719197,
+      "folds": [
+        {
+          "fold": 0,
+          "test_start": "2006-01",
+          "test_end": "2008-12",
+          "n_train": 39,
+          "n_test": 36,
+          "target_r2": 0.0011953057465746708,
+          "level_r2": 0.7491754609856291
+        },
+        {
+          "fold": 1,
+          "test_start": "2009-01",
+          "test_end": "2011-12",
+          "n_train": 75,
+          "n_test": 36,
+          "target_r2": -0.08126448593119151,
+          "level_r2": 0.7480153383195881
+        },
+        {
+          "fold": 2,
+          "test_start": "2012-01",
+          "test_end": "2014-12",
+          "n_train": 111,
+          "n_test": 36,
+          "target_r2": 0.015447880698746808,
+          "level_r2": -0.22688088290956876
+        },
+        {
+          "fold": 3,
+          "test_start": "2015-01",
+          "test_end": "2017-12",
+          "n_train": 147,
+          "n_test": 36,
+          "target_r2": 0.04141321442606849,
+          "level_r2": 0.046688034772169096
+        },
+        {
+          "fold": 4,
+          "test_start": "2018-01",
+          "test_end": "2020-12",
+          "n_train": 183,
+          "n_test": 36,
+          "target_r2": -0.0007223729343570628,
+          "level_r2": 0.7533422747016525
+        }
+      ]
+    },
+    "linear_physical": {
+      "n_features": 5,
+      "features": [
+        "irrigation_total_withdrawal_mgd",
+        "gldas_tws_proxy_delta",
+        "precipitation_mm_day",
+        "precipitation_mm_day_lag1",
+        "temperature_2m_c_anomaly"
+      ],
+      "deseasonalized_columns": [
+        "irrigation_total_withdrawal_mgd"
+      ],
+      "target_r2": 0.012755984867293435,
+      "level_r2": 0.424461769980313,
+      "skill_vs_persistence": 0.024981573208393282,
+      "persistence_level_r2": 0.3994801967719197,
+      "folds": [
+        {
+          "fold": 0,
+          "test_start": "2006-01",
+          "test_end": "2008-12",
+          "n_train": 39,
+          "n_test": 36,
+          "target_r2": -0.05210730319725543,
+          "level_r2": 0.7357898587817941
+        },
+        {
+          "fold": 1,
+          "test_start": "2009-01",
+          "test_end": "2011-12",
+          "n_train": 75,
+          "n_test": 36,
+          "target_r2": -0.0011583503289191999,
+          "level_r2": 0.7666837748963059
+        },
+        {
+          "fold": 2,
+          "test_start": "2012-01",
+          "test_end": "2014-12",
+          "n_train": 111,
+          "n_test": 36,
+          "target_r2": 0.03598880994726461,
+          "level_r2": -0.20128419491493998
+        },
+        {
+          "fold": 3,
+          "test_start": "2015-01",
+          "test_end": "2017-12",
+          "n_train": 147,
+          "n_test": 36,
+          "target_r2": 0.05630553907214175,
+          "level_r2": 0.06149841134820189
+        },
+        {
+          "fold": 4,
+          "test_start": "2018-01",
+          "test_end": "2020-12",
+          "n_train": 183,
+          "n_test": 36,
+          "target_r2": 0.02475122884323544,
+          "level_r2": 0.7596209997902031
+        }
+      ]
+    },
+    "linear_climate": {
+      "n_features": 4,
+      "features": [
+        "gldas_tws_proxy_delta",
+        "precipitation_mm_day",
+        "precipitation_mm_day_lag1",
+        "temperature_2m_c_anomaly"
+      ],
+      "deseasonalized_columns": [],
+      "target_r2": 0.011518414453264469,
+      "level_r2": 0.41983863231299823,
+      "skill_vs_persistence": 0.020358435541078523,
+      "persistence_level_r2": 0.3994801967719197,
+      "folds": [
+        {
+          "fold": 0,
+          "test_start": "2006-01",
+          "test_end": "2008-12",
+          "n_train": 39,
+          "n_test": 36,
+          "target_r2": -0.05014628873816185,
+          "level_r2": 0.736282317968793
+        },
+        {
+          "fold": 1,
+          "test_start": "2009-01",
+          "test_end": "2011-12",
+          "n_train": 75,
+          "n_test": 36,
+          "target_r2": -0.007118261212194721,
+          "level_r2": 0.7652948398604212
+        },
+        {
+          "fold": 2,
+          "test_start": "2012-01",
+          "test_end": "2014-12",
+          "n_train": 111,
+          "n_test": 36,
+          "target_r2": 0.023017985832602395,
+          "level_r2": -0.2174475404909526
+        },
+        {
+          "fold": 3,
+          "test_start": "2015-01",
+          "test_end": "2017-12",
+          "n_train": 147,
+          "n_test": 36,
+          "target_r2": 0.04465691193219534,
+          "level_r2": 0.04991388316764722
+        },
+        {
+          "fold": 4,
+          "test_start": "2018-01",
+          "test_end": "2020-12",
+          "n_train": 183,
+          "n_test": 36,
+          "target_r2": 0.04718172445188118,
+          "level_r2": 0.7651496610590824
+        }
+      ]
+    },
+    "linear_gldas1": {
+      "n_features": 1,
+      "features": [
+        "gldas_tws_proxy_delta"
+      ],
+      "deseasonalized_columns": [],
+      "target_r2": 0.02476023013621722,
+      "level_r2": 0.4305319724823521,
+      "skill_vs_persistence": 0.031051775710432383,
+      "persistence_level_r2": 0.3994801967719197,
+      "folds": [
+        {
+          "fold": 0,
+          "test_start": "2006-01",
+          "test_end": "2008-12",
+          "n_train": 39,
+          "n_test": 36,
+          "target_r2": 0.04292076326424388,
+          "level_r2": 0.7596537543969912
+        },
+        {
+          "fold": 1,
+          "test_start": "2009-01",
+          "test_end": "2011-12",
+          "n_train": 75,
+          "n_test": 36,
+          "target_r2": -0.03700051883473776,
+          "level_r2": 0.7583308910067986
+        },
+        {
+          "fold": 2,
+          "test_start": "2012-01",
+          "test_end": "2014-12",
+          "n_train": 111,
+          "n_test": 36,
+          "target_r2": 0.026995779838191014,
+          "level_r2": -0.21249068820661376
+        },
+        {
+          "fold": 3,
+          "test_start": "2015-01",
+          "test_end": "2017-12",
+          "n_train": 147,
+          "n_test": 36,
+          "target_r2": 0.08788768745860498,
+          "level_r2": 0.092906772487241
+        },
+        {
+          "fold": 4,
+          "test_start": "2018-01",
+          "test_end": "2020-12",
+          "n_train": 183,
+          "n_test": 36,
+          "target_r2": 0.002997438954783993,
+          "level_r2": 0.7542591327273435
+        }
+      ]
+    }
+  },
+  "delta_target_r2": 0.017542076466125156,
+  "wins": 4,
+  "paired_t": 0.826383594976803,
+  "verdict": "NULL"
+}

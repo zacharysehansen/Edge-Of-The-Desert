@@ -62,7 +62,7 @@ happen inside each training fold. See [scripts/phase2/metrics.py](scripts/phase2
 | **NDVI** | Vegetation health | 2002-10 → 2023-12 | 255 | 46 | **OK** | **+0.2588** | 0.7862 | 0.5274 | **0.5453** |
 | **Wildlife** | Bird abundance anomaly | **1968 → 2024** (annual) | **56** | 12 | **OK** | **+0.2167** | 0.2247 (LOO) | 0.0080 | — |
 | **GRACE** | Groundwater anomaly | 2002-10 → 2023-12 | 204 | **4** | **OK** | **+0.2015** | 0.5664 | 0.3649 | **0.2845** |
-| Groundwater | Well depth anomaly (ft) | 2002-10 → 2020-12 | 219 | 16 | **NO SKILL** | −0.0123 | 0.3872 | 0.3995 | −0.1075 |
+| **Groundwater** | Well depth anomaly, **Cochise basins** | 2002-10 → 2020-12 | 219 | **4** | **OK** | **+0.2269** | 0.5582 | 0.3313 | **0.3565** |
 
 Sorted by skill. **Retrained 2026-09-12** (PHASE3_PLAN.md §27); the table it replaces is in git
 history at `e8d7df2`. Three things moved, for three different reasons:
@@ -83,9 +83,11 @@ history at `e8d7df2`. Three things moved, for three different reasons:
    winner. Fold 0 went 0.215 → 0.423; the other four are within 0.02. `model_comparison.json`
    now records the xgboost / scikit-learn / numpy versions that produced every number.
 
-Groundwater clears the level baseline arithmetically and loses to persistence by 0.01 — it is
-listed as no skill because ±0.01 is not a result. It is, however, **no longer actively harmful**,
-which is where it started.
+4. **Groundwater is a different target and a different model** (PHASE3_PLAN.md §28–§29, later on
+   2026-09-12). The index blended 44 Cochise County wells with 14 uncorrelated Tucson-AMA wells that
+   carried 81 % of its variance and responded to nothing; it is now the Cochise index alone, and
+   ships as a four-input ridge like GRACE. Skill −0.0123 → **+0.2269**, with every climate sign
+   physical. All six models now have skill.
 
 ---
 
@@ -236,7 +238,30 @@ mechanism was swamped rather than refuted — and the configuration that could t
 record *and* NDVI, cannot exist. Keep the 1968 window. The real
 signal survives the correction: per-route abundance declines **~23% across the record (p < 0.0001)**.
 
-### Groundwater (Well Depth) — skill −0.0123 ⚠ *(+0.0086 before the 2026-09-12 retrain)*
+### Groundwater (Well Depth, Cochise basins) — skill +0.2269 ✅ *(−0.0123 as the blended index)*
+
+- **Target:** the per-well anomaly index over the **44 Cochise County wells** (PHASE3_PLAN.md §28–§29);
+  the previous blend over all 66 wells is kept as `depth_to_water_anomaly_ft_allwells`
+- **Estimator:** standardised ridge, alpha 31.6 by inner TimeSeriesSplit(3), on
+  `gldas_tws_proxy_delta`, `precipitation_mm_day`, `precipitation_mm_day_lag1`, `temperature_2m_c_anomaly`
+- **Window 2002-10 → 2020-12 · 219 rows · 4 features**
+- **R² (level) 0.5582 · persistence 0.3313 · R² (residual) 0.3565** — folds 0.08 / 0.26 / 0.56 / 0.51 / 0.37
+- Standardised coefficients −0.19 (GLDAS change), −0.06 and −0.05 (rain, this and last month),
+  +0.06 (temperature anomaly): wet months raise the water table, heat lowers it.
+
+> **Why the target changed, in one paragraph.** The blended index averaged two aquifers that do not
+> move together (level r −0.13, monthly change r +0.07): the Cochise wells, flat and climate-driven,
+> and ten Tucson-AMA wells rising 2.4 ft/yr under managed recharge at six times the volatility.
+> The Tucson wells set the variance and respond to nothing in the panel; the Cochise wells track
+> GLDAS storage change at r −0.59. Split, the Cochise half forecasts and the Tucson half does not.
+> The retrained in-fold competition on the new target scored +0.156 residual R² with wrong-signed
+> climate responses and a "blend" winner whose ONNX export drops half the model; the ridge scored
+> +0.357 with physical signs. The declared forecast test between them was a null (t = 1.84), so
+> the sign decided. Full record in PHASE3_PLAN.md §29.
+
+*The account of the blended index follows, for the record.*
+
+#### As the blended index — skill −0.0123 ⚠ *(+0.0086 before the 2026-09-12 drought-index retrain)*
 
 - **Formulation:** residual-over-lag1, in-fold competition of 5 candidates, winner **XGBoost**
 - **Window 2002-10 → 2020-12 · 219 rows · 16 features** (47 dropped in-fold)
@@ -456,7 +481,9 @@ scripts/phase2/
 ├── model_grace.py             — Ridge on 4 physical inputs (GLDAS storage change, rain, rain lag1,
 │                                temperature anomaly), residual-over-lag1, real-target-only mask;
 │                                the XGBoost search is kept for the experiment scripts only
-├── model_groundwater.py       — In-fold competition (5 candidates), residual
+├── model_groundwater.py       — Ridge on 4 climate inputs (GLDAS change, rain, rain lag1, temperature
+│                                anomaly), residual, Cochise-County well index; the 5-candidate
+│                                competition is kept for the experiment scripts only
 ├── model_surface_water.py     — In-fold competition (3 candidates), residual on a log anomaly
 ├── model_wildfire_monthly.py  — In-fold competition (4 candidates incl. Tweedie), direct
 ├── model_wildlife.py          — In-fold competition (3 candidates), nested LOO
