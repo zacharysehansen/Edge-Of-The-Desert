@@ -10,10 +10,10 @@
   "best_params": {
     "model__alpha": 100.0
   },
-  "loo_r2": 0.21252680926613066,
-  "loo_mae": 0.08649123138271594,
-  "spearman_corr": 0.5068352699931647,
-  "spearman_p": 6.718449589080892e-05,
+  "loo_r2": 0.22468834431797036,
+  "loo_mae": 0.08592941087204985,
+  "spearman_corr": 0.5326725905673275,
+  "spearman_p": 2.378897039382452e-05,
   "train_r2": 0.3342600387246689,
   "train_mae": 0.07968874872786531,
   "all_candidates": [
@@ -23,11 +23,11 @@
     },
     {
       "name": "ElasticNet",
-      "inner_cv_r2": -0.3574787718597407
+      "inner_cv_r2": -0.3574787718597408
     },
     {
       "name": "XGBoost",
-      "inner_cv_r2": -0.3563078164362488
+      "inner_cv_r2": -0.3525533313578191
     }
   ],
   "note": "Wildlife model trained on 56 rows. Ridge/ElasticNet/XGBoost competition, with both the tuning and the model choice made inside each LOO fold. Treat Spearman rank correlation as the primary reliability indicator: at this sample size R\u00b2 is dominated by a handful of points."

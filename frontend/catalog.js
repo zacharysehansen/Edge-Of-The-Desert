@@ -15,6 +15,7 @@ import {
     getMonthEncoding,
     OUTPUT_STATS,
 } from './state.js';
+import { DERIVED } from './state.js';
 
 // Residual models predict (value - lag1) and reconstruct against these anchors.
 const SEED_BASELINES = {
@@ -206,6 +207,22 @@ function buildFeatureCatalog(sliderDeltas, month, durationMonths = state.scenari
     catalog.precip_x_temperature = catalog.precipitation_mm_day * catalog.temperature_2m_c;
     catalog.nclimdiv_precip_x_temperature =
         catalog.nclimdiv_precipitation_mm_day * catalog.nclimdiv_temperature_c;
+
+    // GRACE's storage-change input (PHASE3_PLAN.md §26). GLDAS has no slider: its
+    // monthly change is derived from the rain and temperature the sliders set, by
+    // the OLS in generate_stats.py (R² stated in computed_stats.json). It uses the
+    // same reconstructed values as the lag family above, so it is consistent with
+    // them, and it carries no human input, so Layer 1 stays climate-only.
+    const g = DERIVED.gldas_tws_proxy_delta;
+    if (g) {
+        const c = g.coefficients;
+        catalog.gldas_tws_proxy_delta = g.intercept
+            + c.precipitation_mm_day      * catalog.precipitation_mm_day
+            + c.precipitation_mm_day_lag1 * catalog.precipitation_mm_day_lag1
+            + c.temperature_2m_c          * catalog.temperature_2m_c
+            + c.month_sin * month_sin
+            + c.month_cos * month_cos;
+    }
 
     // Annual aggregates. The wildlife model is the only consumer.
     const pdsiAt = at('nclimdiv_pdsi');

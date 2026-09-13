@@ -8,80 +8,80 @@
   "n_features": 26,
   "cv_method": "nested TimeSeriesSplit(5 outer / 3 inner)",
   "best_params": {
-    "model__subsample": 0.9,
-    "model__reg_lambda": 1,
-    "model__reg_alpha": 0.5,
-    "model__n_estimators": 200,
-    "model__min_child_weight": 5,
+    "model__subsample": 0.8,
+    "model__reg_lambda": 10,
+    "model__reg_alpha": 0.1,
+    "model__n_estimators": 100,
+    "model__min_child_weight": 3,
     "model__max_depth": 2,
-    "model__learning_rate": 0.03,
-    "model__colsample_bytree": 0.6
+    "model__learning_rate": 0.05,
+    "model__colsample_bytree": 0.7
   },
-  "cv_mean_r2": 0.28185255759218986,
-  "cv_std_r2": 0.14546899937568578,
-  "cv_mean_mae": 0.12382357674132746,
-  "cv_std_mae": 0.015972440923152476,
-  "cv_target_r2": 0.28185255759218986,
+  "cv_mean_r2": 0.32273493073817605,
+  "cv_std_r2": 0.14157237114171572,
+  "cv_mean_mae": 0.12623916130501872,
+  "cv_std_mae": 0.013730904972233723,
+  "cv_target_r2": 0.32273493073817605,
   "baseline_lag1_r2": -0.08975032589144641,
-  "skill_r2": 0.37160288348363624,
-  "train_r2": 0.6147828940733613,
-  "train_mae": 0.09540020108570604,
+  "skill_r2": 0.41248525662962243,
+  "train_r2": 0.5840155093669435,
+  "train_mae": 0.09890667860906574,
   "folds": [
     {
       "fold": 0,
       "test_start": "1991-02",
       "test_end": "1997-08",
       "test_size": 79,
-      "r2": 0.21506963610938112,
-      "mae": 0.09840368952922124,
-      "target_r2": 0.21506963610938112
+      "r2": 0.42264533972272056,
+      "mae": 0.10652886785410137,
+      "target_r2": 0.42264533972272056
     },
     {
       "fold": 1,
       "test_start": "1997-09",
       "test_end": "2004-03",
       "test_size": 79,
-      "r2": 0.05614795644562309,
-      "mae": 0.1182799022562132,
-      "target_r2": 0.05614795644562309
+      "r2": 0.07077819270559205,
+      "mae": 0.1182414790366295,
+      "target_r2": 0.07077819270559205
     },
     {
       "fold": 2,
       "test_start": "2004-04",
       "test_end": "2010-10",
       "test_size": 79,
-      "r2": 0.2763703138847047,
-      "mae": 0.14485843178268099,
-      "target_r2": 0.2763703138847047
+      "r2": 0.2742042332434732,
+      "mae": 0.1448192961824049,
+      "target_r2": 0.2742042332434732
     },
     {
       "fold": 3,
       "test_start": "2010-11",
       "test_end": "2017-05",
       "test_size": 79,
-      "r2": 0.3761539080710772,
-      "mae": 0.12147572732299537,
-      "target_r2": 0.3761539080710772
+      "r2": 0.3767709127151788,
+      "mae": 0.12361454863794201,
+      "target_r2": 0.3767709127151788
     },
     {
       "fold": 4,
       "test_start": "2017-06",
       "test_end": "2023-12",
       "test_size": 79,
-      "r2": 0.4855209734501632,
-      "mae": 0.1361001328155265,
-      "target_r2": 0.4855209734501632
+      "r2": 0.4692759753039156,
+      "mae": 0.13799161481401584,
+      "target_r2": 0.4692759753039156
     }
   ],
   "all_candidates": [
     {
       "label": "XGBoost (direct)",
-      "cv_mean_r2": 0.3380603446772473,
-      "cv_mean_mae": 0.1239365196377717
+      "cv_mean_r2": 0.3383034862788349,
+      "cv_mean_mae": 0.12381069344114264
     },
     {
       "label": "ElasticNet (direct)",
-      "cv_mean_r2": 0.3033961575947714,
+      "cv_mean_r2": 0.30339615759477134,
       "cv_mean_mae": 0.13424804614868707
     },
     {
@@ -91,8 +91,8 @@
     },
     {
       "label": "XGBoost-Tweedie (direct)",
-      "cv_mean_r2": 0.2894860020980552,
-      "cv_mean_mae": 0.12607373299356248
+      "cv_mean_r2": 0.2876126034630658,
+      "cv_mean_mae": 0.1267643016170435
     }
   ],
   "note": "Direct formulation (fire is not autoregressive; the residual formulation was tested and lost). Reported CV R\u00b2 is nested: the model competition (Ridge / ElasticNet / XGBoost squared-error / XGBoost Tweedie) and the hyperparameter search both run inside each fold. Target is zero-inflated (~61% zero months), which is why a Tweedie objective competes; it only wins if it improves out-of-fold R\u00b2."

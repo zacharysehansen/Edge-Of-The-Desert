@@ -135,7 +135,10 @@ python -m scripts.phase1.wildfire_monthly
 
 Phase 2 merges the `data/Final/` CSVs into panels, engineers lag/rolling/anomaly/
 seasonal features, computes persistence baselines, trains one model per response, and
-exports each to ONNX with JSON sidecars. The full pipeline runs in ~60 seconds.
+exports each to ONNX with JSON sidecars. The full pipeline runs in a few minutes. Five models
+are gradient-boosted or in-fold-selected ensembles; **GRACE is a ridge regression on four
+physical inputs** led by GLDAS land-surface storage change
+([PHASE3_PLAN.md §26–§27](PHASE3_PLAN.md)), which is what gave it skill.
 
 ### Run the full pipeline
 
@@ -256,7 +259,9 @@ deseasonalized baseline, a 12-month seasonal shape, and a delta range in policy 
 (people added, % of annual withdrawal, points of impervious cover, feet of elevation).
 The frontend drives the models from the policy delta, because a raw percentile range is
 not a policy axis — irrigation's raw maximum only ever meant "June". See
-[PHASE3_PLAN.md](PHASE3_PLAN.md) D5.
+[PHASE3_PLAN.md](PHASE3_PLAN.md) D5. It also writes a `DERIVED` block: the OLS that turns the
+rain and temperature sliders into the GLDAS storage change the GRACE model takes as input
+(R² 0.61, stated in the JSON), the way the drought index is derived from PDSI.
 
 `top_inputs.py` reads the `model/*_feature_importance.json` sidecars and writes the
 "responds mainly to" line for each output card, plus how many of that model's inputs are

@@ -142,6 +142,9 @@ const OUTPUT_DEFS = {
 
 // Loaded dynamically from computed_stats.json (p5, p95, p50 as baseline)
 const OUTPUT_STATS = computedStats.OUTPUT_STATS;
+// Derived-feature drivers (generate_stats.py::derive_gldas_driver). The GRACE model's
+// GLDAS storage-change input is reconstructed from the rain and temperature sliders.
+const DERIVED = computedStats.DERIVED ?? {};
 
 // Generated from the deployed models' own importance sidecars by
 // scripts/phase3/top_inputs.py (PHASE3_PLAN.md D4). It used to be a hand-written
@@ -215,6 +218,7 @@ export {
   climateOnly,
   OUTPUT_DEFS,
   OUTPUT_STATS,
+  DERIVED,
   TOP_INPUTS,
   TIER_BASIS,
   state,

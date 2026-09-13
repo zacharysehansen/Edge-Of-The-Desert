@@ -18,12 +18,12 @@ about it. Companion to [PHASE2_REPORT.md](PHASE2_REPORT.md) (what the models sco
 
 | Model | Skill | Verdict | Binding problem | Fixable? |
 |-------|-------|---------|-----------------|----------|
-| Surface water | **+0.6830** | **works** ✅ | ~~target was 45% one dam-regulated gage~~ **FIXED**; extended to 1980–2025 | **done — see [M2](#m2-surface-water--the-target-was-mostly-one-regulated-river-fixed)** |
-| Wildfire | **+0.3716** | **works** ✅ | ~~month came from a DB edit date~~ **FIXED**; extended to 1984–2023 | **done — see [M3](#m3-wildfire--the-target-was-not-measuring-wildfire-fixed)** |
-| NDVI | **+0.2653** | **works** | none — at MODIS instrument floor | already healthy |
-| Groundwater | **+0.0086** | no skill, but no longer harmful ✅ | ~~compositional artifact~~ **FIXED**; now [P5](#p5-monthly-pumping-is-weakly-observed-not-unobserved-measured) | target fixed — **now stop** |
-| GRACE | −0.0349 | no skill | the observable pumping signal is too weak | **stop tuning.** Irrigation trade re-tested 2026-09-04: **null**; the full deseasonalized human block re-tested under the real nested tuner 2026-09-10: **null** (t=1.21, 83% of the gain is one 28-row fold — PHASE3_PLAN.md §11.5); **CAP monthly deliveries tested 2026-09-12: null** (5/5 folds, t=1.52, 72% of the gain the same fold — §23; on the full 2002–2023 window the gain shrinks to a quarter, t=1.27 — §24, CAP closed); **GLDAS tested 2026-09-12: null as a feature block** (t=1.34), but a one-coefficient OLS on GLDAS storage change scores **+0.244** out of fold vs the shipped **+0.021** — the estimator, not the data, is the floor (§25). **Confirmed by step 2b (§26): a ridge on four physical inputs scores +0.2845 target R², +0.5664 level R², skill +0.2015, 4/5 folds, t = 2.52 — REAL. Shipping it is an architecture change, not yet taken.** Only acquisitions left: [CAP](#option-b--cap-deliveries-as-a-monthly-pumping-proxy-untested--worth-one-probe) / [GLDAS](#option-c--gldas-land-surface-state-as-features-not-a-new-target-untested) / OpenET |
-| Wildlife | **+0.2046** | **works** ✅ | ~~the target was a survey-effort index~~ **FIXED** | **done — see [M6](#m6-wildlife--the-target-was-a-survey-effort-index-fixed)** |
+| Surface water | **+0.6833** | **works** ✅ | ~~target was 45% one dam-regulated gage~~ **FIXED**; extended to 1980–2025 | **done — see [M2](#m2-surface-water--the-target-was-mostly-one-regulated-river-fixed)** |
+| Wildfire | **+0.4125** | **works** ✅ | ~~month came from a DB edit date~~ **FIXED**; extended to 1984–2023 | **done — see [M3](#m3-wildfire--the-target-was-not-measuring-wildfire-fixed)** |
+| NDVI | **+0.2588** | **works** | none — at MODIS instrument floor | already healthy |
+| Groundwater | −0.0123 | no skill, but no longer harmful ✅ | ~~compositional artifact~~ **FIXED**; now [P5](#p5-monthly-pumping-is-weakly-observed-not-unobserved-measured) | target fixed — **now stop** |
+| GRACE | **+0.2015** | **works** ✅ *(ridge on 4 physical inputs, deployed 2026-09-12 — PHASE3_PLAN.md §27)* | ~~the observable pumping signal is too weak~~ the XGBoost was the floor (§25–§26); the pumping residual is still unobserved | ~~**stop tuning.**~~ done — model class, not tuning. Irrigation trade re-tested 2026-09-04: **null**; the full deseasonalized human block re-tested under the real nested tuner 2026-09-10: **null** (t=1.21, 83% of the gain is one 28-row fold — PHASE3_PLAN.md §11.5); **CAP monthly deliveries tested 2026-09-12: null** (5/5 folds, t=1.52, 72% of the gain the same fold — §23; on the full 2002–2023 window the gain shrinks to a quarter, t=1.27 — §24, CAP closed); **GLDAS tested 2026-09-12: null as a feature block** (t=1.34), but a one-coefficient OLS on GLDAS storage change scores **+0.244** out of fold vs the shipped **+0.021** — the estimator, not the data, is the floor (§25). **Confirmed by step 2b (§26): a ridge on four physical inputs scores +0.2845 target R², +0.5664 level R², skill +0.2015, 4/5 folds, t = 2.52 — REAL. Shipping it is an architecture change, not yet taken.** Only acquisitions left: [CAP](#option-b--cap-deliveries-as-a-monthly-pumping-proxy-untested--worth-one-probe) / [GLDAS](#option-c--gldas-land-surface-state-as-features-not-a-new-target-untested) / OpenET |
+| Wildlife | **+0.2167** | **works** ✅ | ~~the target was a survey-effort index~~ **FIXED** | **done — see [M6](#m6-wildlife--the-target-was-a-survey-effort-index-fixed)** |
 
 > **2026-09-12 — the region is not the one the documents named, and it is being kept.** See
 > [P8](#p8-the-region-was-never-the-one-the-documents-named-measured--kept-on-purpose).
@@ -1385,10 +1385,11 @@ Two things are recorded against the decision so it does not read as a rationalis
    USDM API and re-weighting **reproduces the shipped column exactly** under the wrong weights, and
    under the right ones moves it by **r = 0.99916** on levels, **0.9984** on month-to-month change,
    mean +0.42 DSCI on a series with sd 112. The weights are corrected in the script;
-   `data/Final/water_stress_monthly.csv` is **not regenerated**, because `usdm_dsci` is a feature in
-   GRACE (6 features), NDVI (6) and groundwater (1) and regenerating it means retraining all three
-   for a 0.08 % change in correlation. `FIXED (latent)`, same status as the nClimDiv constant in P7.
-   Whoever next retrains Phase 2 should regenerate it first.
+   `data/Final/water_stress_monthly.csv` was **not regenerated at first**, because `usdm_dsci` was a
+   feature in GRACE (6 features), NDVI (6) and groundwater (1) and regenerating it meant retraining
+   all three for a 0.08 % change in correlation. **Regenerated and retrained 2026-09-12** with the
+   GRACE model-class change (PHASE3_PLAN.md §27): NDVI +0.2653 → +0.2588, groundwater +0.0086 →
+   −0.0123 (fold noise), GRACE no longer carries DSCI at all.
 4. **Names, everywhere.** `region.py`, the config mirror, README, PHASE1_SETUP, DATA.md,
    PHASE3_PARAMS and the AMA-coverage list in P5 above.
 

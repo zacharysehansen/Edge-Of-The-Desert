@@ -62,9 +62,14 @@ Change in the 0–100 score for a full slider swing, at a 12-month scenario:
 | **Public supply** | −5.63 | 0.00 | **+18.03** | −0.72 | — | −0.18 |
 | **Urbanization** | 0.00 | −0.97 | 0.00 | **+3.30** | — | +0.82 |
 | **Lake Mead level** | +1.32 | 0.00 | −4.22 | +0.17 | — | +0.04 |
-| Precipitation | −3.38 | +4.96 | −0.20 | **+36.70** | −14.50 | +10.37 |
-| Temperature | +0.18 | +0.47 | −0.31 | −0.28 | **+9.56** | +1.05 |
-| Drought (PDSI) | −1.73 | −4.80 | −0.15 | −1.06 | +0.01 | **+7.35** |
+| Precipitation | **+7.61** | +5.16 | −0.40 | **+36.70** | −16.59 | +10.37 |
+| Temperature | −0.47 | −2.68 | −0.51 | −0.28 | **+8.77** | +1.05 |
+| Drought (PDSI) | 0.00 | −1.39 | 0.00 | −1.06 | −1.12 | **+7.35** |
+
+*(Climate rows re-measured after the 2026-09-12 retrain — [PHASE3_PLAN.md §27](PHASE3_PLAN.md).
+GRACE's rain response went from −3.38 to +7.61: the old XGBoost had it wrong-signed, the ridge has
+it physical. NDVI's temperature response went from +0.47 to −2.68, hotter → browner, also the
+physical sign. The human rows did not move, because Layer 2 was not touched.)*
 
 Two architectural facts explain the shape of this table, and are worth stating before any
 individual row:
@@ -157,11 +162,15 @@ correlation with the well-depth anomaly, where physics wants negative. The most 
 is a scale mismatch: GRACE's ~300 km footprint is leakage-smeared across the whole region, while
 the well network sits in pumped agricultural basins. They are not measuring the same water.
 
-**GRACE is also the only model in the project with negative forecast skill (−0.0349).** The target
-is sound — a strong depletion trend (r = −0.84), correct drought and Mead signs — it simply cannot
-be predicted from what we have, because monthly change in a storage integral is driven by pumping
-that nobody observes monthly. Three attempts to fix that with features have now returned nulls. Its
-human response, which *is* real, comes entirely from the structural layer.
+**GRACE was the only model in the project with negative forecast skill (−0.0349) until 2026-09-12;
+it now has +0.20.** The target was always sound — a strong depletion trend (r = −0.84), correct
+drought and Mead signs. What changed is the model: a ridge on four physical inputs, the first of
+which is the month's change in land-surface storage from GLDAS (soil, snow, canopy), which
+correlates +0.62 with GRACE's change. A 45-feature tree ensemble on 200 rows could not use that
+signal; four coefficients can ([PHASE3_PLAN.md §25–§27](PHASE3_PLAN.md)). In the app, the GRACE
+card's rain response is now +7.6 points and correctly signed (it was −3.4). The pumping part of
+the change is still unobserved monthly — three feature attempts returned nulls — and GRACE's
+human response, which *is* real, still comes entirely from the structural layer.
 
 ### 3.3 Streamflow — the tug-of-war, and two signs that look wrong
 

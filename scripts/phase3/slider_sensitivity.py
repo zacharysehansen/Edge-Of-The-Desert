@@ -114,6 +114,10 @@ def load_stats() -> tuple[dict, dict]:
     return stats["SLIDER_STATS"], stats["OUTPUT_STATS"]
 
 
+def load_derived() -> dict:
+    return json.loads(STATS_PATH.read_text()).get("DERIVED", {})
+
+
 def load_models() -> tuple[dict, dict]:
     sessions, names = {}, {}
     for key, stem in MODELS.items():
@@ -184,6 +188,7 @@ class Catalog:
             k: v["policy"] for k, v in slider_stats.items() if "policy" in v
         }
         self.zero = {k: 0.0 for k in self.policy}
+        self.derived = load_derived()
 
     def slider_raw(self, key: str, delta: float, month: int) -> float:
         p = self.policy[key]
@@ -248,6 +253,20 @@ class Catalog:
         cat["nclimdiv_precip_x_temperature"] = (
             cat["nclimdiv_precipitation_mm_day"] * cat["nclimdiv_temperature_c"]
         )
+
+        # GRACE's GLDAS storage-change input, derived from the sliders' climate the
+        # same way catalog.js does it (PHASE3_PLAN.md §26).
+        g = self.derived.get("gldas_tws_proxy_delta")
+        if g:
+            c = g["coefficients"]
+            cat["gldas_tws_proxy_delta"] = (
+                g["intercept"]
+                + c["precipitation_mm_day"] * cat["precipitation_mm_day"]
+                + c["precipitation_mm_day_lag1"] * cat["precipitation_mm_day_lag1"]
+                + c["temperature_2m_c"] * cat["temperature_2m_c"]
+                + c["month_sin"] * cat["month_sin"]
+                + c["month_cos"] * cat["month_cos"]
+            )
 
         # Annual aggregates over the 12 months ending on `month`; _lag1 is the 12
         # before that. Only the wildlife model consumes these.

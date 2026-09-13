@@ -143,7 +143,7 @@ This document catalogs all data inputs for the Southern Arizona Water and Land S
 | **Output File** | `data/Final/water_stress_monthly.csv` |
 | **Output Columns** | `year_month, usdm_dsci, water_stress_score` [1] |
 | **Processing** | County DSCI pulled individually, area-weighted by county land area (sq mi), averaged weekly→monthly, stress score derived as `100 - (dsci / 5)` [1][2] |
-| **Area Weights** | As shipped: Pima 9,189; Pinal 5,374; Santa Cruz 1,238; Cochise 6,219; **04013 (Maricopa) 4,641 — Graham's area**; Greenlee 1,848; Yuma 5,519; **04007 (Gila) 4,513 — La Paz's area**. Corrected in `water_stress.py` 2026-09-12 (Maricopa 9,226; Gila 4,795, TIGER EPSG:5070) but the CSV is not regenerated — correct weights move the index by r = 0.9992 (PROBLEMS.md P8) |
+| **Area Weights** | As shipped: Pima 9,189; Pinal 5,374; Santa Cruz 1,238; Cochise 6,219; **04013 (Maricopa) 4,641 — Graham's area**; Greenlee 1,848; Yuma 5,519; **04007 (Gila) 4,513 — La Paz's area**. Corrected in `water_stress.py` and the CSV **regenerated 2026-09-12** (Maricopa 9,226; Gila 4,795, TIGER EPSG:5070); the corrected index correlates 0.9992 with the old one (PROBLEMS.md P8, PHASE3_PLAN.md §27) |
 | **Access Date** | June 2025 |
 
 ---

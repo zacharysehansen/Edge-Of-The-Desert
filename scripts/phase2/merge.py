@@ -156,6 +156,9 @@ def build_monthly_panel() -> pd.DataFrame:
         _read_monthly("urbanization_monthly.csv"),
         _read_monthly("groundwater_levels_monthly.csv"),
         _read_monthly("water_surface_monthly.csv"),
+        # GLDAS-2.1 land-surface state, 2000-01..2023-12 (PHASE3_PLAN.md §25-§26).
+        # Consumed only by the GRACE model, as its storage-change input.
+        _read_monthly("gldas_monthly.csv"),
     ]
 
     panel = pd.DataFrame(index=full_index)

@@ -1,57 +1,44 @@
 {
   "grace": {
-    "summary": "temperature, precipitation, drought (USDM)",
+    "summary": "land-surface storage change (GLDAS), temperature, precipitation",
     "top": [
+      {
+        "label": "land-surface storage change (GLDAS)",
+        "family": "climate",
+        "share": 0.5663
+      },
       {
         "label": "temperature",
         "family": "climate",
-        "share": 0.295
+        "share": 0.2986
       },
       {
         "label": "precipitation",
         "family": "climate",
-        "share": 0.2646
-      },
-      {
-        "label": "drought (USDM)",
-        "family": "climate",
-        "share": 0.1008
+        "share": 0.1351
       }
     ],
-    "feature_count": 45,
-    "human_feature_count": 12,
-    "human_features": [
-      "impervious_pct",
-      "impervious_pct_lag1",
-      "impervious_pct_roll12",
-      "mead_pool_elevation",
-      "mead_pool_elevation_lag1",
-      "mead_pool_elevation_lag3",
-      "mead_pool_elevation_roll3",
-      "mead_pool_elevation_roll6",
-      "population",
-      "population_lag1",
-      "population_roll12",
-      "precip_x_impervious"
-    ]
+    "feature_count": 4,
+    "human_feature_count": 0,
+    "human_features": []
   },
   "ndvi": {
-    "summary": "temperature, precipitation x temperature, precipitation",
+    "summary": "precipitation x temperature, temperature, season",
     "top": [
-      {
-        "label": "temperature",
-        "family": "climate",
-        "share": 0.3486
-      },
       {
         "label": "precipitation x temperature",
         "family": "climate",
-        "share": 0.3369
+        "share": 0.3654
       },
       {
-        "label": "precipitation",
+        "label": "temperature",
         "family": "climate",
-        "share": 0.0986
+        "share": 0.2835
+      },
+      {
+        "label": "season",
+        "family": "season",
+        "share": 0.1024
       }
     ],
     "feature_count": 46,
@@ -72,30 +59,32 @@
     ]
   },
   "groundwater": {
-    "summary": "temperature, precipitation, Lake Mead releases",
+    "summary": "temperature, season, GRACE storage",
     "top": [
       {
         "label": "temperature",
         "family": "climate",
-        "share": 0.1892
+        "share": 0.1483
       },
       {
-        "label": "precipitation",
-        "family": "climate",
-        "share": 0.1777
+        "label": "season",
+        "family": "season",
+        "share": 0.1382
       },
       {
-        "label": "Lake Mead releases",
-        "family": "human-fixed",
-        "share": 0.1435
+        "label": "GRACE storage",
+        "family": "response",
+        "share": 0.1295
       }
     ],
     "feature_count": 16,
-    "human_feature_count": 3,
+    "human_feature_count": 5,
     "human_features": [
+      "impervious_pct",
+      "impervious_pct_lag1",
       "irrigation_total_withdrawal_mgd",
-      "population_lag1",
-      "precip_x_impervious"
+      "mead_pool_elevation",
+      "mead_pool_elevation_roll6"
     ]
   },
   "surface_water": {
@@ -127,17 +116,17 @@
       {
         "label": "temperature",
         "family": "climate",
-        "share": 0.4051
+        "share": 0.3172
       },
       {
         "label": "precipitation",
         "family": "climate",
-        "share": 0.2618
+        "share": 0.3169
       },
       {
         "label": "season",
         "family": "season",
-        "share": 0.2159
+        "share": 0.2216
       }
     ],
     "feature_count": 26,

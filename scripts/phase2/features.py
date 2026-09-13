@@ -135,6 +135,18 @@ def _add_interaction_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _add_gldas_features(df: pd.DataFrame) -> pd.DataFrame:
+    """The month-to-month change in GLDAS's land-surface storage (soil 0-200 cm +
+    snow + canopy, mm). GRACE's target is a month-to-month change in total storage,
+    and this is the part of it the land-surface model observes (PHASE3_PLAN.md §25:
+    r = +0.62, slope +0.8 m/m). Contemporaneous with the target's month, exactly as
+    precipitation and temperature are."""
+    df = df.copy()
+    if "gldas_tws_proxy_mm" in df.columns:
+        df["gldas_tws_proxy_delta"] = df["gldas_tws_proxy_mm"].diff()
+    return df
+
+
 def _engineer_monthly(monthly_raw: pd.DataFrame) -> pd.DataFrame:
     """Full monthly feature engineering pipeline."""
     df = monthly_raw.copy()
@@ -142,6 +154,7 @@ def _engineer_monthly(monthly_raw: pd.DataFrame) -> pd.DataFrame:
     df = _add_anomaly_features(df)
     df = _add_seasonal_encoding(df)
     df = _add_interaction_features(df)
+    df = _add_gldas_features(df)
     return df
 
 
@@ -460,6 +473,16 @@ _MONTHLY_MODEL_SPECS: dict[str, dict] = {
         "target": "grace_groundwater_anomaly",
         "extended": True,
         "also_exclude": [*_RESPONSE_FEATURE_BASES],
+        # PHASE3_PLAN.md §26: GRACE is a ridge on four physical inputs, not the
+        # 45-column catalogue. The list was fixed before the experiment that chose
+        # the model class, and it is not to be edited by adding or removing columns
+        # afterwards; a change here is a new pre-declared experiment.
+        "fixed_features": [
+            "gldas_tws_proxy_delta",
+            "precipitation_mm_day",
+            "precipitation_mm_day_lag1",
+            "temperature_2m_c_anomaly",
+        ],
         # GRACE has no instrument for 2000-01..2002-03 (zero-filled) or across
         # the GRACE→GRACE-FO gap (interpolated). Those months are fabrication,
         # not measurement, and must never appear in the target or in the lag1
@@ -566,9 +589,9 @@ def _monthly_dataset(
         return x[mask], y[mask]
 
     exclude = [target, *spec.get("also_exclude", [])]
-    features = _monthly_feature_cols(exclude_target_base=exclude)
+    features = spec.get("fixed_features") or _monthly_feature_cols(exclude_target_base=exclude)
 
-    if extended:
+    if extended and not spec.get("fixed_features"):
         features = [
             f
             for f in features

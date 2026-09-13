@@ -7,9 +7,22 @@ Residual-over-lag1 formulation:
   - Train target: grace_groundwater_anomaly - grace_groundwater_anomaly_lag1
   - Prediction: predicted_residual + grace_groundwater_anomaly_lag1
 
-TimeSeriesSplit(n_splits=5) cross-validation.
-Export: ONNX + artifacts to model/.
+THE ESTIMATOR IS A RIDGE REGRESSION ON FOUR PHYSICAL INPUTS, NOT AN XGBOOST.
+PHASE3_PLAN.md §25-§26 (2026-09-12): the month-to-month change in GRACE storage is
+largely the land-surface storage change GLDAS observes (r = +0.62, slope +0.8 m/m),
+and a standardised ridge on {GLDAS storage change, rain, last month's rain,
+temperature anomaly} scores +0.2845 target R² / +0.5664 level R² / skill +0.2015
+under the same nested folds where the 45-feature XGBoost scored +0.0210 / +0.3372 /
+-0.0277 — 4 of 5 folds, t = +2.52, REAL by the rule declared before the run. The
+feature list lives in features.py (`fixed_features`) and is not to be edited here.
 
+The XGBoost search is kept below as `_make_xgb_search` (aliased `_make_search`)
+ONLY so that the experiment scripts (§11.5, §23-§26) can still reproduce the
+historical "shipped" arm. It is not used to train anything.
+
+TimeSeriesSplit(n_splits=5) outer cross-validation; the ridge penalty is chosen by
+an inner TimeSeriesSplit(3) inside every training fold.
+Export: ONNX (skl2onnx, scaler + ridge in one graph) + artifacts to model/.
 """
 
 from __future__ import annotations
@@ -19,10 +32,13 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from onnxmltools import convert_xgboost
-from onnxmltools.convert.common.data_types import FloatTensorType
+from skl2onnx import convert_sklearn
+from skl2onnx.common.data_types import FloatTensorType
+from sklearn.linear_model import RidgeCV
 from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
+from sklearn.pipeline import Pipeline, make_pipeline
+from sklearn.preprocessing import StandardScaler
 from xgboost import XGBRegressor
 
 from scripts.phase2.features import build_all
@@ -38,10 +54,12 @@ INNER_SPLITS = 3
 CV = TimeSeriesSplit(n_splits=N_SPLITS)
 RANDOM_STATE = 42
 
-# ---------------------------------------------------------------------------
-# Hyperparameter search space
-# ---------------------------------------------------------------------------
+# Ridge penalty grid, searched inside each training fold (§26).
+ALPHAS = np.logspace(-3, 3, 13)
 
+# ---------------------------------------------------------------------------
+# Legacy XGBoost search — reproduces the pre-§26 shipped arm in the experiments.
+# ---------------------------------------------------------------------------
 PARAM_SPACE = {
     "n_estimators": [400, 600, 800, 1000],
     "max_depth": [3, 4, 5],
@@ -54,13 +72,8 @@ PARAM_SPACE = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Core training
-# ---------------------------------------------------------------------------
-
-
-def _make_search() -> RandomizedSearchCV:
-    """A fresh hyperparameter search. Its `cv` is an INNER split — see _fit_predict."""
+def _make_xgb_search() -> RandomizedSearchCV:
+    """The XGBoost tuner GRACE shipped with until §26. Experiments only."""
     base_model = XGBRegressor(
         objective="reg:squarederror",
         tree_method="hist",
@@ -79,15 +92,29 @@ def _make_search() -> RandomizedSearchCV:
     )
 
 
+_make_search = _make_xgb_search
+
+
+# ---------------------------------------------------------------------------
+# The shipping estimator
+# ---------------------------------------------------------------------------
+def _make_ridge() -> Pipeline:
+    """Standardised ridge; alpha chosen on an INNER time-series split."""
+    return make_pipeline(
+        StandardScaler(),
+        RidgeCV(alphas=ALPHAS, cv=TimeSeriesSplit(n_splits=INNER_SPLITS)),
+    )
+
+
 def _fit_predict(
     x_tr: pd.DataFrame, y_tr: pd.Series, x_te: pd.DataFrame
 ) -> np.ndarray:
-    """Tune and fit on the training fold only, then predict the residual for x_te."""
-    return _make_search().fit(x_tr, y_tr).best_estimator_.predict(x_te)
+    """Fit on the training fold only (alpha included), predict the residual for x_te."""
+    return _make_ridge().fit(x_tr, y_tr).predict(x_te)
 
 
 def train_and_evaluate() -> dict:
-    """Build, tune, evaluate, and export the GRACE model."""
+    """Build, evaluate, fit and export the GRACE model."""
     datasets = build_all()
     x, y = datasets[MODEL_ID]
 
@@ -115,34 +142,42 @@ def train_and_evaluate() -> dict:
     fold_details = scores["folds"]
 
     # The exported model is refit on everything — only the *score* has to be nested.
-    search = _make_search()
-    search.fit(x_train, y_residual)
-    best_model = search.best_estimator_
-    best_params = search.best_params_
+    best_model = _make_ridge().fit(x_train, y_residual)
+    ridge = best_model.named_steps["ridgecv"]
+    scaler = best_model.named_steps["standardscaler"]
+    best_params = {"alpha": float(ridge.alpha_)}
 
     # overfit diagnostic
-    train_pred_residual = best_model.predict(x_train)
-    train_pred_actual = train_pred_residual + lag1.values
+    train_pred_actual = best_model.predict(x_train) + lag1.values
     train_r2 = float(r2_score(y, train_pred_actual))
     train_mae = float(mean_absolute_error(y, train_pred_actual))
 
-    # Historical Predictions
-    hist_pred_residual = best_model.predict(x_train)
-    hist_pred_actual = hist_pred_residual + lag1.values
     historical = pd.DataFrame(
         {
             "year_month": y.index.astype(str),
             "grace_actual": y.values,
-            "grace_predicted": hist_pred_actual,
+            "grace_predicted": train_pred_actual,
         }
     )
 
-    importance = dict(
-        zip(feature_names, best_model.feature_importances_.tolist(), strict=False)
-    )
+    # Importance for a linear model: |standardised coefficient|, normalised to sum
+    # to one, so top_inputs.py reads it the same way it reads tree importances.
+    abs_coef = np.abs(ridge.coef_)
+    share = abs_coef / abs_coef.sum() if abs_coef.sum() > 0 else abs_coef
     sorted_importance = dict(
-        sorted(importance.items(), key=lambda x: x[1], reverse=True)
+        sorted(
+            zip(feature_names, share.tolist(), strict=True), key=lambda kv: kv[1], reverse=True
+        )
     )
+    coefficients = {
+        "intercept": float(ridge.intercept_),
+        "standardised": dict(zip(feature_names, ridge.coef_.tolist(), strict=True)),
+        "raw": dict(
+            zip(feature_names, (ridge.coef_ / scaler.scale_).tolist(), strict=True)
+        ),
+        "scaler_mean": dict(zip(feature_names, scaler.mean_.tolist(), strict=True)),
+        "scaler_scale": dict(zip(feature_names, scaler.scale_.tolist(), strict=True)),
+    }
 
     feature_stats = {
         col: {"mean": float(x_train[col].mean()), "std": float(x_train[col].std())}
@@ -153,6 +188,7 @@ def train_and_evaluate() -> dict:
 
     cv_results = {
         "model_id": MODEL_ID,
+        "estimator": "ridge on four physical inputs (PHASE3_PLAN.md §26)",
         "formulation": "residual_over_lag1",
         "cv_method": (
             f"nested TimeSeriesSplit({N_SPLITS} outer / {INNER_SPLITS} inner)"
@@ -162,6 +198,7 @@ def train_and_evaluate() -> dict:
         "n_rows": len(y),
         "n_features": len(feature_names),
         "best_params": best_params,
+        "coefficients": coefficients,
         "cv_mean_r2": mean_r2,
         "cv_std_r2": std_r2,
         "cv_mean_mae": mean_mae,
@@ -183,25 +220,25 @@ def train_and_evaluate() -> dict:
     return cv_results
 
 
-def _export_onnx(model: XGBRegressor, feature_names: list[str]) -> None:
-    """Export to ONNX. Renames features to f0..fN for onnxmltools compatibility."""
-
-    booster = model.get_booster()
-    numeric_names = [f"f{i}" for i in range(len(feature_names))]
-    booster.feature_names = numeric_names
-
-    clone = XGBRegressor(**model.get_params())
-    clone.fit(np.zeros((2, len(feature_names))), np.zeros(2))
-    clone.get_booster().load_model(bytearray(booster.save_raw()))
-    clone.get_booster().feature_names = numeric_names
-
+def _export_onnx(model: Pipeline, feature_names: list[str]) -> None:
+    """Export the scaler + ridge pipeline as one ONNX graph. The frontend feeds RAW
+    feature values (models.js does not standardise), so the scaler must be inside."""
     initial_type = [("features", FloatTensorType([None, len(feature_names)]))]
-    onnx_model = convert_xgboost(clone, initial_types=initial_type)
-
+    onnx_model = convert_sklearn(model, initial_types=initial_type, target_opset=17)
     path = MODEL_DIR / f"{MODEL_ID}.onnx"
     with open(path, "wb") as f:
         f.write(onnx_model.SerializeToString())
     print(f"  ONNX exported → {path}")
+
+    # Round-trip check: the graph must reproduce sklearn on a real row.
+    import onnxruntime as ort  # noqa: PLC0415
+
+    sess = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
+    probe = np.zeros((1, len(feature_names)), dtype=np.float32)
+    got = float(sess.run(None, {sess.get_inputs()[0].name: probe})[0].ravel()[0])
+    want = float(model.predict(pd.DataFrame(probe, columns=feature_names))[0])
+    if abs(got - want) > 1e-5:  # noqa: PLR2004
+        raise RuntimeError(f"ONNX round-trip mismatch: onnx {got:.8f} vs sklearn {want:.8f}")
 
 
 def _save_json(obj: json, path: Path) -> None:
@@ -219,10 +256,12 @@ def main() -> None:
     print(f"\n  Window       : {results['window_start']} → {results['window_end']}")
     print(f"  Rows         : {results['n_rows']}")
     print(f"  Features     : {results['n_features']}")
+    print(f"  Estimator    : {results['estimator']}  alpha={results['best_params']['alpha']:g}")
     print(
         f"  CV R² (level): {results['cv_mean_r2']:.4f}"
         f" ± {results['cv_std_r2']:.4f}"
     )
+    print(f"  CV R² (target): {results['cv_target_r2']:.4f}")
     print(
         f"  CV MAE       : {results['cv_mean_mae']:.6f}"
         f" ± {results['cv_std_mae']:.6f}"
@@ -230,14 +269,8 @@ def main() -> None:
     print(
         f"  Persistence  : {results['baseline_lag1_r2']:.4f}   (lag1, same folds)"
     )
-    print(f"  SKILL        : {results['skill_r2']:+.4f}   (level R² − persistence)")
-    print(
-        f"  CV R² resid  : {results['cv_target_r2']:.4f}"
-        "   (the part the model predicts)"
-    )
-    print(f"  Train R²     : {results['train_r2']:.4f}")
-    print(f"\n  Best params: {results['best_params']}")
-    print(f"\n  Artifacts saved to {MODEL_DIR}/")
+    print(f"  Skill        : {results['skill_r2']:+.4f}")
+    print(f"  Train R²     : {results['train_r2']:.4f}  (overfit diagnostic)")
 
 
 if __name__ == "__main__":

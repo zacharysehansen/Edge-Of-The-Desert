@@ -334,6 +334,43 @@ def compute_stats(values: pd.DataFrame, zero_is_data: bool = False) -> dict[str,
     }
 
 
+def derive_gldas_driver() -> dict:
+    """OLS of GLDAS's monthly storage change on the climate the sliders control.
+
+    GRACE (PHASE3_PLAN.md §26) takes `gldas_tws_proxy_delta` as its main input. The
+    frontend has no GLDAS control and must not get one — it is a physical state, not a
+    policy — so the catalog derives it from the rain and temperature sliders the way
+    the drought index is derived from PDSI. Fit on the 2000-2023 overlap; the R² is
+    reported so the approximation is stated rather than hidden. Read by
+    `frontend/catalog.js` and its Python mirror from computed_stats.json["DERIVED"].
+    """
+    gldas = pd.read_csv(DATA_PATH / "gldas_monthly.csv")
+    precip = pd.read_csv(DATA_PATH / "precipitation_monthly.csv")
+    temp = pd.read_csv(DATA_PATH / "temperature_monthly.csv")
+    df = gldas.merge(precip, on="year_month").merge(temp, on="year_month").sort_values("year_month")
+    df["gldas_tws_proxy_delta"] = df["gldas_tws_proxy_mm"].diff()
+    df["precipitation_mm_day_lag1"] = df["precipitation_mm_day"].shift(1)
+    month = df["year_month"].str[5:].astype(int)
+    df["month_sin"] = np.sin(2 * np.pi * month / 12)
+    df["month_cos"] = np.cos(2 * np.pi * month / 12)
+    cols = ["precipitation_mm_day", "precipitation_mm_day_lag1", "temperature_2m_c", "month_sin", "month_cos"]
+    d = df.dropna(subset=cols + ["gldas_tws_proxy_delta"])
+    X = np.column_stack([np.ones(len(d)), d[cols].to_numpy()])
+    y = d["gldas_tws_proxy_delta"].to_numpy()
+    beta, *_ = np.linalg.lstsq(X, y, rcond=None)
+    resid = y - X @ beta
+    r2 = 1 - resid.var() / y.var()
+    return {
+        "gldas_tws_proxy_delta": {
+            "intercept": float(beta[0]),
+            "coefficients": {c: float(b) for c, b in zip(cols, beta[1:], strict=True)},
+            "r2": float(r2),
+            "n": int(len(d)),
+            "source": "OLS on data/Final/gldas_monthly.csv vs MERRA-2 precipitation and temperature, 2000-2023",
+        }
+    }
+
+
 def main() -> None:
     slider_stats = {}
     output_stats = {}
@@ -398,6 +435,7 @@ def main() -> None:
     result = {
         "SLIDER_STATS": slider_stats,
         "OUTPUT_STATS": output_stats,
+        "DERIVED": derive_gldas_driver(),
     }
 
     with OUTPUT_FILE.open("w") as f:

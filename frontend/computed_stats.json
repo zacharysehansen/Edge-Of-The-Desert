@@ -181,9 +181,9 @@
       }
     },
     "usdm_dsci": {
-      "min": 9.315,
-      "max": 378.885,
-      "default": 194.31
+      "min": 9.7,
+      "max": 379.055,
+      "default": 193.62
     },
     "nclimdiv_pdsi": {
       "min": -3.6426,
@@ -276,6 +276,21 @@
       "min": -0.1818,
       "max": 0.1868,
       "baseline": 0.0161
+    }
+  },
+  "DERIVED": {
+    "gldas_tws_proxy_delta": {
+      "intercept": 2.178809540597983,
+      "coefficients": {
+        "precipitation_mm_day": 9.651517260931715,
+        "precipitation_mm_day_lag1": 5.01072511208435,
+        "temperature_2m_c": -0.7083072449427004,
+        "month_sin": -2.999413087968166,
+        "month_cos": -2.782938456689383
+      },
+      "r2": 0.6092667728806167,
+      "n": 287,
+      "source": "OLS on data/Final/gldas_monthly.csv vs MERRA-2 precipitation and temperature, 2000-2023"
     }
   }
 }

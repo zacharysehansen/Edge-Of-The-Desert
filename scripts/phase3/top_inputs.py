@@ -59,6 +59,9 @@ BASES = {
     "mead_total_release": ("Lake Mead releases", "human-fixed"),
     "precip_x_impervious": ("precipitation x urbanization", "human"),
     "precipitation_mm_day": ("precipitation", "climate"),
+    # GRACE's storage-change input (PHASE3_PLAN.md §26). Driven from the rain and
+    # temperature sliders in the frontend; it is climate, not a lever of its own.
+    "gldas_tws_proxy_delta": ("land-surface storage change (GLDAS)", "climate"),
     "nclimdiv_precipitation_mm_day": ("precipitation", "climate"),
     "temperature_2m_c": ("temperature", "climate"),
     "nclimdiv_temperature_c": ("temperature", "climate"),

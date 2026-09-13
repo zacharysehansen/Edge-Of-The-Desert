@@ -43,6 +43,17 @@ def build_comparison() -> dict:
     """
     baselines = load_json(MODEL_DIR / "baselines.json") or {}
     comparison = {}
+    # The leaderboard reproduces exactly within one environment and NOT across
+    # library versions: on 2026-09-12 the wildfire model retrained on a byte-identical
+    # matrix to +0.3227 from the committed +0.2819, with a different GridSearch
+    # winner (PHASE3_PLAN.md §27). Record what produced these numbers.
+    import numpy, sklearn, xgboost  # noqa: PLC0415
+
+    comparison["_environment"] = {
+        "xgboost": xgboost.__version__,
+        "scikit_learn": sklearn.__version__,
+        "numpy": numpy.__version__,
+    }
 
     for model_id in MODEL_IDS:
         cv_path = MODEL_DIR / f"{model_id}_cv_results.json"
@@ -141,6 +152,8 @@ def _fmt(value: float | None, spec: str = "+.4f") -> str:
 
 
 def print_leaderboard(comparison: dict) -> None:
+    # Metadata keys (leading underscore) are not models.
+    comparison = {k: v for k, v in comparison.items() if not k.startswith("_")}
     """
     Print the leaderboard, ranked by skill over persistence.
 

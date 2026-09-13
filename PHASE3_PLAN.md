@@ -29,7 +29,10 @@ shipped model out of fold, which says the estimator is the constraint, not the d
 [§26](#26-the-estimator-was-the-floor-a-four-input-linear-model-gives-grace-its-first-skill-measured)
 (step 2b: a ridge residual model on four physical inputs scores +0.28 target R² and +0.20 skill
 against the shipped +0.02 and −0.03, 4 of 5 folds, t = 2.52 — **REAL**, the first positive verdict
-this document has recorded for GRACE; deployment is an architecture change and is not done here).
+this document has recorded for GRACE; deployment is an architecture change and is not done here),
+and [§27](#27-grace-ships-as-the-linear-model-the-retrain-and-what-moved-measured) (it is done:
+GRACE ships as the ridge, the drought index is regenerated, all six models are retrained, every
+gate passes, and the GRACE card's rain response is now +7.6 points and correctly signed).
 
 For the readable version of what the finished model *does* — every path from a slider to an
 output, and the reasoning behind each — see [DISCUSSION.md](DISCUSSION.md). This document is the
@@ -2648,3 +2651,86 @@ architecture change with a defined cost, and it is listed rather than taken:
 
 That is one working session, and it changes what the application's GRACE output *is*. It should
 be a decision, taken with this table in front of whoever takes it, not a side effect of a probe.
+
+## 27. GRACE ships as the linear model; the retrain, and what moved `MEASURED`
+
+The decision [§26](#26-the-estimator-was-the-floor-a-four-input-linear-model-gives-grace-its-first-skill-measured)
+listed was taken, and this is the record of doing it.
+
+### What changed in the code
+
+- `scripts/phase2/model_grace.py`: the estimator is a standardised ridge (`StandardScaler` +
+  `RidgeCV`, alpha by inner `TimeSeriesSplit(3)`), exported through `skl2onnx` as one graph with
+  the scaler inside, because `models.js` feeds raw values. The export is round-tripped through
+  onnxruntime before it is written. The XGBoost search is kept under its old name so §11.5, §23–§26
+  can still reproduce their "shipped" arm; it trains nothing.
+- `scripts/phase2/features.py`: GRACE's spec carries `fixed_features`, the four inputs, with a
+  comment that editing the list is a new pre-declared experiment, not a tweak. `gldas_tws_proxy_delta`
+  is engineered from the GLDAS series `merge.py` now joins.
+- `frontend/catalog.js` and the Python mirror: `gldas_tws_proxy_delta` is derived from the rain and
+  temperature sliders by an OLS `generate_stats.py` writes into `computed_stats.json["DERIVED"]`
+  (R² 0.61, n 287) — the same pattern as `dsciFromPdsi`. GLDAS gets no control; it is a physical
+  state, and it carries no human input, so Layer 1 stays climate-only.
+- `scripts/phase1/water_stress.py`'s corrected county weights were finally applied: the drought
+  index was regenerated (r = 0.9992 with the old series) and every model retrained on it, which is
+  the bundle [§22](#22-the-region-was-never-the-one-this-document-named-measured) promised.
+- `scripts/phase2/export.py` records the xgboost / scikit-learn / numpy versions in
+  `model_comparison.json`, for the reason below.
+
+### The leaderboard, before and after
+
+| model | skill before | **skill after** | level R² after | target R² after | why it moved |
+|---|---|---|---|---|---|
+| surface water | +0.6830 | **+0.6833** | 0.7519 | 0.7267 | noise |
+| wildfire | +0.3716 | **+0.4125** | 0.3227 | 0.3227 | environment, see below |
+| NDVI | +0.2653 | **+0.2588** | 0.7862 | 0.5453 | drought index regenerated |
+| wildlife | +0.2046 | **+0.2167** | 0.2247 | — | noise |
+| **GRACE** | **−0.0349** | **+0.2015** | **0.5664** | **0.2845** | **the ridge** |
+| groundwater | +0.0086 | **−0.0123** | 0.3872 | −0.1075 | drought index regenerated; fold noise |
+
+The deployed GRACE reproduces §26's judged arm to the fourth decimal, and its card now says
+"responds mainly to land-surface storage change (GLDAS), temperature, precipitation" — written by
+`top_inputs.py` from the ridge's standardised coefficients, not by hand.
+
+**Wildfire moved +0.04 with nothing changed, and that was checked rather than accepted.** Its
+inputs carry neither DSCI nor GLDAS. Its feature matrix was rebuilt from the previous commit in a
+worktree and diffed cell by cell against the current one: identical. Two trainings in one process
+agree to every decimal. So the committed artifact and the current one differ only in the library
+environment — `requirements.txt` is unpinned — and GridSearch picked a different winner
+(fold 0 went 0.215 → 0.423, the rest within 0.02). The leaderboard is reproducible within an
+environment and not across them, which is now written into `model_comparison.json` with the
+versions that produced it. Pinning is the fix and is left as a note, not done here.
+
+### What moved in the app
+
+The human rows of the sweep did not move at all: Layer 2 was not touched, and the no-double-count
+gate still reports 360 bit-identical comparisons. The climate rows did:
+
+| slider (policy min → max) | grace | ndvi | groundwater | surface water | wildfire | wildlife |
+|---|---|---|---|---|---|---|
+| precipitation, before | −3.38 | +4.96 | −0.20 | +36.70 | −14.50 | +10.37 |
+| **precipitation, after** | **+7.61** | +5.16 | −0.40 | +36.70 | −16.59 | +10.37 |
+| temperature, before | +0.18 | +0.47 | −0.31 | −0.28 | +9.56 | +1.05 |
+| **temperature, after** | −0.47 | **−2.68** | −0.51 | −0.28 | +8.77 | +1.05 |
+| drought (PDSI), before | −1.73 | −4.80 | −0.15 | −1.06 | +0.01 | +7.35 |
+| **drought (PDSI), after** | 0.00 | −1.39 | 0.00 | −1.06 | −1.12 | +7.35 |
+
+Two of those are corrections of sign. **GRACE's rain response was −3.38 under the XGBoost: more
+rain, less stored water.** It is +7.61 under the ridge, through GLDAS's storage change, which is
+the direction water goes. **NDVI's temperature response was +0.47: hotter, greener.** It is −2.68
+after the retrain. Neither sign had been flagged before because [§19](#19-the-signs-that-look-wrong-and-which-one-actually-was-verified)
+checked the *human* levers' signs; the climate term's signs were the learned models' business.
+GRACE no longer responds to the PDSI slider because it no longer carries the drought index, and
+its drought response now arrives through rain and temperature instead.
+
+All six gates pass: every structural lever holds its sign in all 12 months, Layer 1 is
+bit-identical across the human levers, the JS and Python catalogs agree on every scenario including
+the new derived feature, and the frontend starts under the browser-conditions check.
+
+### What is still true
+
+The pumping residual is unobserved at monthly grain. GRACE's +0.28 residual R² is the land-surface
+part of the change; the slow part still belongs to Layer 2, where it always did. Groundwater is at
+zero skill for the fifth consecutive re-run and stays there until the per-well design (roadmap step
+3) is tried. And the four GRACE inputs are fixed: a fifth is a new experiment with a declared rule,
+not an edit.

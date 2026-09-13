@@ -57,16 +57,35 @@ happen inside each training fold. See [scripts/phase2/metrics.py](scripts/phase2
 
 | Model | Target | Window | Rows | Feat. | Verdict | Skill | R² (level) | Persistence | R² (target) |
 |-------|--------|--------|------|-------|---------|-------|-----------|-------------|-------------|
-| **Surface Water** | Discharge log anomaly | **1980-02 → 2025-12** | **551** | 26 | **OK** | **+0.6830** | **0.7516** | 0.0686 | **0.7264** |
-| **Wildfire** | Wildfire risk index | **1984-02 → 2023-12** | **479** | 26 | **OK** | **+0.3716** | 0.2819 | −0.0898 | 0.2819 |
-| **NDVI** | Vegetation health | 2002-10 → 2023-12 | 255 | 46 | **OK** | **+0.2653** | 0.7928 | 0.5274 | **0.5584** |
-| **Wildlife** | Bird abundance anomaly | **1968 → 2024** (annual) | **56** | 12 | **OK** | **+0.2046** | 0.2125 (LOO) | 0.0080 | — |
-| Groundwater | Well depth anomaly (ft) | 2002-10 → 2020-12 | 219 | 16 | **NO SKILL** | +0.0086 | 0.4081 | 0.3995 | −0.0364 |
-| GRACE | Groundwater anomaly | 2002-10 → 2023-12 | 204 | 45 | **NO SKILL** | −0.0349 | 0.3300 | 0.3649 | 0.0302 |
+| **Surface Water** | Discharge log anomaly | **1980-02 → 2025-12** | **551** | 26 | **OK** | **+0.6833** | **0.7519** | 0.0686 | **0.7267** |
+| **Wildfire** | Wildfire risk index | **1984-02 → 2023-12** | **479** | 26 | **OK** | **+0.4125** | 0.3227 | −0.0898 | 0.3227 |
+| **NDVI** | Vegetation health | 2002-10 → 2023-12 | 255 | 46 | **OK** | **+0.2588** | 0.7862 | 0.5274 | **0.5453** |
+| **Wildlife** | Bird abundance anomaly | **1968 → 2024** (annual) | **56** | 12 | **OK** | **+0.2167** | 0.2247 (LOO) | 0.0080 | — |
+| **GRACE** | Groundwater anomaly | 2002-10 → 2023-12 | 204 | **4** | **OK** | **+0.2015** | 0.5664 | 0.3649 | **0.2845** |
+| Groundwater | Well depth anomaly (ft) | 2002-10 → 2020-12 | 219 | 16 | **NO SKILL** | −0.0123 | 0.3872 | 0.3995 | −0.1075 |
 
-Sorted by skill. Groundwater clears both baselines arithmetically but lands at ~zero — it is
-listed as no skill because +0.009 is not a result, and its residual R² is still slightly
-negative. It is, however, **no longer actively harmful**, which is where it started.
+Sorted by skill. **Retrained 2026-09-12** (PHASE3_PLAN.md §27); the table it replaces is in git
+history at `e8d7df2`. Three things moved, for three different reasons:
+
+1. **GRACE is a different model.** A standardised ridge on four physical inputs — GLDAS
+   land-surface storage change, rain, last month's rain, temperature anomaly — replaced the
+   45-feature XGBoost after a pre-declared model-class experiment (§26). Skill −0.0349 → **+0.2015**.
+   The deployed model reproduces the experiment to the fourth decimal.
+2. **The drought index was regenerated.** `water_stress.py` had weighted Maricopa's DSCI by
+   Graham's area and Gila's by La Paz's (PROBLEMS.md P8); the corrected series correlates 0.9992
+   with the old one. NDVI (six DSCI features) and groundwater (one) retrained on it. Groundwater
+   went from +0.0086 to −0.0123 — the same "approximately zero" it has been at through four
+   re-runs, and still no skill.
+3. **Wildfire moved +0.04 on a byte-identical matrix.** Its inputs carry no DSCI and no GLDAS;
+   the feature matrix was diffed against the committed one and is identical, and two trainings
+   in one process agree with each other exactly. The committed artifact came from a different
+   library environment (`requirements.txt` is unpinned), and GridSearch picked a different
+   winner. Fold 0 went 0.215 → 0.423; the other four are within 0.02. `model_comparison.json`
+   now records the xgboost / scikit-learn / numpy versions that produced every number.
+
+Groundwater clears the level baseline arithmetically and loses to persistence by 0.01 — it is
+listed as no skill because ±0.01 is not a result. It is, however, **no longer actively harmful**,
+which is where it started.
 
 ---
 
@@ -217,11 +236,13 @@ mechanism was swamped rather than refuted — and the configuration that could t
 record *and* NDVI, cannot exist. Keep the 1968 window. The real
 signal survives the correction: per-route abundance declines **~23% across the record (p < 0.0001)**.
 
-### Groundwater (Well Depth) — skill +0.0086 ⚠
+### Groundwater (Well Depth) — skill −0.0123 ⚠ *(+0.0086 before the 2026-09-12 retrain)*
 
 - **Formulation:** residual-over-lag1, in-fold competition of 5 candidates, winner **XGBoost**
 - **Window 2002-10 → 2020-12 · 219 rows · 16 features** (47 dropped in-fold)
-- **R² (level) 0.4081 · persistence 0.3995 · R² (residual) −0.0364**
+- **R² (level) 0.3872 · persistence 0.3995 · R² (residual) −0.1075** — after the drought-index
+  regeneration (P8); the numbers in the text below are from the previous run and sit inside the
+  same fold noise (+0.0107, +0.0091, +0.0058, +0.0086, −0.0123 across five re-runs)
 
 **This model used to be worse than doing nothing** (residual R² −0.3179) and is now at
 approximately zero. That is a **correctness fix, not a performance fix**, and it was always going
@@ -265,9 +286,28 @@ pumping, and the observable part of it is small
 Do not tune this model. ADWR pumpage — long named in this project as the fix — is **annual and
 AMA-only**, and annual data cannot move a monthly residual model.
 
-### GRACE (Groundwater Anomaly) — skill −0.0349 ❌
+### GRACE (Groundwater Anomaly) — skill +0.2015 ✅ *(was −0.0349 as an XGBoost)*
 
-- **Window 2002-10 → 2023-12 · 204 rows · 45 features**
+- **Window 2002-10 → 2023-12 · 204 rows · 4 features** — a standardised ridge, alpha 10 by inner
+  TimeSeriesSplit(3), on `gldas_tws_proxy_delta`, `precipitation_mm_day`,
+  `precipitation_mm_day_lag1`, `temperature_2m_c_anomaly`
+- **R² (level) 0.5664 · persistence 0.3649 · R² (residual) 0.2845**
+- Folds: level R² 0.09 / 0.70 / 0.66 / 0.82 / 0.57 — still widest in fold 0, no longer negative.
+- Standardised coefficients +0.0076 (GLDAS change), +0.0011, +0.0007 (rain, this and last month),
+  −0.0040 (temperature anomaly): every sign physical, GLDAS carrying 7× rain's weight.
+
+> **Replaced 2026-09-12 — PHASE3_PLAN.md §25–§27.** Everything below this note was true of the
+> XGBoost and remains the record of why it failed. What changed is not the data and not a feature:
+> GLDAS-2.1's land-surface storage change (soil + snow + canopy) correlates **+0.62** with GRACE's
+> monthly change at a slope of **+0.8 m/m**, and a model with four degrees of freedom captures
+> that where 60 draws of boosted trees on 200 rows could not — a one-coefficient OLS on that
+> column alone scores +0.244 out of fold against the XGBoost's +0.021 on identical blocks. The
+> pumping residual is still unobserved; the +0.28 residual R² is a measurement of how much of the
+> month-to-month change is *not* pumping. The estimator was the floor.
+
+*The original XGBoost account follows.*
+
+- **Window 2002-10 → 2023-12 · 204 rows · 45 features** *(XGBoost, superseded)*
 - **R² (level) 0.3300 · persistence 0.3649 · R² (residual) 0.0302**
 - Folds are wild: level R² −0.87 / 0.61 / 0.59 / 0.75 / 0.58 (σ = 0.60).
 
@@ -413,7 +453,9 @@ scripts/phase2/
 ├── metrics.py                 — Nested CV, persistence baseline, skill score
 ├── baselines.py               — Standalone lag1 / roll3 baselines
 ├── model_ndvi.py              — XGBoost residual-over-lag1
-├── model_grace.py             — XGBoost residual-over-lag1, real-target-only mask
+├── model_grace.py             — Ridge on 4 physical inputs (GLDAS storage change, rain, rain lag1,
+│                                temperature anomaly), residual-over-lag1, real-target-only mask;
+│                                the XGBoost search is kept for the experiment scripts only
 ├── model_groundwater.py       — In-fold competition (5 candidates), residual
 ├── model_surface_water.py     — In-fold competition (3 candidates), residual on a log anomaly
 ├── model_wildfire_monthly.py  — In-fold competition (4 candidates incl. Tweedie), direct
