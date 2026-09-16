@@ -24,3 +24,4 @@ requests
 xarray
 netCDF4
 earthaccess
+pytest
