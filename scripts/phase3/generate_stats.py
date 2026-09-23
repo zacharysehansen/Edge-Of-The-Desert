@@ -334,6 +334,84 @@ def compute_stats(values: pd.DataFrame, zero_is_data: bool = False) -> dict[str,
     }
 
 
+def compute_stock_units() -> dict:
+    """Compute stock-unit conversion metadata for the anomaly-based outputs.
+
+    Phase 4 (PHASE4.md §5) requires outputs in physical units that are legible
+    over a century. The anomaly becomes a derived view; the stock unit is the
+    primary display.
+
+    Returns a dict keyed by output name, each containing:
+      stock_unit, stock_reference, stock_scale, stock_display_min, stock_display_max
+    """
+    stock = {}
+
+    gw = pd.read_csv(DATA_PATH / "groundwater_levels_monthly.csv")
+    ref_depth = float(gw["depth_to_water_ft_mean"].dropna().mean())
+    stock["groundwater"] = {
+        "stock_unit": "ft below land surface",
+        "stock_reference": round(ref_depth, 2),
+        "stock_scale": 1.0,
+        "stock_display_min": round(ref_depth - 2.0, 0),
+        "stock_display_max": round(ref_depth + 2.0, 0),
+        "source": "mean of depth_to_water_ft_mean from groundwater_levels_monthly.csv (Cochise index)",
+    }
+
+    sw = pd.read_csv(DATA_PATH / "water_surface_monthly.csv")
+    log_cfs = np.log(sw["discharge_cfs_mean"].replace(0, np.nan).dropna())
+    log_baseline = float(log_cfs.mean())
+    cfs_baseline = float(np.exp(log_baseline))
+    cfs_low = float(np.exp(log_baseline - 0.65))
+    cfs_high = float(np.exp(log_baseline + 1.06))
+    stock["surface_water"] = {
+        "stock_unit": "cfs",
+        "stock_reference": round(cfs_baseline, 1),
+        "stock_log_baseline": round(log_baseline, 4),
+        "stock_scale": "exponential",
+        "stock_display_min": round(cfs_low, 0),
+        "stock_display_max": round(cfs_high, 0),
+        "source": "mean of log(discharge_cfs_mean) from water_surface_monthly.csv",
+    }
+
+    stock["grace"] = {
+        "stock_unit": "anomaly (cm-eq water thickness)",
+        "stock_reference": 0.0,
+        "stock_scale": 1.0,
+        "stock_display_min": -0.17,
+        "stock_display_max": 0.09,
+        "source": "GRACE satellite product; AF conversion deferred pending local storage_af_per_ft (PHASE4 §4.4a)",
+    }
+
+    stock["wildlife"] = {
+        "stock_unit": "abundance anomaly (per-route)",
+        "stock_reference": 0.0,
+        "stock_scale": 1.0,
+        "stock_display_min": -0.2,
+        "stock_display_max": 0.2,
+        "source": "BBS abundance anomaly; long-horizon conversion deferred (PHASE4 §5)",
+    }
+
+    stock["ndvi"] = {
+        "stock_unit": "NDVI index",
+        "stock_reference": 0.0,
+        "stock_scale": 1.0,
+        "stock_display_min": 0.18,
+        "stock_display_max": 0.28,
+        "source": "MODIS MOD13A3 NDVI; already in physical units",
+    }
+
+    stock["wildfire"] = {
+        "stock_unit": "risk index",
+        "stock_reference": 0.0,
+        "stock_scale": 1.0,
+        "stock_display_min": 0.0,
+        "stock_display_max": 0.54,
+        "source": "wildfire risk index; already in direct units",
+    }
+
+    return stock
+
+
 def derive_gldas_driver() -> dict:
     """OLS of GLDAS's monthly storage change on the climate the sliders control.
 
@@ -431,6 +509,11 @@ def main() -> None:
 
     if missing_outputs:
         raise RuntimeError(f"Missing output stats for: {sorted(missing_outputs)}")
+
+    stock_units = compute_stock_units()
+    for key, su in stock_units.items():
+        if key in output_stats:
+            output_stats[key]["stock"] = su
 
     result = {
         "SLIDER_STATS": slider_stats,

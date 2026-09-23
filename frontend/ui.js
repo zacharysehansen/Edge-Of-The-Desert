@@ -260,6 +260,11 @@ function buildOutputPanel() {
       header.appendChild(dir);
     }
 
+    const stockEl = document.createElement('div');
+    stockEl.className = 'output-stock';
+    stockEl.id = `stock-${key}`;
+    stockEl.textContent = '—';
+
     const barWrap = document.createElement('div');
     barWrap.className = 'bar-wrap';
 
@@ -321,6 +326,7 @@ function buildOutputPanel() {
     loading.textContent = 'loading model...';
 
     block.appendChild(header);
+    block.appendChild(stockEl);
     block.appendChild(barWrap);
     block.appendChild(meta);
     block.appendChild(responds);
@@ -544,7 +550,13 @@ function updateAllOutputs() {
     if (barEl) barEl.style.width = `${out.score.toFixed(1)}%`;
     if (scoreEl) scoreEl.textContent = `score: ${Math.round(out.score)} / 100`;
     if (rawEl && out.rawValue !== null) {
-      rawEl.textContent = `(${formatRaw(key, out.rawValue)} ${def.unit})`;
+      rawEl.textContent = `anomaly: ${formatRaw(key, out.rawValue)} ${def.unit}`;
+    }
+
+    const stockEl = document.getElementById(`stock-${key}`);
+    if (stockEl && out.rawValue !== null) {
+      const stockText = formatStock(key, out.rawValue);
+      stockEl.textContent = stockText ?? '—';
     }
 
     updateProvenance(key, out.provenance);
@@ -612,6 +624,26 @@ function formatRaw(key, value) {
   if (key === 'wildfire') return value.toFixed(3);
   if (key === 'wildlife') return value.toFixed(3);
   return value.toFixed(2);
+}
+
+
+function formatStock(key, rawValue) {
+  const stock = OUTPUT_STATS[key]?.stock;
+  if (!stock) return null;
+  if (key === 'surface_water') {
+    const logBaseline = stock.stock_log_baseline ?? Math.log(stock.stock_reference);
+    const cfs = Math.exp(logBaseline + rawValue);
+    return `${Math.round(cfs).toLocaleString()} ${stock.stock_unit}`;
+  }
+  if (key === 'groundwater') {
+    const depth = stock.stock_reference + rawValue;
+    return `${depth.toFixed(1)} ${stock.stock_unit}`;
+  }
+  if (key === 'ndvi') return `${rawValue.toFixed(3)} ${stock.stock_unit}`;
+  if (key === 'wildfire') return `${rawValue.toFixed(3)} ${stock.stock_unit}`;
+  if (key === 'grace') return `${rawValue.toFixed(4)} ${stock.stock_unit}`;
+  if (key === 'wildlife') return `${rawValue.toFixed(3)} ${stock.stock_unit}`;
+  return null;
 }
 
 

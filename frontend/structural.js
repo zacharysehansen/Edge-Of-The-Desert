@@ -29,9 +29,37 @@
 // from the current behaviour.
 
 import params from './structural_params.json' with { type: 'json' };
+import localParams from './local_structural_params.json' with { type: 'json' };
 import { SLIDER_POLICY, ZERO_DELTAS, sliderRaw } from './state.js';
 
 const C = params.constants;
+
+const LOCAL_RENAMES = {
+    local_baseline_cfs: 'regional_baseline_cfs',
+    pima_municipal_share: 'cochise_municipal_to_irrigation_share',
+};
+const LOCAL_SKIP = new Set(['well_depth_stats', 'statutory_depth_limit_ft']);
+
+const LOCAL_OVERRIDES = {};
+for (const [key, entry] of Object.entries(localParams.constants)) {
+    if (LOCAL_SKIP.has(key)) continue;
+    const targetKey = LOCAL_RENAMES[key] ?? key;
+    if (C[targetKey] !== undefined) {
+        LOCAL_OVERRIDES[targetKey] = entry.value;
+    }
+}
+
+function withLocalConstants(fn) {
+    const saved = {};
+    for (const [k, v] of Object.entries(LOCAL_OVERRIDES)) {
+        saved[k] = C[k].value;
+        C[k].value = v;
+    }
+    try { return fn(); }
+    finally {
+        for (const [k, v] of Object.entries(saved)) C[k].value = v;
+    }
+}
 
 // Outputs Layer 2 can reach. wildfire is absent on purpose and permanently: ignition
 // is not the limiting factor for large-fire extent in the Southwest, which is what the
@@ -204,8 +232,14 @@ function reversionFor(output) {
 /**
  * Structural displacement per output for one scenario, in the output's own units,
  * plus a per-lever breakdown for the provenance UI.
+ *
+ * @param {string} [tier='regional'] - 'regional' or 'local'. When 'local', uses
+ *   Tucson-basin denominators from local_structural_params.json.
  */
-function structuralResponse(deltas, month, durationMonths) {
+function structuralResponse(deltas, month, durationMonths, tier) {
+    if (tier === 'local') {
+        return withLocalConstants(() => structuralResponse(deltas, month, durationMonths));
+    }
     const result = {};
     for (const output of STRUCTURAL_OUTPUTS) {
         result[output] = { total: 0, byLever: {} };
@@ -368,7 +402,10 @@ function cornersOf(names) {
  * `displacementBand` plus `drivers` — which banded constants actually move it, so
  * the card can say why the range is wide.
  */
-function structuralResponseBand(deltas, month, durationMonths) {
+function structuralResponseBand(deltas, month, durationMonths, tier) {
+    if (tier === 'local') {
+        return withLocalConstants(() => structuralResponseBand(deltas, month, durationMonths));
+    }
     const base = structuralResponse(deltas, month, durationMonths);
     const EPS = 1e-12;
 

@@ -250,32 +250,81 @@
     "grace": {
       "min": -0.131,
       "max": 0.0151,
-      "baseline": -0.0433
+      "baseline": -0.0433,
+      "stock": {
+        "stock_unit": "anomaly (cm-eq water thickness)",
+        "stock_reference": 0.0,
+        "stock_scale": 1.0,
+        "stock_display_min": -0.17,
+        "stock_display_max": 0.09,
+        "source": "GRACE satellite product; AF conversion deferred pending local storage_af_per_ft (PHASE4 \u00a74.4a)"
+      }
     },
     "ndvi": {
       "min": 0.1876,
       "max": 0.2755,
-      "baseline": 0.2167
+      "baseline": 0.2167,
+      "stock": {
+        "stock_unit": "NDVI index",
+        "stock_reference": 0.0,
+        "stock_scale": 1.0,
+        "stock_display_min": 0.18,
+        "stock_display_max": 0.28,
+        "source": "MODIS MOD13A3 NDVI; already in physical units"
+      }
     },
     "groundwater": {
       "min": -0.998,
       "max": 1.0663,
-      "baseline": -0.0403
+      "baseline": -0.0403,
+      "stock": {
+        "stock_unit": "ft below land surface",
+        "stock_reference": 116.89,
+        "stock_scale": 1.0,
+        "stock_display_min": 115.0,
+        "stock_display_max": 119.0,
+        "source": "mean of depth_to_water_ft_mean from groundwater_levels_monthly.csv (Cochise index)"
+      }
     },
     "surface_water": {
       "min": -0.6481,
       "max": 1.0591,
-      "baseline": -0.0788
+      "baseline": -0.0788,
+      "stock": {
+        "stock_unit": "cfs",
+        "stock_reference": 133.7,
+        "stock_log_baseline": 4.8953,
+        "stock_scale": "exponential",
+        "stock_display_min": 70.0,
+        "stock_display_max": 386.0,
+        "source": "mean of log(discharge_cfs_mean) from water_surface_monthly.csv"
+      }
     },
     "wildfire": {
       "min": 0.0,
       "max": 0.5366,
-      "baseline": 0.0
+      "baseline": 0.0,
+      "stock": {
+        "stock_unit": "risk index",
+        "stock_reference": 0.0,
+        "stock_scale": 1.0,
+        "stock_display_min": 0.0,
+        "stock_display_max": 0.54,
+        "source": "wildfire risk index; already in direct units"
+      }
     },
     "wildlife": {
       "min": -0.1818,
       "max": 0.1868,
-      "baseline": 0.0161
+      "baseline": 0.0161,
+      "stock": {
+        "stock_unit": "abundance anomaly (per-route)",
+        "stock_reference": 0.0,
+        "stock_scale": 1.0,
+        "stock_display_min": -0.2,
+        "stock_display_max": 0.2,
+        "source": "BBS abundance anomaly; long-horizon conversion deferred (PHASE4 \u00a75)"
+      }
     }
   },
   "DERIVED": {

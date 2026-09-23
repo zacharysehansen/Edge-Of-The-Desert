@@ -247,6 +247,12 @@ land-cover change genuinely does not move an eight-county mean NDVI. The irrigat
 still worth building because it is *positive* on NDVI while *negative* on groundwater — the
 tension the plan explicitly wants shown rather than hidden.
 
+> **Updated 2026-09-16.** With the measured `ndvi_impervious` (above), urbanization at +2.0 is
+> **−0.8 score points**, not 3.1 (−0.00071 NDVI over the 0.0879 score span). On the card that reads
+> as "urbanization does nothing" beside a 16% local loss. The fix is in the display, not the
+> coefficient: a live local readout and a "what gets paved?" choice (desert / historical mix /
+> cropland) — see [PHASE3_PLAN.md §34b](PHASE3_PLAN.md).
+
 ---
 
 ## 5. Consequence for the §7 acceptance criteria — read this before implementing

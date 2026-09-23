@@ -77,7 +77,7 @@ import onnxruntime as ort
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from structural import Structural  # noqa: E402
+from structural import Structural, build_local_params  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 STATS_PATH = ROOT / "frontend" / "computed_stats.json"
@@ -313,14 +313,17 @@ def fill_response_features(cat: dict, history: dict[str, list[float]]) -> dict:
 
 
 class Runner:
-    def __init__(self):
+    def __init__(self, tier="regional"):
+        self.tier = tier
         self.slider_stats, self.output_stats = load_stats()
         self.sessions, self.names = load_models()
         self.catalog = Catalog(self.slider_stats)
         self.seed = {k: self.output_stats[k]["baseline"] for k in self.output_stats}
         # Every policy delta at zero: the climatological normal for the month.
         self.default = dict(self.catalog.zero)
-        self.structural = Structural()
+        self.structural = Structural(
+            params=build_local_params() if tier == "local" else None
+        )
         # Each residual model's output at the default scenario. Layer 3 integrates the
         # deviation from this, never the raw residual — see finalizePrediction() in
         # frontend/models.js for why.
@@ -710,13 +713,21 @@ def main() -> None:
         action="store_true",
         help="add the empirical mean-reversion term (rollout mode only)",
     )
+    ap.add_argument(
+        "--tier",
+        choices=("regional", "local"),
+        default="regional",
+        help="use regional or local (Tucson-basin) structural constants",
+    )
     args = ap.parse_args()
 
     if args.mode == "lambda":
         fit_lambda()
         return
 
-    runner = Runner()
+    runner = Runner(tier=args.tier)
+    if args.tier == "local":
+        print(f"[tier=local] Using Tucson-basin constants from local_structural_params.json\n")
     if args.mode == "no-double-count":
         failures = no_double_count(runner, args.months)
         if failures:

@@ -1,0 +1,203 @@
+{
+  "meta": {
+    "generated_by": "scripts/phase4/local_structural_params.py",
+    "reference_year": 2020,
+    "domain": "HUC8\u2229Pima (Tucson basin), ~9,124 km\u00b2 / 8.1% of region",
+    "plan": "PHASE4.md \u00a72 (D1 local tier), \u00a73 (D2 local constants)",
+    "note": "Local counterparts of structural_params.json. Constants that cannot yet be measured locally are borrowed from regional with status ESTIMATED or UNTESTED."
+  },
+  "constants": {
+    "region_acres": {
+      "value": 2254643,
+      "source": "HUC8\u2229Pima boundary, EPSG:5070, via scripts/phase1/local_region.py",
+      "status": "MEASURED"
+    },
+    "irrigated_acres": {
+      "value": 30008.0,
+      "source": "2017 Census of Agriculture, Table 10, Pima County only. Regional total 718,832 includes all eight counties.",
+      "status": "VERIFIED"
+    },
+    "irrigated_fraction": {
+      "value": 0.013309424152737262,
+      "source": "irrigated_acres / local region_acres",
+      "status": "VERIFIED"
+    },
+    "grace_units_per_af": {
+      "value": 1.3518749794629087e-07,
+      "source": "1 AF spread over the LOCAL domain area, in metres of equivalent water height. ~12\u00d7 larger than regional because the domain is ~8.1% of the region.",
+      "status": "UNTESTED",
+      "note": "Same closed-basin assumption as regional. A pumped AF is more visible per unit area on the local footprint."
+    },
+    "ndvi_natural": {
+      "value": 0.2167,
+      "source": "Borrowed from regional baseline (computed_stats.json). The monthly NDVI CSV is a regional aggregate; local NDVI requires pixel-level MODIS data clipped to the HUC8\u2229Pima mask.",
+      "status": "ESTIMATED",
+      "note": "Replace with local NDVI mean when pixel-level extraction is available."
+    },
+    "ndvi_impervious": {
+      "value": 0.1811356445616966,
+      "source": "Borrowed from regional measurement (ndvi_endpoints.py difference-in-differences). The slope is a per-cell property, not a regional aggregate, so it transfers to any sub-domain.",
+      "status": "MEASURED",
+      "band": [
+        0.1811356445616966,
+        0.1917048546600122
+      ],
+      "note": "The slope (-0.0356 NDVI / unit impervious) is local by construction."
+    },
+    "ndvi_irrigated_crop": {
+      "value": 0.5344084603315784,
+      "source": "Borrowed from regional measurement. The slope (+0.3177 NDVI / unit irrigated fraction) was measured per-cell and transfers.",
+      "status": "MEASURED",
+      "band": [
+        0.5344084603315784,
+        0.5523261334979916
+      ]
+    },
+    "local_baseline_cfs": {
+      "value": 111.3,
+      "source": "median(mean_cfs) \u00d7 median(n_gages) over Pima County gages in water_surface_daily_8county_2000_2020.csv, 23 gages",
+      "status": "MEASURED"
+    },
+    "mean_precipitation_mm_day": {
+      "value": 0.7765367986111111,
+      "source": "Borrowed from regional mean (precipitation_monthly.csv). Tucson-basin precipitation is close to the regional mean; a local PRISM extraction would refine this.",
+      "status": "ESTIMATED"
+    },
+    "storage_af_per_ft": {
+      "value": 707462.8828830041,
+      "source": "Borrowed from regional calibration (Cochise index). PHASE4 \u00a74.4a: 'The shipped 707,463 AF/ft was calibrated against the Cochise index and does not transfer.' A Tucson-basin calibration against the 14 Pima wells is needed.",
+      "status": "UNTESTED",
+      "band": [
+        466032.4584786653,
+        707462.8828830041
+      ],
+      "note": "This is the single largest source of local-tier uncertainty. Pool & Anderson SIR 2007-5275 may provide a Tucson-basin estimate."
+    },
+    "well_depth_stats": {
+      "value": {
+        "n_wells": 14,
+        "ref_depth_all_time": 256.58,
+        "ref_depth_2020": 236.98,
+        "latest_min_ft": 31.0,
+        "latest_median_ft": 204.0,
+        "latest_max_ft": 316.0,
+        "headroom_to_statutory_ft": 796.0
+      },
+      "source": "14 Pima County wells in groundwater_levels_daily_2000_2020.csv. Latest depths: 31\u2013316 ft, median 204 ft. Headroom to A.A.C. R12-15-716 statutory limit (1,000 ft): ~796 ft.",
+      "status": "MEASURED"
+    },
+    "statutory_depth_limit_ft": {
+      "value": 1000.0,
+      "source": "A.A.C. R12-15-716(B)(2): maximum 100-year depth-to-static-water-level in the Tucson AMA for Assured Water Supply designation.",
+      "status": "VERIFIED"
+    },
+    "af_per_mgd_month": {
+      "value": 93.33333333333333,
+      "source": "Same as regional \u2014 1 Mgal = 3.06889 acre-ft, x 365 d / 12 mo",
+      "status": "VERIFIED"
+    },
+    "cfs_per_mgd": {
+      "value": 1.547229,
+      "source": "Same as regional \u2014 1 MGD = 1.547229 cfs",
+      "status": "VERIFIED"
+    },
+    "cfs_per_af_month": {
+      "value": 0.0165643283252451,
+      "source": "Same as regional \u2014 1 acre-foot delivered evenly over a mean month, in cubic feet per second",
+      "status": "VERIFIED"
+    },
+    "specific_yield": {
+      "value": 0.15,
+      "source": "Same as regional \u2014 Midpoint of the ADWR basin-fill modelling range. USGS SIR 2007-5275 (Pool & Anderson) gives 0.16-0.21 for comparable alluvial aquifers. The exact ADWR value was not retrieved: azwater.gov returns HTTP 403.",
+      "status": "UNTESTED",
+      "band": [
+        0.1,
+        0.2
+      ]
+    },
+    "alluvial_fraction": {
+      "value": 0.45,
+      "source": "Same as regional \u2014 assumed share of the region that is alluvial basin rather than mountain block",
+      "status": "UNTESTED",
+      "band": [
+        0.3,
+        0.6
+      ]
+    },
+    "effluent_return_fraction": {
+      "value": 0.55,
+      "source": "Same as regional \u2014 share of municipal supply returned as treated effluent \u2014 indoor use reaches the sewer, outdoor use is consumed. The mechanism is primary: 'The Santa Cruz River is largely dependent on discharges from water reclamation facilities' (A Living River: Santa Cruz River 2024, Downtown Tucson to Marana, Supplementary Report, Sonoran Institute).",
+      "status": "UNTESTED",
+      "band": [
+        0.45,
+        0.7
+      ],
+      "note": "The fraction itself is a standard water-balance figure, not a cited value."
+    },
+    "runoff_coefficient_impervious": {
+      "value": 0.85,
+      "source": "Same as regional \u2014 standard rational-method runoff coefficient for paved surface",
+      "status": "UNTESTED",
+      "band": [
+        0.75,
+        0.95
+      ]
+    },
+    "runoff_coefficient_natural": {
+      "value": 0.15,
+      "source": "Same as regional \u2014 standard rational-method runoff coefficient for desert soils",
+      "status": "UNTESTED",
+      "band": [
+        0.05,
+        0.25
+      ],
+      "note": "The same mechanism the Living River report names \u2014 'runoff after storms depends on the amount of impervious surface' \u2014 and the reason features.py calls precip_x_impervious the dominant urban-desert discharge term."
+    },
+    "stream_capture_fraction": {
+      "value": 0.1,
+      "source": "Same as regional \u2014 share of regional groundwater pumping captured from streamflow rather than from storage. Stream-aquifer depletion is the documented mechanism behind the loss of perennial reach on the Santa Cruz and San Pedro.",
+      "status": "UNTESTED",
+      "band": [
+        0.05,
+        0.25
+      ],
+      "note": "Not sourced to a number. Most regional pumping is far from a stream, hence the low central value."
+    },
+    "groundwater_substitution_fraction": {
+      "value": 0.5,
+      "source": "Same as regional \u2014 share of lost CAP water replaced by pumping rather than fallowing; Pinal's DCP mitigation explicitly funded new wells",
+      "status": "UNTESTED",
+      "band": [
+        0.3,
+        0.7
+      ],
+      "note": "Not sourced."
+    },
+    "region_share_of_az_reduction": {
+      "value": 1.0,
+      "source": "measured: (baseline - actual) annual CAP deliveries / declared AZ cut, mean 1.001 over 2022-2025 against a 2015-2019 baseline (1,406 kAF/yr); min-max over years x two baselines 0.824-1.200, shipped capped at 1.0. scripts/phase3/cap_calibration.py, from CAP's monthly delivery reports (scripts/phase1/cap_deliveries.py).",
+      "status": "MEASURED",
+      "band": [
+        0.824,
+        1.0
+      ],
+      "note": "Was 0.60 (0.40-0.80) while the documents said Maricopa was out-of-region, then 0.95 (0.85-1.00) by reasoning after PROBLEMS.md P8. The delivery record says a Tier 1+ cut arrives in the region essentially in full: 2022 alone gives 0.82-0.99, and 2023-2025 exceed 1.0 because compensated conservation ran alongside the tier. The Tier 0 contributions of 2020-2021 (192 kAF) did NOT show up as lost deliveries (-0.10 and 0.43), which is why those years are reported but not judged: DCP let them be met from ICS and conservation credits."
+    },
+    "transfer_surface_water_to_wildlife": {
+      "value": 0.05357953598530906,
+      "source": "regression of bbs_abundance_anomaly on annual mean discharge_log_anomaly, n = 44 (1980-2024), PDSI-controlled. Riparian corridors carry disproportionate bird abundance in the Southwest.",
+      "status": "MEASURED",
+      "band": [
+        0.05357953598530906,
+        0.19526202972618512
+      ],
+      "note": "The trend-controlled (conservative) estimate ships; the band's upper end is the climate-only fit, which is significant (t = +2.19, p = 0.029). The sign is positive in both, unlike Mead, which flipped."
+    },
+    "pima_municipal_share": {
+      "value": 1.0,
+      "source": "Local tier uses Pima County wells directly. The Cochise scaling factor (cochise_municipal_to_irrigation_share = 0.191) does not apply \u2014 municipal pumping in Pima acts on the Pima aquifer.",
+      "status": "MEASURED",
+      "note": "When the local storage_af_per_ft is calibrated against Pima wells, the calibration will already embed the local pumping share."
+    }
+  }
+}

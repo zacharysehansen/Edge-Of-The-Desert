@@ -18,8 +18,32 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 PARAMS_PATH = ROOT / "frontend" / "structural_params.json"
+LOCAL_PARAMS_PATH = ROOT / "frontend" / "local_structural_params.json"
 
 STRUCTURAL_OUTPUTS = ("groundwater", "grace", "ndvi", "surface_water", "wildlife")
+
+CONSTANT_RENAMES = {
+    "local_baseline_cfs": "regional_baseline_cfs",
+    "pima_municipal_share": "cochise_municipal_to_irrigation_share",
+}
+
+SKIP_LOCAL_KEYS = {"well_depth_stats", "statutory_depth_limit_ft"}
+
+
+def build_local_params() -> dict:
+    """Merge regional params with local constant overrides for the Tucson-basin tier."""
+    regional = json.loads(PARAMS_PATH.read_text())
+    local = json.loads(LOCAL_PARAMS_PATH.read_text())
+
+    merged = json.loads(json.dumps(regional))
+    for key, entry in local["constants"].items():
+        if key in SKIP_LOCAL_KEYS:
+            continue
+        target_key = CONSTANT_RENAMES.get(key, key)
+        if target_key in merged["constants"]:
+            merged["constants"][target_key] = entry
+
+    return merged
 
 # Below this, two evaluations of the same formula differ only by floating-point
 # noise, not by a parameter band. Used to decide whether a constant is "relevant".

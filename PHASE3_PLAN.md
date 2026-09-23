@@ -65,7 +65,12 @@ exactly where it was, because a positive multiplier cannot change one. Off it st
 [§33](#33-vpd-runoff-and-soil-moisture-acquired-six-nulls-and-one-near-miss-measured) (three
 feature blocks against three models under the declared rule: six nulls; NDVI with root-zone soil
 moisture is the near miss at +0.060, 4 of 5, t = 1.83; the 2024–2025 extension is an acquisition
-needing two more Earthdata approvals and is not done).
+needing two more Earthdata approvals and is not done), and
+[§34](#34-pdsi-is-a-derived-quantity-wearing-a-slider-and-the-urbanization-card-undersells-what-was-measured-design-note--not-built)
+(design notes from an app review, nothing built: the PDSI slider is a derived quantity presented as
+an independent one, which is why its cards disagree — derive it from rain and temperature; and the
+urbanization card needs a local readout and a "what gets paved?" choice rather than a bigger
+coefficient).
 
 For the readable version of what the finished model *does* — every path from a slider to an
 output, and the reasoning behind each — see [DISCUSSION.md](DISCUSSION.md). This document is the
@@ -3292,3 +3297,106 @@ offered to the model it should help, under the same rule, and the only one that 
 one whose model had no history to trade away. The remaining routes all add rows or wells — the
 2025 extension, the well pull past 2020, the ADWR AMA wells, the per-well panel — and none of them
 is a feature.
+
+## 34. PDSI is a derived quantity wearing a slider, and the urbanization card undersells what was measured `DESIGN NOTE — not built`
+
+Recorded 2026-09-16 from a review of the running app. Nothing in the code or the models changed;
+the numbers below are from `slider_sensitivity.py --mode climate-signs` and
+`node frontend/structural.js --dump` on that date.
+
+### 34a. The PDSI slider disagrees with itself across the cards
+
+Raising PDSI (wetter) raises wildlife and — on the app's default 12-month scenario — lowers
+streamflow, moves NDVI in both directions by month, and raises wildfire. It reads as though the
+birds are the one card going the wrong way. They are the one card going the *right* way:
+
+| PDSI ↑ → | expected | months ok (sustained) | pts | status |
+|---|---|---|---|---|
+| wildlife | + | 12/12 | 7.35 | pass — linear ridge, PDSI is 3 of its top 6 inputs |
+| surface water | + | **0/12** | −3.07 every month | genuine wrong sign (§30–§31); fails as a pulse too |
+| NDVI | + | **7/12** | 0.33 – 3.96 | XGBoost month-splitting (§30); constraint did not ship (§31) |
+| wildfire | none declared | — | 1.12 – 5.48 | ambiguous on purpose: wetness suppresses ignition *and* grows next season's fuel |
+| GRACE, groundwater | — | — | 0.00 | no PDSI input (below) |
+
+**Why GRACE and groundwater have no PDSI.** Both are four-input ridges on inputs fixed before
+their experiments (§26, §29): `gldas_tws_proxy_delta`, rain, rain lag 1, temperature anomaly.
+GLDAS storage change is a physical model of the soil-and-snow storage PDSI approximates, and it
+tracks GRACE at r = +0.62 (§25). GRACE lost its drought input (DSCI) in the §27 rebuild. Adding
+PDSI back would need a new pre-declared experiment, and would most likely reproduce the
+streamflow failure: PDSI is collinear with the rain inputs those models already hold.
+
+**The underlying problem is that PDSI is not an independent variable.** It is computed entirely
+from precipitation and temperature history (34c). A slider that raises PDSI while rain and
+temperature stay put describes a climate that cannot occur, and each model answers that
+impossible question in its own way. GRACE and groundwater already receive wetness the consistent
+way — `DERIVED` builds the GLDAS input from the rain and temperature sliders — and DSCI is
+already regressed off the PDSI slider (`catalog.js::dsciFromPdsi`), so the app has the pattern.
+
+**Two options, neither taken:**
+
+1. **Mask** — hold PDSI at its normal for the models whose PDSI response fails the sign gate
+   (surface water, NDVI), and say so on those cards. The same move §7 made for the human levers.
+   Cheap; no retrain; those two cards stop responding to PDSI at all.
+2. **Derive (preferred)** — remove PDSI as an independent slider and compute it from the rain and
+   temperature sliders, as GLDAS is. "Wetter" becomes one gesture every card sees. Because of the
+   recursion in 34c, the regression needs rain *history* (lags or rolls over ~12 months), not
+   only the current month. Criterion before shipping: state the fit's R² in the JSON as `DERIVED`
+   does, then re-run `--mode climate-signs` and report how the NDVI and surface-water rows move.
+   Must be mirrored in the Python `Catalog` so `check_catalog_parity.py` still passes.
+
+### 34b. The urbanization lever is honest and reads as "does nothing"
+
+The NDVI card shows about −0.4 points at +1.0 on the impervious slider (−0.8 at the +2.0 max), next
+to the headline "On the land actually paved, NDVI falls 16%". Both are right and they measure
+different things:
+
+```
+local:     ΔNDVI = −0.0356 per unit paved  →  −16.4% of the 0.2167 baseline
+regional:  +2.0 pts × −0.0356 / 100 = −0.00071 NDVI  →  / 0.0879 score span = −0.8 pts
+```
+
+The slider's whole range paves at most 2% of the region (~556,000 acres), so a regional mean
+averages the effect away. **Do not enlarge the coefficient** — that reverses §17, where the
+assumed endpoint was 5.5× too strong.
+
+On the slider cap: +2.0 is a hand-set `range_basis: "policy scenario"` in `generate_stats.py`, not
+a model limit — Layer 1 no longer sees impervious cover (§7), so the lever is pure arithmetic and
+cannot destabilise. The record spans 0.83 – 1.28% impervious; +2.0 (3.24%) is already ~4× the
+observed 20-year change. Past it the historical-mix coefficient *understates* the loss, because
+growth would increasingly pave cropland and riparian land rather than desert, and the
+unevidenced urbanization → surface-water lever scales with it.
+
+**Proposed display, not built:**
+
+1. A live "newly developed land" readout on the NDVI card — acres paved at the current setting,
+   NDVI on those acres before → after, and the regional points beside it — replacing the static
+   headline in `ui.js`.
+2. A "what gets paved?" selector using the three coefficients already in
+   `model/ndvi_endpoints.json`: desert −0.0027 (≈0 pts regionally at +2.0), historical mix
+   −0.0356 (−0.8), cropland/riparian −0.1792 (≈ −4). This is the measured story — the effect is
+   about what the pavement replaces — and it is a real policy choice in Maricopa and Pinal.
+   Needs a `paved_from` parameter in `structural.js` and `structural.py`.
+3. If the slider is widened (e.g. to +10), label everything past +2.0 as beyond the observed
+   record, with the understatement stated.
+
+### 34c. What PDSI is, for whoever builds 34a
+
+The project does not compute PDSI; it takes NOAA nClimDiv's divisional values. Palmer (1965), as
+NOAA computes it:
+
+1. **Thornthwaite PE** from temperature: `PE = 16 (10T / I)^a` mm/month before the day-length
+   correction, `I = Σ₁₂ (T/5)^1.514`, `a` a cubic in `I`. The only place temperature enters.
+2. **Two-layer soil water balance** (1-inch surface layer, lower layer by soil AWC), giving
+   ET, recharge R, runoff RO, loss L and their potentials PR, PRO, PL.
+3. **CAFEC precipitation and departure**, per calendar month:
+   `α = ET̄/PĒ, β = R̄/PR̄, γ = RŌ/PRŌ, δ = L̄/PL̄`;
+   `P̂ = α·PE + β·PR + γ·RO − δ·PL`; `d = P − P̂`.
+4. **Z-index**: `K' = 1.5 log₁₀[((PĒ + R̄ + RŌ)/(P̄ + L̄) + 2.8) / D̄] + 0.5`,
+   `K = 17.67 K' / Σ₁₂ D̄ⱼK'ⱼ`, `Z = d·K` (D̄ = mean |d| for the month).
+5. **The index**: `Xᵢ = 0.897 Xᵢ₋₁ + Zᵢ / 3`, with Palmer's spell establishment/termination
+   rules switching between three candidate series (X1, X2, X3).
+
+Consequences for 34a: PDSI is a function of rain and temperature history plus fixed soil and
+climate constants — hence not an independent lever. Its memory has a half-life of
+ln 0.5 / ln 0.897 ≈ **6.4 months**, and a sustained Z settles at X ≈ 3.2 Z, so a derivation from
+the sliders must carry rain history across the scenario's duration.
