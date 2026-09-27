@@ -1,3 +1,0 @@
-# Auto detect text files and perform LF normalization
-* text=auto
-data/Final/water_surface_daily_8county_1980_2025.csv filter=lfs diff=lfs merge=lfs -text
