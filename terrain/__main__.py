@@ -1,4 +1,4 @@
-"""Command line: `python -m terrain fetch|tile <config.toml>`."""
+"""Command line: `python -m terrain fetch|tile|sources <config.toml>`."""
 
 import argparse
 import sys
@@ -8,6 +8,7 @@ from terrain.config import TileConfig, load_config
 from terrain.dem import fetch_patch, load_heightfield
 from terrain.mesh import heightfield_to_mesh
 from terrain.stl import write_stl
+from terrain import sources
 
 
 def fetch(cfg: TileConfig) -> None:
@@ -44,11 +45,39 @@ def tile(cfg: TileConfig, config_path: str) -> None:
     print(f"  bed:       {'fits' if fits else 'DOES NOT FIT'} a {cfg.bed_mm:g} mm bed")
 
 
+def fetch_sources(config_path: str, only: str | None) -> None:
+    cfg = sources.load_sources_config(config_path)
+    try:
+        if only in (None, "dem"):
+            print("DEM tiles:")
+            sources.merge_dem(cfg, sources.fetch_dem_tiles(cfg))
+            print(f"  merged -> {cfg.dem_path}")
+        if only in (None, "imagery"):
+            print("Imagery:")
+            sources.merge_imagery(cfg, sources.fetch_imagery_items(cfg))
+            print(f"  merged -> {cfg.imagery_path}")
+    except RuntimeError as e:
+        sys.exit(f"Download failed: {e}\n"
+                 "Anything already saved is kept; re-run the same command to continue.")
+    print("Checking coverage:")
+    try:
+        lines = sources.verify(cfg)
+    except ValueError as e:
+        sys.exit(f"  {e}")
+    for line in lines:
+        print(f"  {line}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m terrain")
-    parser.add_argument("command", choices=["fetch", "tile"])
+    parser.add_argument("command", choices=["fetch", "tile", "sources"])
     parser.add_argument("config")
+    parser.add_argument("--only", choices=["dem", "imagery"],
+                        help="sources: fetch just one product")
     args = parser.parse_args()
+    if args.command == "sources":
+        fetch_sources(args.config, args.only)
+        return
     cfg = load_config(args.config)
     if args.command == "fetch":
         fetch(cfg)

@@ -6,11 +6,11 @@ The sandbox can't reach the download servers with curl, so this ships as a scrip
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** in progress (code done and tested on synthetic files; waiting on the user to run the download, which needs network)
 
-- [ ] The superset box is defined once, in the shared config, and covers all four ranges plus a margin of at least 5 km
-- [ ] One user-run script downloads all DEM tiles and imagery for the box, skipping files already present
-- [ ] DEM tiles are merged into one raster and imagery into one mosaic, both reprojected to UTM 12N
-- [ ] A verification step reports coverage (no nodata holes inside the box), resolution and total size on disk
-- [ ] Downloads land under the gitignored data directory; nothing large is committed
-- [ ] Data sources and licences are recorded next to the data, like the existing data credits
+- [x] The superset box is defined once, in the shared config, and covers all four ranges plus a margin of at least 5 km
+- [x] One user-run script downloads all DEM tiles and imagery for the box, skipping files already present
+- [x] DEM tiles are merged into one raster and imagery into one mosaic, both reprojected to UTM 12N
+- [ ] A verification step reports coverage (no nodata holes inside the box), resolution and total size on disk (built and tested; confirm on the real data)
+- [x] Downloads land under the gitignored data directory; nothing large is committed
+- [x] Data sources and licences are recorded next to the data, like the existing data credits

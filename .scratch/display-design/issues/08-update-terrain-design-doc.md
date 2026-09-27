@@ -4,9 +4,9 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Every settled decision above appears in the doc
-- [ ] The workflow section describes the scripted pipeline, not QGIS; TouchTerrain is kept only as an optional quick check
-- [ ] Open questions that the questionnaire covers link to it instead of being repeated
-- [ ] Items the doc previously listed as open but that are now settled (water contact, paint style) are marked settled
+- [x] Every settled decision above appears in the doc
+- [x] The workflow section describes the scripted pipeline, not QGIS; TouchTerrain is kept only as an optional quick check
+- [x] Open questions that the questionnaire covers link to it instead of being repeated
+- [x] Items the doc previously listed as open but that are now settled (water contact, paint style) are marked settled
