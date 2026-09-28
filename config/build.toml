@@ -1,0 +1,24 @@
+# Ticket 04: print settings and screen hardware shared by every layout.
+# Screen values are placeholders for a generic 55" display until the team names a model.
+
+[print]
+vertical_exaggeration = 2.5
+base_thickness_mm = 5.0      # terrain's lowest point sits this far above the plywood
+mesh_resolution_mm = 0.5
+bed_mm = 220.0
+
+[screen]
+bezel_mm = 15.0              # width of the black border around the display area
+bezel_raise_mm = 0.0         # how far the bezel stands above the glass (IR touch frames can be 5-10 mm)
+glass_above_plywood_mm = 0.0 # the frame should set the plywood level with the glass
+
+[lip]
+overhang_mm = 3.0            # how far the lip reaches past the bezel onto the display area
+edge_thickness_mm = 1.2      # thickness of the lip's tip resting on the glass
+blend_mm = 15.0              # distance over which the lip thickens to the full base and local relief fades in
+datum_blend_mm = 200.0       # distance over which heights change from "level with the glass at the seam" to "above the table's lowest point"
+
+[test_piece]
+corner = "sw"                # which corner of the opening the lip fit-test piece comes from
+arm_mm = 150.0               # length of each arm of the L-shaped piece
+depth_mm = 50.0              # how far the piece reaches out from the opening

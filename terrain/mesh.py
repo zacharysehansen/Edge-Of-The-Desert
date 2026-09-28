@@ -67,3 +67,48 @@ def heightfield_to_mesh(elevation_m: np.ndarray, spacing_mm: float, scale: float
 
     faces = np.concatenate([top_faces, wall_faces, base_faces]).astype(np.int64)
     return Mesh(vertices, faces)
+
+
+def solid_from_fields(xs: np.ndarray, ys: np.ndarray, top: np.ndarray, bottom: np.ndarray,
+                      cells: np.ndarray) -> Mesh:
+    """A closed solid over a rectilinear grid, possibly with holes.
+
+    `xs` (east) and `ys` (north) are increasing node coordinates in mm. `top` and
+    `bottom` are (len(ys), len(xs)) surface heights at the nodes, with top above
+    bottom wherever a kept cell touches. `cells` is a (len(ys)-1, len(xs)-1) mask
+    of the grid cells that belong to the solid; walls are built wherever a kept
+    cell borders a dropped cell or the grid's edge.
+    """
+    ny, nx = len(ys), len(xs)
+    if top.shape != (ny, nx) or bottom.shape != (ny, nx) or cells.shape != (ny - 1, nx - 1):
+        raise ValueError("field shapes do not match the grid")
+    gx, gy = np.meshgrid(xs, ys)
+    n = ny * nx
+    vertices = np.concatenate([
+        np.column_stack([gx.ravel(), gy.ravel(), top.ravel()]),
+        np.column_stack([gx.ravel(), gy.ravel(), bottom.ravel()]),
+    ])
+
+    i, j = np.nonzero(cells)
+    p00, p01 = i * nx + j, i * nx + j + 1  # south-west, south-east
+    p10, p11 = (i + 1) * nx + j, (i + 1) * nx + j + 1  # north-west, north-east
+    faces = [
+        np.column_stack([p00, p01, p11]), np.column_stack([p00, p11, p10]),  # top, facing up
+        np.column_stack([p00, p11, p01]) + n, np.column_stack([p00, p10, p11]) + n,  # bottom, facing down
+    ]
+
+    # Walls: a cell edge is on the boundary when the cell across it is not kept.
+    padded = np.pad(cells, 1, constant_values=False)
+    kept = padded[1:-1, 1:-1]
+    for across, (a, b) in [
+        (padded[:-2, 1:-1], (p00, p01)),  # south edge, travelling east
+        (padded[1:-1, 2:], (p01, p11)),  # east edge, travelling north
+        (padded[2:, 1:-1], (p11, p10)),  # north edge, travelling west
+        (padded[1:-1, :-2], (p10, p00)),  # west edge, travelling south
+    ]:
+        edge = ~across[kept]
+        a, b = a[edge], b[edge]
+        # Travelling counter-clockwise around the solid, the outside is on the right.
+        faces += [np.column_stack([a + n, b + n, b]), np.column_stack([a + n, b, a])]
+
+    return Mesh(vertices, np.concatenate(faces).astype(np.int64))

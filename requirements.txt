@@ -3,3 +3,4 @@ pyproj
 rasterio
 gdal
 pytest
+scipy

@@ -32,7 +32,8 @@ Only the valley-facing slope of each range is printed, up to and slightly past i
 
 The seam is the hardest part of the design. It is handled at three levels.
 
-1. **Shape.** A printed lip along the diorama's inner edge overhangs the screen's bezel and hides it. The lip's lowest surface sits at the height of the glass, and the terrain rises from it into the real ground slope.
+1. **Shape.** A printed lip along the diorama's inner edge overhangs the screen's bezel by 3 mm and hides it. The lip's tip, 1.2 mm thick, rests on the glass, and within 15 mm the terrain thickens to its full base and picks up the real ground's bumps and washes. The frame sets the plywood level with the glass. If the chosen screen's bezel stands proud of the glass, the tiles' undersides step up over it.
+   The screen is flat but the valley floor is not: it falls about 250 m across the screen's area. Near the screen, terrain heights are therefore measured from the ground's own elevation at the nearest point of the seam, which keeps the terrain level with the glass all the way round. Over about 200 mm this eases back to heights measured from the table's lowest point. The result is a slight, gradual tilt, where a direct join would leave the screen sitting in a trench.
 2. **Colour.** The diorama is hand-painted, and colours come from real aerial imagery. The pipeline samples the imagery along the seam and produces exact colour targets (hex and CIELAB) for the painters.
 3. **Light.** The screen emits light and the paint only reflects it, so paint alone can never match the screen in a dark room. The diorama gets directed lighting, and at the installation the screen's edge pixels are calibrated to match the painted terrain under the real lighting. Changing screen colours in software is far easier than repainting.
 
