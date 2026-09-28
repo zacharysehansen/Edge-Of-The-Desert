@@ -7,6 +7,7 @@ pieces are merged and reprojected to UTM 12N in one local step.
 
 import json
 import math
+import time
 import tomllib
 import urllib.request
 from dataclasses import dataclass
@@ -18,6 +19,9 @@ from osgeo import gdal
 from terrain.dem import UTM_12N, utm_crop_box
 
 gdal.UseExceptions()
+# Fail a dead connection within minutes rather than hanging on it, and ride out brief drops.
+for key, value in {"GDAL_HTTP_TIMEOUT": "60", "GDAL_HTTP_MAX_RETRY": "3", "GDAL_HTTP_RETRY_DELAY": "5"}.items():
+    gdal.SetConfigOption(key, value)
 FETCH_MARGIN_DEG = 0.01
 
 
@@ -81,6 +85,8 @@ def _write_atomic(dest: Path, write) -> None:
     # A .part left by an interrupted run must go: gdal.Warp writes into an existing file.
     part.unlink(missing_ok=True)
     write(str(part))
+    if not part.exists():  # GDAL can report a network failure as a warning and write nothing
+        raise RuntimeError(f"no data was written for {dest.name} (network problem?)")
     part.rename(dest)
 
 
@@ -178,6 +184,20 @@ def latest_year_items(features: list[dict]) -> tuple[int, list[dict]]:
     return latest, sorted((f for f in features if year(f) == latest), key=lambda f: f["id"])
 
 
+class _TokenCache:
+    """Planetary Computer access tokens expire after about an hour; renew well before that."""
+
+    MAX_AGE_S = 30 * 60
+
+    def __init__(self, url: str):
+        self.url, self.token, self.fetched = url, None, 0.0
+
+    def get(self, fresh: bool = False) -> str:
+        if fresh or self.token is None or time.monotonic() - self.fetched > self.MAX_AGE_S:
+            self.token, self.fetched = _get_json(self.url)["token"], time.monotonic()
+        return self.token
+
+
 def fetch_imagery_items(cfg: SourcesConfig, log=print) -> list[Path]:
     """Save each NAIP item's RGB bands, reprojected to UTM 12N at the target resolution.
 
@@ -186,7 +206,7 @@ def fetch_imagery_items(cfg: SourcesConfig, log=print) -> list[Path]:
     """
     year, items = latest_year_items(search_naip(cfg))
     log(f"  NAIP {year}: {len(items)} images cover the box")
-    token = _get_json(cfg.token_url)["token"]
+    token = _TokenCache(cfg.token_url)
     paths = []
     for i, item in enumerate(items, 1):
         dest = cfg.imagery_items_dir / f"{item['id']}.tif"
@@ -194,17 +214,23 @@ def fetch_imagery_items(cfg: SourcesConfig, log=print) -> list[Path]:
         if dest.exists():
             continue
         log(f"  [{i}/{len(items)}] {item['id']}")
-        href = f"/vsicurl/{item['assets']['image']['href']}?{token}"
+        url = item["assets"]["image"]["href"]
 
-        def write(part, href=href):
-            ds = gdal.Warp(part, href, format="GTiff", dstSRS=UTM_12N,
+        def write(part, fresh=False, url=url):
+            ds = gdal.Warp(part, f"/vsicurl/{url}?{token.get(fresh)}", format="GTiff", dstSRS=UTM_12N,
                            xRes=cfg.imagery_resolution_m, yRes=cfg.imagery_resolution_m,
                            targetAlignedPixels=True, resampleAlg="average", srcBands=[1, 2, 3],
                            dstAlpha=True, creationOptions=["COMPRESS=DEFLATE", "TILED=YES"])
             ds.FlushCache()
             ds = None
 
-        _write_atomic(dest, write)
+        try:
+            _write_atomic(dest, write)
+        except RuntimeError as e:
+            if "403" not in str(e):
+                raise
+            log("    access token rejected; retrying with a fresh one")
+            _write_atomic(dest, lambda part: write(part, fresh=True))
     return paths
 
 

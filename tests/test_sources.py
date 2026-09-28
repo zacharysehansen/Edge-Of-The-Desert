@@ -102,3 +102,23 @@ def test_imagery_mosaic_respects_alpha_and_reports_holes(tmp_path):
     sources.merge_imagery(cfg, items[:1])
     with pytest.raises(ValueError, match="Imagery: .* empty pixels inside the box"):
         sources.verify(cfg)
+
+
+def test_token_is_renewed_when_old_or_rejected(monkeypatch):
+    issued = iter(["t1", "t2", "t3"])
+    monkeypatch.setattr(sources, "_get_json", lambda url: {"token": next(issued)})
+    clock = [0.0]
+    monkeypatch.setattr(sources.time, "monotonic", lambda: clock[0])
+    cache = sources._TokenCache("x")
+    assert cache.get() == "t1"
+    clock[0] = 10 * 60
+    assert cache.get() == "t1"
+    clock[0] = 45 * 60
+    assert cache.get() == "t2"
+    assert cache.get(fresh=True) == "t3"
+
+
+def test_write_that_produces_nothing_is_an_error(tmp_path):
+    with pytest.raises(RuntimeError, match="no data was written"):
+        sources._write_atomic(tmp_path / "x.tif", lambda part: None)
+    assert not (tmp_path / "x.tif").exists()

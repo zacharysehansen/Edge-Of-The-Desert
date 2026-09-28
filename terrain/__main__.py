@@ -57,7 +57,7 @@ def fetch_sources(config_path: str, only: str | None) -> None:
             print("Imagery:")
             sources.merge_imagery(cfg, sources.fetch_imagery_items(cfg))
             print(f"  merged -> {cfg.imagery_path}")
-    except RuntimeError as e:
+    except (RuntimeError, OSError) as e:  # GDAL errors, and network errors (URLError is an OSError)
         sys.exit(f"Download failed: {e}\n"
                  "Anything already saved is kept; re-run the same command to continue.")
     print("Checking coverage:")
