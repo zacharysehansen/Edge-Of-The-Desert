@@ -14,9 +14,20 @@ Please reply by **[date]**. It should take about 15 minutes. Write your answer i
 
 ## Geographic extent
 
+The two previews below show the main options with a 55" screen. The yellow box is the screen, the white box is the table, and the scale is set so the valley floor fills the screen.
+
+| | Option A: with the Santa Ritas, screen north-south | Option B: without, screen east-west |
+|---|---|---|
+| Preview | ![Option A](docs/previews/option_a_ns_with_santa_ritas.png) | ![Option B](docs/previews/option_b_ew_no_santa_ritas.png) |
+| Scale | 1:48,000 | 1:29,000 |
+| Table | 1.33 × 1.81 m | 2.20 × 1.41 m |
+| Screen shows | 33 × 59 km | 35 × 20 km |
+
+Option B's scale is about 1.7 times larger, so the city and the Catalinas appear 1.7 times bigger in each direction, on a larger table.
+
 ### Should the model include the Santa Rita Mountains?
 
-_Why this matters: the basin is about 80 km north to south with the Santa Ritas and much shorter without them, so this one choice sets the model's scale and the table's shape._
+_Why this matters: the basin is about 76 km crest to crest north to south with the Santa Ritas and about 52 km east to west, so this one choice sets the model's scale and the table's shape._
 
 >
 

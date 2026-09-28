@@ -6,10 +6,10 @@ The first real outputs are one preview per main questionnaire option: north-sout
 
 **Blocked by:** 01 — Tracer test tile (reuses its reprojection and scaling), 02 — Source data.
 
-**Status:** ready-for-agent
+**Status:** in progress (done on shaded relief; re-render the previews on imagery once ticket 02's download finishes)
 
-- [ ] Layout config: extent, screen size, orientation and screen position; scale and table footprint are derived, not entered
-- [ ] Preview image shows hillshade or imagery, the screen rectangle, the table outline, range labels, scale and footprint in metres
-- [ ] Two preview configs exist, one per questionnaire option, and render without edits
-- [ ] The crest-to-crest distances quoted in the questionnaire (about 80 km N–S, 52 km E–W) are checked against the DEM, and the questionnaire is corrected if they're off
-- [ ] Previews are referenced from the questionnaire
+- [x] Layout config: extent, screen size, orientation and screen position; scale and table footprint are derived, not entered
+- [x] Preview image shows hillshade or imagery, the screen rectangle, the table outline, range labels, scale and footprint in metres
+- [x] Two preview configs exist, one per questionnaire option, and render without edits
+- [x] The crest-to-crest distances quoted in the questionnaire (about 80 km N–S, 52 km E–W) are checked against the DEM, and the questionnaire is corrected if they're off (measured 76.4 km N–S and 52.0 km E–W; questionnaire corrected)
+- [x] Previews are referenced from the questionnaire

@@ -1,4 +1,4 @@
-"""Command line: `python -m terrain fetch|tile|sources <config.toml>`."""
+"""Command line: `python -m terrain fetch|tile|sources|preview <config.toml>`."""
 
 import argparse
 import sys
@@ -9,6 +9,7 @@ from terrain.dem import fetch_patch, load_heightfield
 from terrain.mesh import heightfield_to_mesh
 from terrain.stl import write_stl
 from terrain import sources
+from terrain.layout import load_layout
 
 
 def fetch(cfg: TileConfig) -> None:
@@ -68,15 +69,44 @@ def fetch_sources(config_path: str, only: str | None) -> None:
         print(f"  {line}")
 
 
+PREVIEW_DIR = "docs/previews"
+
+
+def preview(config_path: str, sources_path: str) -> None:
+    from pathlib import Path
+
+    from terrain.preview import render_preview
+
+    layout = load_layout(config_path)
+    src = sources.load_sources_config(sources_path)
+    if not src.dem_path.exists():
+        sys.exit(f"No merged DEM at {src.dem_path}. Run: python -m terrain sources {sources_path}")
+    problems = layout.problems()
+    if problems:
+        sys.exit("Layout problem:\n  " + "\n  ".join(problems))
+    imagery = src.imagery_path if src.imagery_path.exists() else None
+    out = Path(PREVIEW_DIR) / f"{layout.name}.png"
+    render_preview(layout, src.dem_path, imagery, out)
+    print(f"{layout.title}")
+    for line in layout.summary():
+        print(f"  {line}")
+    print(f"  preview -> {out}" + ("" if imagery else " (shaded relief only: imagery not merged yet)"))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m terrain")
-    parser.add_argument("command", choices=["fetch", "tile", "sources"])
+    parser.add_argument("command", choices=["fetch", "tile", "sources", "preview"])
     parser.add_argument("config")
     parser.add_argument("--only", choices=["dem", "imagery"],
                         help="sources: fetch just one product")
+    parser.add_argument("--sources", default="config/sources.toml",
+                        help="preview: the sources config naming the merged DEM and imagery")
     args = parser.parse_args()
     if args.command == "sources":
         fetch_sources(args.config, args.only)
+        return
+    if args.command == "preview":
+        preview(args.config, args.sources)
         return
     cfg = load_config(args.config)
     if args.command == "fetch":

@@ -48,3 +48,6 @@ data/raw/*
 !data/raw/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
+
+# Layout previews are shared with the team, so they are committed
+!docs/previews/*.png

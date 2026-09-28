@@ -78,6 +78,8 @@ def _remote(url: str) -> str:
 def _write_atomic(dest: Path, write) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     part = dest.with_name(dest.name + ".part")
+    # A .part left by an interrupted run must go: gdal.Warp writes into an existing file.
+    part.unlink(missing_ok=True)
     write(str(part))
     part.rename(dest)
 

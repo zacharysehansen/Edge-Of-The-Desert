@@ -1,0 +1,20 @@
+# Questionnaire option (b): no Santa Ritas, screen long side east-west, Catalinas at the head.
+name = "option_b_ew_no_santa_ritas"
+title = "Option B: no Santa Ritas, screen running east-west, Catalinas at the head"
+
+[extent]  # Tucson Mts and Rincon crests at the ends, Catalina crest at the head, open valley to the south
+west = -111.18
+east = -110.50
+south = 32.08
+north = 32.45
+
+[valley]  # Tucson Mts base to Rincon base, Catalina base to just south of downtown
+west = -111.06
+east = -110.72
+south = 32.15
+north = 32.33
+
+[screen]
+diagonal_in = 55
+aspect = "16:9"
+orientation = "ew"

@@ -1,0 +1,20 @@
+# Questionnaire option (a): the full basin, screen long side north-south.
+name = "option_a_ns_with_santa_ritas"
+title = "Option A: full basin with the Santa Ritas, screen running north-south"
+
+[extent]  # the table: crests of all four ranges plus a little beyond
+west = -111.18
+east = -110.50
+south = 31.66
+north = 32.45
+
+[valley]  # the valley floor the screen must show: Tucson Mts base to Rincon base, Catalina base to Santa Rita base
+west = -111.06
+east = -110.72
+south = 31.80
+north = 32.33
+
+[screen]
+diagonal_in = 55
+aspect = "16:9"
+orientation = "ns"
