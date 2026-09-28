@@ -6,7 +6,7 @@ The first real outputs are one preview per main questionnaire option: north-sout
 
 **Blocked by:** 01 — Tracer test tile (reuses its reprojection and scaling), 02 — Source data.
 
-**Status:** in progress (done on shaded relief; re-render the previews on imagery once ticket 02's download finishes)
+**Status:** done — previews rendered on NAIP 2023 imagery
 
 - [x] Layout config: extent, screen size, orientation and screen position; scale and table footprint are derived, not entered
 - [x] Preview image shows hillshade or imagery, the screen rectangle, the table outline, range labels, scale and footprint in metres

@@ -6,11 +6,11 @@ The sandbox can't reach the download servers with curl, so this ships as a scrip
 
 **Blocked by:** None — can start immediately.
 
-**Status:** in progress (code done and tested on synthetic files; waiting on the user to run the download, which needs network)
+**Status:** done — DEM 7514 x 9967 px at 10 m and NAIP 2023 mosaic 15028 x 19932 px at 5 m, both 75.1 x 99.7 km with 0 empty pixels
 
 - [x] The superset box is defined once, in the shared config, and covers all four ranges plus a margin of at least 5 km
 - [x] One user-run script downloads all DEM tiles and imagery for the box, skipping files already present
 - [x] DEM tiles are merged into one raster and imagery into one mosaic, both reprojected to UTM 12N
-- [ ] A verification step reports coverage (no nodata holes inside the box), resolution and total size on disk (built and tested; confirm on the real data)
+- [x] A verification step reports coverage (no nodata holes inside the box), resolution and total size on disk (0 empty pixels in both products)
 - [x] Downloads land under the gitignored data directory; nothing large is committed
 - [x] Data sources and licences are recorded next to the data, like the existing data credits
