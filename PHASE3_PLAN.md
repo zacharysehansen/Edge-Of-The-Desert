@@ -70,7 +70,11 @@ needing two more Earthdata approvals and is not done), and
 (design notes from an app review, nothing built: the PDSI slider is a derived quantity presented as
 an independent one, which is why its cards disagree — derive it from rain and temperature; and the
 urbanization card needs a local readout and a "what gets paved?" choice rather than a bigger
-coefficient).
+coefficient), and
+[§35](#35-the-groundwater-card-gets-a-scale-in-feet-measured) (the groundwater card is drawn on a
+fixed ±7 ft scale instead of its 2.06-ft historical p5/p95, so the irrigation lever stops pinning
+the bar; the historical range is drawn on the bar as a band, and the climate-sign gate now measures
+materiality on that natural range so the wider scale cannot hide a wrong sign).
 
 For the readable version of what the finished model *does* — every path from a slider to an
 output, and the reasoning behind each — see [DISCUSSION.md](DISCUSSION.md). This document is the
@@ -2985,6 +2989,9 @@ is reported here rather than fixed, because the fix is a decision about the scor
 about the model: a physical scale for this card (±5 ft, say) would keep the arithmetic and stop the
 clamping, at the cost of the one rule every card shares.
 
+**Decided in [§35](#35-the-groundwater-card-gets-a-scale-in-feet-measured):** ±7 ft, not ±5 — at the
+3-year horizon the −60 % end of the slider alone reaches −6.0 ft.
+
 ### Two things this leaves open
 
 - **A climate-sign gate.** The acceptance gate checks every human lever's sign in all 12 months. It
@@ -3400,3 +3407,59 @@ Consequences for 34a: PDSI is a function of rain and temperature history plus fi
 climate constants — hence not an independent lever. Its memory has a half-life of
 ln 0.5 / ln 0.897 ≈ **6.4 months**, and a sustained Z settles at X ≈ 3.2 Z, so a derivation from
 the sliders must carry rain history across the scenario's duration.
+
+---
+
+## 35. The groundwater card gets a scale in feet `MEASURED`
+
+**Decision (2026-09-28): the groundwater card's 0–100 score spans a fixed −7 ft to +7 ft around
+normal, not the index's historical p5/p95.** This closes the open decision from §29.
+
+**The problem, measured in the frontend's own `structural.js`.** The p5/p95 scale is 2.06 ft wide
+with the baseline at 46. The irrigation lever is a *rate*: it adds pumping every month, so its
+effect grows with the scenario duration, and `normalizeOutput` clamps at 0 and 100:
+
+| duration | ft per 1 % of irrigation | points per 1 % | bar pinned at |
+|---|---|---|---|
+| 1 month | 0.0036 | 0.18 | never |
+| 6 months | 0.021 | 1.0 | −46 % |
+| 1 year | 0.040 | 1.9 | +28 % / −24 % |
+| 3 years | 0.100 | 4.9 | +11 % / −10 % |
+
+At the durations a visitor is likely to pick, most of the −60..+40 % slider read as a pinned bar.
+The feet were never the problem (§29): 1 % of regional irrigation is ~2,560 AF/month, and against
+707,463 AF/ft that is the 0.0036 ft/month above.
+
+**Why ±7 ft.** Every human lever at its limits, 3-year scenario, point estimates: −6.28 ft (all low)
+to +4.62 ft (all high); irrigation alone −6.01 to +4.01. ±5 ft would still clamp the low end. ±7 ft
+covers all of it with room for the climate term (precipitation's full swing is ~0.35 ft). The upper
+edge of the `storage_af_per_ft` band reaches −9.71 ft; that is carried by the card's range text,
+not the bar. At 1 year, 1 % of irrigation is now 0.28 points and the full swing +28.5.
+
+**What changes and what doesn't.**
+
+- `generate_stats.py` writes `min`/`max` = ∓7 for groundwater (`GROUNDWATER_SCALE_FT`), keeps the
+  percentiles as `natural_min`/`natural_max`, and states the basis in `scale_basis`. No model,
+  lever or constant changes; Layer 1 and Layer 2 outputs in feet are bit-identical.
+- The card draws the natural range as a dashed band on the bar, so the month-to-month wobble is
+  still visible, and the stock display range becomes 110–124 ft.
+- Every groundwater number in *points* shrinks by 6.8× (sweep: irrigation +193.2 → +28.5, public
+  supply +11.1 → +1.6, population +6.1 → +0.9, precipitation −17.0 → −2.5, temperature +0.85 →
+  +0.12). That includes the climate term, which is honest: rain moves Cochise wells a third of a
+  foot, not a sixth of the card.
+- **The climate-sign gate (§30) now measures materiality on each output's natural range**, not the
+  card's display scale. Its 0.5-point threshold would otherwise have stopped seeing temperature →
+  groundwater (0.85 → 0.12 points), and a display choice must not be able to switch a gate off. With
+  `natural=True` the gate reads exactly what it read before (0.85 / 1.39 points), still 5 known
+  failures. Outputs without a natural range are unchanged.
+- Phase 4's perceptual gate measures "≥2 % of that output's declared display range"; for
+  groundwater that range is now 14 ft, so 2 % is 0.28 ft.
+
+All six checks pass: acceptance, no-double-count, parity, frontend (102 text nodes), sweep, and
+climate-signs (5, unchanged).
+
+This breaks the rule that every card's score is its output's p5/p95, which §29 named as the cost.
+Only groundwater carries a lever that *accumulates* past its own history within a scenario; GRACE's
+irrigation lever is also a rate, but even at 3 years it keeps the bar between 44.9 and 82.7, so no other
+card follows.
+

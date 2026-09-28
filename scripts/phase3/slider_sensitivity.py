@@ -336,9 +336,13 @@ class Runner:
         sess = self.sessions[key]
         return float(sess.run(None, {sess.get_inputs()[0].name: vec})[0].ravel()[0])
 
-    def score(self, key: str, value: float) -> float:
+    def score(self, key: str, value: float, natural: bool = False) -> float:
+        """Score points on the card's scale, or with `natural` on the output's own
+        p5/p95 history. They differ only where the card uses a physical scale
+        (groundwater, §35)."""
         o = self.output_stats[key]
-        return (value - o["min"]) / (o["max"] - o["min"]) * 100.0
+        lo, hi = (o.get("natural_min", o["min"]), o.get("natural_max", o["max"])) if natural else (o["min"], o["max"])
+        return (value - lo) / (hi - lo) * 100.0
 
     def climate_only(self, sv: dict) -> dict:
         """Human levers back to their climatological normal. Mirrors state.js."""
@@ -544,6 +548,8 @@ CLIMATE_EXPECTED_SIGNS: dict[str, dict[str, int | None]] = {
     },
 }
 # A wrong-signed month below this many score points is "no response", not a sign.
+# Points here are on each output's natural p5/p95 range, not the card's display scale,
+# so widening a card's scale (groundwater, §35) cannot hide a wrong sign from the gate.
 CLIMATE_SIGN_MATERIAL_POINTS = 0.5
 
 
@@ -573,7 +579,8 @@ def climate_signs(runner: Runner, months: int, gated: bool = True) -> int:
                 lo[slider], hi[slider] = policy["min"], policy["max"]
                 a = runner.one_step(lo, month, months)
                 b = runner.one_step(hi, month, months)
-                effects.append(runner.score(output, b[output]) - runner.score(output, a[output]))
+                effects.append(runner.score(output, b[output], natural=True)
+                               - runner.score(output, a[output], natural=True))
             magnitudes = [abs(e) for e in effects]
             if sign is None:
                 label, agreeing, ok = "none", 12, True
@@ -592,7 +599,8 @@ def climate_signs(runner: Runner, months: int, gated: bool = True) -> int:
                 f"  {'PASS' if ok else 'FAIL'}"
             )
     print(
-        f"\nA month counts as wrong-signed only above {CLIMATE_SIGN_MATERIAL_POINTS} points; below that the\n"
+        f"\nPoints are on each output's natural p5/p95 range, not the card's display scale.\n"
+        f"A month counts as wrong-signed only above {CLIMATE_SIGN_MATERIAL_POINTS} points; below that the\n"
         "model is saying 'no response', which is not a sign. Magnitude is otherwise not gated."
     )
     return failures

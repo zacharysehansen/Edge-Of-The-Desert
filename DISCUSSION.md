@@ -57,18 +57,19 @@ Change in the 0–100 score for a full slider swing, at a 12-month scenario:
 
 | | GRACE | NDVI | Groundwater depth | Streamflow | Wildfire | Wildlife |
 |---|---|---|---|---|---|---|
-| **Population** | −3.09 | 0.00 | +6.09 | +1.74 | — | +0.43 |
-| **Irrigation** | **−18.76** | **+9.35** | **+193.22** | −2.37 | — | −0.59 |
-| **Public supply** | −5.63 | 0.00 | **+11.09** | −0.72 | — | −0.18 |
+| **Population** | −3.09 | 0.00 | +0.90 | +1.74 | — | +0.43 |
+| **Irrigation** | **−18.76** | **+9.35** | **+28.49** | −2.37 | — | −0.59 |
+| **Public supply** | −5.63 | 0.00 | **+1.63** | −0.72 | — | −0.18 |
 | **Urbanization** | 0.00 | −0.97 | 0.00 | **+3.30** | — | +0.82 |
 | **Lake Mead level** | +2.20 | 0.00 | — | +0.28 | — | +0.07 |
-| Precipitation | **+7.61** | +5.16 | **−16.99** | **+40.14** | −16.59 | +10.37 |
-| Temperature | −0.47 | −2.68 | +0.85 | −0.36 | **+8.77** | +1.05 |
+| Precipitation | **+7.61** | +5.16 | **−2.50** | **+40.14** | −16.59 | +10.37 |
+| Temperature | −0.47 | −2.68 | +0.12 | −0.36 | **+8.77** | +1.05 |
 | Drought (PDSI) | 0.00 | −1.39 | 0.00 | −3.07 | −1.12 | **+7.35** |
 
-*(Groundwater column re-measured after §29: the output is now the Cochise-basin well index, whose
-0–100 score spans only 2.06 ft, so the irrigation lever — 4.0 ft for the full swing — reads 193
-points and the card clamps. The Lake Mead lever is off this card: no CAP water reaches Cochise
+*(Groundwater column re-measured after §35: the output is the Cochise-basin well index (§29), and
+its 0–100 score now spans a fixed −7 to +7 ft rather than the index's 2.06-ft history, so the
+irrigation lever — 4.0 ft for the full swing — reads 28.5 points instead of clamping at 193. Every
+groundwater number in points shrank by the same 6.8×. The Lake Mead lever is off this card: no CAP water reaches Cochise
 County. Rain now lowers depth, as it should.)*
 
 *(Climate rows re-measured after the 2026-09-12 retrain — [PHASE3_PLAN.md §27](PHASE3_PLAN.md).
@@ -113,7 +114,7 @@ claims about which one a 12-month integral is capable of accumulating.
 
 ## 3. Output by output
 
-### 3.1 Groundwater depth — now the Cochise basins, and the card that clamps
+### 3.1 Groundwater depth — now the Cochise basins, on a scale in feet
 
 **Since 2026-09-12 this card is the Willcox and Douglas basins** ([PHASE3_PLAN.md §28–§29](PHASE3_PLAN.md)).
 The old index averaged 44 Cochise County wells with 14 Tucson-AMA wells that move with Tucson's
@@ -129,10 +130,10 @@ credited to Willcox's water table.
 
 | | in points | in feet |
 |---|---|---|
-| Irrigation −60 % → +40 % | **+193** (clamps at 100) | **+4.0 ft deeper** |
-| Public supply −40 % → +60 % | +11.1 | +0.23 ft |
-| Population −0.5 M → +3 M | +6.1 | +0.13 ft |
-| Precipitation, dry → wet | −17.0 | −0.35 ft (shallower) |
+| Irrigation −60 % → +40 % | **+28.5** | **+4.0 ft deeper** |
+| Public supply −40 % → +60 % | +1.6 | +0.23 ft |
+| Population −0.5 M → +3 M | +0.9 | +0.13 ft |
+| Precipitation, dry → wet | −2.5 | −0.35 ft (shallower) |
 
 The mechanism is the most direct in the model and has no intermediate steps:
 
@@ -144,9 +145,11 @@ The arithmetic is checkable by hand. A 100-point swing of regional irrigation is
 million acre-feet a year; divided by the storage coefficient of 707,463 AF/ft (calibrated on the
 Cochise index against regional irrigation, so Cochise's ~9 % share is inside it) that is ~4.3 ft,
 less a little as recharge catches up — 4.0 ft. The feet are credible for a basin that declines 2–5
-ft a year under real pumping. **The points are not the problem either: the card's 0–100 scale is the
-index's own 5th–95th percentile, and that is 2.06 ft**, because a per-well anomaly over a slowly
-declining basin is smooth. A physical scale for this card is an open decision (§29).
+ft a year under real pumping. **The card's 0–100 scale is −7 to +7 ft around normal**
+([PHASE3_PLAN.md §35](PHASE3_PLAN.md)). It used to be the index's own 5th–95th percentile, which is
+only 2.06 ft because a per-well anomaly over a slowly declining basin is smooth, and on that scale a
+10 % change held for three years pinned the bar. The 2.06-ft historical range is still drawn on the
+bar, as a dashed band.
 
 **Why it is trustworthy.** This is one of only three `corroborated` levers, meaning the structural
 mechanism *and* an independent empirical check agree on the sign after climate and trend controls.

@@ -274,15 +274,18 @@
       }
     },
     "groundwater": {
-      "min": -0.998,
-      "max": 1.0663,
+      "min": -7.0,
+      "max": 7.0,
       "baseline": -0.0403,
+      "natural_min": -0.998,
+      "natural_max": 1.0663,
+      "scale_basis": "fixed physical scale, +/-7 ft around normal; natural_min/natural_max are the monthly anomaly's p5/p95",
       "stock": {
         "stock_unit": "ft below land surface",
         "stock_reference": 116.89,
         "stock_scale": 1.0,
-        "stock_display_min": 115.0,
-        "stock_display_max": 119.0,
+        "stock_display_min": 110.0,
+        "stock_display_max": 124.0,
         "source": "mean of depth_to_water_ft_mean from groundwater_levels_monthly.csv (Cochise index)"
       }
     },

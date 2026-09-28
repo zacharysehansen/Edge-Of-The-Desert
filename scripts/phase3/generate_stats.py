@@ -334,6 +334,19 @@ def compute_stats(values: pd.DataFrame, zero_is_data: bool = False) -> dict[str,
     }
 
 
+# The groundwater card is drawn on a fixed physical scale in feet, not on the p5/p95 of
+# the monthly anomaly. That percentile range is the Cochise wells' natural month-to-month
+# wobble, 2.06 ft wide, and the irrigation lever is a RATE: it adds pumping every month
+# of the scenario. At 1 year a 1% change moved the bar 1.9 points and +28% / -24%
+# pinned it; at 3 years +11% / -10% did, so most of the slider's -60..+40 range read as
+# a clamped bar (§35). The full human-lever swing at the 3-year horizon runs from
+# -6.3 ft (every lever low) to +4.6 ft (every lever high) at the point estimates, so
+# +/-7 ft covers all of it with room for the climate term. The upper end of the
+# storage_af_per_ft band reaches -9.7 ft; that shows as the card's range text, not the
+# bar. The natural p5/p95 is kept as natural_min/natural_max and drawn as a band.
+GROUNDWATER_SCALE_FT = 7.0
+
+
 def compute_stock_units() -> dict:
     """Compute stock-unit conversion metadata for the anomaly-based outputs.
 
@@ -352,8 +365,8 @@ def compute_stock_units() -> dict:
         "stock_unit": "ft below land surface",
         "stock_reference": round(ref_depth, 2),
         "stock_scale": 1.0,
-        "stock_display_min": round(ref_depth - 2.0, 0),
-        "stock_display_max": round(ref_depth + 2.0, 0),
+        "stock_display_min": round(ref_depth - GROUNDWATER_SCALE_FT, 0),
+        "stock_display_max": round(ref_depth + GROUNDWATER_SCALE_FT, 0),
         "source": "mean of depth_to_water_ft_mean from groundwater_levels_monthly.csv (Cochise index)",
     }
 
@@ -509,6 +522,14 @@ def main() -> None:
 
     if missing_outputs:
         raise RuntimeError(f"Missing output stats for: {sorted(missing_outputs)}")
+
+    gw = output_stats["groundwater"]
+    gw["natural_min"], gw["natural_max"] = gw["min"], gw["max"]
+    gw["min"], gw["max"] = -GROUNDWATER_SCALE_FT, GROUNDWATER_SCALE_FT
+    gw["scale_basis"] = (
+        f"fixed physical scale, +/-{GROUNDWATER_SCALE_FT:g} ft around normal; "
+        "natural_min/natural_max are the monthly anomaly's p5/p95"
+    )
 
     stock_units = compute_stock_units()
     for key, su in stock_units.items():

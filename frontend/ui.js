@@ -283,6 +283,19 @@ function buildOutputPanel() {
     barWrap.appendChild(barFill);
     barWrap.appendChild(barMarker);
 
+    // An output drawn on a physical scale wider than its history (groundwater, §35)
+    // marks where the history sits, so the month-to-month wobble stays visible.
+    const stats = OUTPUT_STATS[key];
+    if (stats.natural_min !== undefined) {
+      const pct = v => ((v - stats.min) / (stats.max - stats.min)) * 100;
+      const band = document.createElement('div');
+      band.className = 'bar-natural-range';
+      band.style.left = `${pct(stats.natural_min).toFixed(1)}%`;
+      band.style.width = `${(pct(stats.natural_max) - pct(stats.natural_min)).toFixed(1)}%`;
+      band.title = 'Normal range: 90% of past months fall inside this band';
+      barWrap.appendChild(band);
+    }
+
     const meta = document.createElement('div');
     meta.className = 'output-meta';
 
