@@ -11,6 +11,7 @@ bed_mm = 220.0
 bezel_mm = 15.0              # width of the black border around the display area
 bezel_raise_mm = 0.0         # how far the bezel stands above the glass (IR touch frames can be 5-10 mm)
 glass_above_plywood_mm = 0.0 # the frame should set the plywood level with the glass
+resolution_px = [3840, 2160] # panel's native pixels (placeholder: a 4K panel)
 
 [lip]
 overhang_mm = 3.0            # how far the lip reaches past the bezel onto the display area
@@ -37,3 +38,12 @@ max_length_mm = 1600.0       # and its long side must not exceed this
 wall_mm = 1.2
 infill = 0.15
 flow_mm3_per_s = 8.0
+
+[seam_colors]                # ticket 07: the painters' colour sheet
+spacing_mm = 100.0           # samples at most this far apart along the seam
+window_mm = 4.0              # each colour is the imagery averaged over a square this wide on the table
+lower_slope_mm = 100.0       # a second row of samples this far out from the seam; 0 for none
+
+[display_software]           # ticket 07: requirements handed to the display software
+fixed_band_mm = 25.0         # band along the screen's edge that always shows the base imagery
+feather_mm = 20.0            # inside the band, the interactive map fades in over this distance

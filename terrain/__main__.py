@@ -1,4 +1,4 @@
-"""Command line: `python -m terrain fetch|tile|sources|preview|ring|tiles <config.toml>`."""
+"""Command line: `python -m terrain fetch|tile|sources|preview|ring|tiles|handoff <config.toml>`."""
 
 import argparse
 import sys
@@ -184,16 +184,44 @@ def tiles(config_path: str, sources_path: str, build_path: str, resolution: floa
     print(f"  estimated printing: about {hours:.0f} h ({hours / 24:.1f} days on one printer; rough, check in the slicer)")
 
 
+def handoff(config_path: str, sources_path: str, build_path: str) -> None:
+    from pathlib import Path
+
+    from terrain.handoff import load_handoff_settings, write_handoff
+    from terrain.ring import Ring, load_build
+
+    layout = load_layout(config_path)
+    src = sources.load_sources_config(sources_path)
+    for path in (src.dem_path, src.imagery_path):
+        if not path.exists():
+            sys.exit(f"No {path}. Run: python -m terrain sources {sources_path}")
+    settings = load_handoff_settings(build_path)
+    ring = Ring(layout, load_build(build_path), src.dem_path)
+    out = Path("outputs/terrain") / layout.name / "handoff"
+    try:
+        info, swatches = write_handoff(ring, settings, src.dem_path, src.imagery_path, out)
+    except ValueError as e:
+        sys.exit(str(e))
+    w, h = info["pixels"]
+    print(f"{layout.title}")
+    print(f"  screen area: {w} x {h} px, {info['ground_m_per_px']:.2f} m/px, "
+          f"lip hides {info['hidden_under_lip_px']:.0f} px per side -> {out / 'screen_imagery.png'}")
+    seam = sum(s.row == "seam" for s in swatches)
+    print(f"  seam colours: {seam} on the seam, {len(swatches) - seam} on the lower slopes "
+          f"-> {out / 'seam_colors.pdf'}, {out / 'seam_colors.csv'}")
+    print(f"  handoff note -> {out / 'HANDOFF.md'}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m terrain")
-    parser.add_argument("command", choices=["fetch", "tile", "sources", "preview", "ring", "tiles"])
+    parser.add_argument("command", choices=["fetch", "tile", "sources", "preview", "ring", "tiles", "handoff"])
     parser.add_argument("config")
     parser.add_argument("--only", choices=["dem", "imagery"],
                         help="sources: fetch just one product")
     parser.add_argument("--sources", default="config/sources.toml",
-                        help="preview, ring: the sources config naming the merged DEM and imagery")
+                        help="preview, ring, handoff: the sources config naming the merged DEM and imagery")
     parser.add_argument("--build", default="config/build.toml",
-                        help="preview, ring, tiles: print settings and screen hardware")
+                        help="preview, ring, tiles, handoff: print settings and screen hardware")
     parser.add_argument("--resolution", type=float, help="tiles: mesh resolution in mm (default from build)")
     parser.add_argument("--plan-only", action="store_true", help="tiles: sections, templates and overview only")
     args = parser.parse_args()
@@ -208,6 +236,9 @@ def main() -> None:
         return
     if args.command == "tiles":
         tiles(args.config, args.sources, args.build, args.resolution, args.plan_only)
+        return
+    if args.command == "handoff":
+        handoff(args.config, args.sources, args.build)
         return
     cfg = load_config(args.config)
     if args.command == "fetch":
