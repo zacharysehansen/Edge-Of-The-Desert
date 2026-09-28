@@ -1,4 +1,4 @@
-"""Command line: `python -m terrain fetch|tile|sources|preview|ring <config.toml>`."""
+"""Command line: `python -m terrain fetch|tile|sources|preview|ring|tiles <config.toml>`."""
 
 import argparse
 import sys
@@ -146,16 +146,56 @@ def ring(config_path: str, sources_path: str, build_path: str) -> None:
     print(f"test piece {'fits' if fits else 'DOES NOT FIT'} a {build.bed_mm:g} mm bed")
 
 
+def tiles(config_path: str, sources_path: str, build_path: str, resolution: float | None,
+          plan_only: bool) -> None:
+    from pathlib import Path
+
+    from terrain.package import write_overview, write_plywood_templates, write_tile_list, write_tiles
+    from terrain.ring import Ring, load_build
+    from terrain.tiles import Sections, TilePlan, load_tile_settings
+
+    layout = load_layout(config_path)
+    settings = load_tile_settings(build_path)
+    ring = Ring(layout, load_build(build_path), sources.load_sources_config(sources_path).dem_path)
+    sections = Sections(ring, settings)
+    plan = TilePlan(ring, sections, settings)
+    out = Path("outputs/terrain") / layout.name
+
+    print(f"{layout.title}")
+    for k in range(1, sections.count + 1):
+        n = sum(t.section == k for t in plan.tiles)
+        x0, y0, x1, y1 = sections._bbox_mm(sections.labels, k)
+        print(f"  section S{k}: {n} tiles, about {x1 - x0:.0f} x {y1 - y0:.0f} mm")
+    small = [t.name for t in plan.tiles if t.share < settings.min_tile_share]
+    print(f"  {len(plan.tiles)} tiles of up to {settings.tile_mm:g} mm"
+          + (f"; small: {', '.join(small)}" if small else "")
+          + (f"; {sum(plan.dropped):.0f} mm2 of rim crumbs left off" if plan.dropped else ""))
+    write_overview(plan, out / "overview.png", f"{layout.title}: {sections.count} sections, {len(plan.tiles)} tiles")
+    for p in write_plywood_templates(plan, out, layout.scale):
+        print(f"  plywood template -> {p}")
+    print(f"  overview -> {out / 'overview.png'}")
+    if plan_only:
+        return
+    print("Tiles:")
+    rows = write_tiles(plan, out, resolution)
+    write_tile_list(rows, out / "tiles.csv")
+    hours = sum(r["print_hours"] for r in rows)
+    print(f"  {len(rows)} tiles -> {out / 'tiles'}, list -> {out / 'tiles.csv'}")
+    print(f"  estimated printing: about {hours:.0f} h ({hours / 24:.1f} days on one printer; rough, check in the slicer)")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m terrain")
-    parser.add_argument("command", choices=["fetch", "tile", "sources", "preview", "ring"])
+    parser.add_argument("command", choices=["fetch", "tile", "sources", "preview", "ring", "tiles"])
     parser.add_argument("config")
     parser.add_argument("--only", choices=["dem", "imagery"],
                         help="sources: fetch just one product")
     parser.add_argument("--sources", default="config/sources.toml",
                         help="preview, ring: the sources config naming the merged DEM and imagery")
     parser.add_argument("--build", default="config/build.toml",
-                        help="preview, ring: print settings and screen hardware")
+                        help="preview, ring, tiles: print settings and screen hardware")
+    parser.add_argument("--resolution", type=float, help="tiles: mesh resolution in mm (default from build)")
+    parser.add_argument("--plan-only", action="store_true", help="tiles: sections, templates and overview only")
     args = parser.parse_args()
     if args.command == "sources":
         fetch_sources(args.config, args.only)
@@ -165,6 +205,9 @@ def main() -> None:
         return
     if args.command == "ring":
         ring(args.config, args.sources, args.build)
+        return
+    if args.command == "tiles":
+        tiles(args.config, args.sources, args.build, args.resolution, args.plan_only)
         return
     cfg = load_config(args.config)
     if args.command == "fetch":

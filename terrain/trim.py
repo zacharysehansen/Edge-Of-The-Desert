@@ -19,8 +19,11 @@ ANALYSIS_RES_M = 100.0  # ground spacing of the drainage analysis
 MAIN_OUTLET_SHARE = 0.05  # an outlet counts as the valley's if this share of the screen drains to it
 
 
-def drainage_roots(elevation: np.ndarray) -> np.ndarray:
-    """For each cell, the flat index of the edge cell its water leaves the grid through.
+def drainage(elevation: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Drainage over a grid: (roots, accumulation).
+
+    roots: for each cell, the flat index of the edge cell its water leaves the grid through.
+    accumulation: how many cells drain through each cell (large along washes).
 
     Priority-flood: grow inward from the edges, lowest first; each cell drains to the
     neighbour that reached it. Pits are filled implicitly, so every cell has a path out.
@@ -28,6 +31,8 @@ def drainage_roots(elevation: np.ndarray) -> np.ndarray:
     h, w = elevation.shape
     flat = elevation.ravel().tolist()
     root = [-1] * (h * w)
+    parent = [-1] * (h * w)
+    order = []
     heap = []
     for r in range(h):
         for c in ((0, w - 1) if 0 < r < h - 1 else range(w)):
@@ -38,6 +43,7 @@ def drainage_roots(elevation: np.ndarray) -> np.ndarray:
     neighbours = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
     while heap:
         level, i = heapq.heappop(heap)
+        order.append(i)
         r, c = divmod(i, w)
         for dr, dc in neighbours:
             rr, cc = r + dr, c + dc
@@ -45,8 +51,22 @@ def drainage_roots(elevation: np.ndarray) -> np.ndarray:
                 j = rr * w + cc
                 if root[j] < 0:
                     root[j] = root[i]
+                    parent[j] = i
                     heapq.heappush(heap, (max(flat[j], level), j))
-    return np.array(root).reshape(h, w)
+    # Cells popped later lie upstream, so sweeping in reverse passes each cell's
+    # total down to its parent before the parent is visited.
+    acc = np.ones(h * w)
+    parent_arr = np.array(parent)
+    for i in reversed(order):
+        p = parent_arr[i]
+        if p >= 0:
+            acc[p] += acc[i]
+    return np.array(root).reshape(h, w), acc.reshape(h, w)
+
+
+def drainage_roots(elevation: np.ndarray) -> np.ndarray:
+    """For each cell, the flat index of the edge cell its water leaves the grid through."""
+    return drainage(elevation)[0]
 
 
 class Outline:
@@ -75,7 +95,7 @@ class Outline:
             r = self.ring
             xs = np.arange(0, r.table[2] + self.step_mm, self.step_mm)
             ys = np.arange(0, r.table[3] + self.step_mm, self.step_mm)
-            roots = drainage_roots(r.elevation_at(xs, ys))
+            roots, self.accumulation = drainage(r.elevation_at(xs, ys))
 
             o = r.opening
             on_screen = ((xs > o[0]) & (xs < o[2]))[None, :] & ((ys > o[1]) & (ys < o[3]))[:, None]

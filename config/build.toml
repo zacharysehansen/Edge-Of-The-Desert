@@ -22,3 +22,18 @@ datum_blend_mm = 200.0       # distance over which heights change from "level wi
 corner = "sw"                # which corner of the opening the lip fit-test piece comes from
 arm_mm = 150.0               # length of each arm of the L-shaped piece
 depth_mm = 50.0              # how far the piece reaches out from the opening
+
+[tiles]
+clearance_mm = 10.0          # tiles are bed_mm minus this on a side
+max_height_mm = 250.0        # printer's build height
+min_tile_share = 0.10        # tiles smaller than this share of a full tile get merged if they can
+
+[sections]
+count = 4                    # transport sections; each gets its own plywood board
+door_mm = 800.0              # every section's narrow side must pass through a door this wide
+max_length_mm = 1600.0       # and its long side must not exceed this
+
+[print_time]                 # rough estimate only; the slicer gives the real number
+wall_mm = 1.2
+infill = 0.15
+flow_mm3_per_s = 8.0
