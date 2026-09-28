@@ -3,7 +3,7 @@ follows from fitting that patch to the screen, and the table's footprint from th
 
 import math
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from pyproj import Transformer
@@ -11,6 +11,26 @@ from pyproj import Transformer
 from terrain.dem import UTM_12N, utm_crop_box
 
 Box = tuple[float, float, float, float]  # (xmin, ymin, xmax, ymax), UTM metres
+SIDES = ("north", "east", "south", "west")
+SIDE_RULES = ("crest", "strip", "full", "none")
+
+
+@dataclass(frozen=True)
+class Trim:
+    """How each side of the table ends (ticket 05).
+
+    crest  keep the slopes that drain toward the screen, plus `margin_m` beyond the crest
+    strip  a flat strip of valley `strip_mm` wide beyond the opening
+    full   keep everything out to the table's rectangular edge
+    none   no printed terrain on this side
+    """
+
+    sides: dict = field(default_factory=lambda: {s: "crest" for s in SIDES})
+    margin_m: float = 1000.0
+    strip_mm: float = 60.0
+    smooth_mm: float = 15.0
+    keep: tuple = ()  # lon/lat polygons always kept, overriding the crest line
+    cut: tuple = ()  # lon/lat polygons always cut
 
 
 @dataclass(frozen=True)
@@ -22,6 +42,7 @@ class Layout:
     screen_diagonal_in: float
     screen_aspect: tuple[int, int]
     orientation: str  # "ew": long side runs east-west; "ns": long side runs north-south
+    trim: Trim = field(default_factory=Trim)
 
     @property
     def screen_mm(self) -> tuple[float, float]:
@@ -88,6 +109,15 @@ def load_layout(path: str | Path) -> Layout:
     if orientation not in ("ew", "ns"):
         raise ValueError('screen.orientation must be "ew" or "ns"')
     a, b = (int(v) for v in scr["aspect"].split(":"))
+    t = raw.get("trim", {})
+    sides = {side: t.get(side, "crest") for side in SIDES}
+    bad = {k: v for k, v in sides.items() if v not in SIDE_RULES}
+    if bad:
+        raise ValueError(f"trim sides must be one of {SIDE_RULES}: {bad}")
+    trim = Trim(sides=sides, margin_m=t.get("margin_m", 1000.0), strip_mm=t.get("strip_mm", 60.0),
+                smooth_mm=t.get("smooth_mm", 15.0),
+                keep=tuple(tuple(map(tuple, poly)) for poly in t.get("keep", [])),
+                cut=tuple(tuple(map(tuple, poly)) for poly in t.get("cut", [])))
     return Layout(
         name=raw["name"],
         title=raw["title"],
@@ -96,6 +126,7 @@ def load_layout(path: str | Path) -> Layout:
         screen_diagonal_in=scr["diagonal_in"],
         screen_aspect=(max(a, b), min(a, b)),
         orientation=orientation,
+        trim=trim,
     )
 
 

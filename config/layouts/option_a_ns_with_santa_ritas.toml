@@ -18,3 +18,10 @@ north = 32.33
 diagonal_in = 55
 aspect = "16:9"
 orientation = "ns"
+
+[trim]  # ticket 05: every side ends 1 km past its range's crest
+north = "crest"
+east = "crest"
+south = "crest"
+west = "crest"
+margin_m = 1000.0

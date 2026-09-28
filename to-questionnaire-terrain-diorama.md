@@ -14,7 +14,7 @@ Please reply by **[date]**. It should take about 15 minutes. Write your answer i
 
 ## Geographic extent
 
-The two previews below show the main options with a 55" screen. The yellow box is the screen, the white box is the table, and the scale is set so the valley floor fills the screen.
+The two previews below show the main options with a 55" screen. The yellow box is the screen and the scale is set so the valley floor fills the screen. The orange line is where the printed terrain ends: each range is printed only on the side that faces the valley, up to about 1 km past its crest, so the table's outline follows the mountains.
 
 | | Option A: with the Santa Ritas, screen north-south | Option B: without, screen east-west |
 |---|---|---|
@@ -22,6 +22,8 @@ The two previews below show the main options with a 55" screen. The yellow box i
 | Scale | 1:48,000 | 1:29,000 |
 | Table | 1.33 × 1.81 m | 2.20 × 1.41 m |
 | Screen shows | 33 × 59 km | 35 × 20 km |
+| Printed terrain | 1.31 m² | 1.38 m² |
+| Tallest peak (at 2.5× exaggeration) | about 12 cm | about 19 cm |
 
 Option B's scale is about 1.7 times larger, so the city and the Catalinas appear 1.7 times bigger in each direction, on a larger table.
 

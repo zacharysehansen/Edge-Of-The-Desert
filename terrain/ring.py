@@ -18,6 +18,7 @@ from scipy.ndimage import gaussian_filter
 from terrain.dem import load_heightfield
 from terrain.layout import Layout
 from terrain.mesh import Mesh, solid_from_fields
+from terrain.trim import Outline
 
 Rect = tuple[float, float, float, float]  # (x0, y0, x1, y1) mm
 SEAM_SMOOTHING_MM = 20.0  # how much the ground along the seam is smoothed before it sets the datum
@@ -80,7 +81,7 @@ def _inside(xs: np.ndarray, ys: np.ndarray, r: Rect) -> np.ndarray:
 
 
 class Ring:
-    def __init__(self, layout: Layout, build: BuildConfig, dem_path: Path):
+    def __init__(self, layout: Layout, build: BuildConfig, dem_path: Path, trimmed: bool = True):
         self.layout, self.build, self.dem_path = layout, build, dem_path
         tx0, ty0, _, _ = layout.table_utm
         sx0, sy0, sx1, sy1 = layout.screen_utm
@@ -91,6 +92,7 @@ class Ring:
         self.screen_outer: Rect = _inset(self.display, -build.bezel_mm)
         self._elevation = None
         self._smoothed = None
+        self.outline = Outline(self) if trimmed else None
 
     # --- fields ------------------------------------------------------------------
 
@@ -185,6 +187,8 @@ class Ring:
         """Kept cells: inside the table (and `shape`, if given), outside the opening."""
         cx, cy = (xs[:-1] + xs[1:]) / 2, (ys[:-1] + ys[1:]) / 2
         keep = _inside(cx, cy, self.table) & ~_inside(cx, cy, self.opening)
+        if self.outline is not None:
+            keep &= self.outline.keep(cx, cy)
         if shape is not None:
             keep &= _inside(cx, cy, shape)
         return keep

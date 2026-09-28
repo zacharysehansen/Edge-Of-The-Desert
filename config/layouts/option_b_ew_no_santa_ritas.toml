@@ -18,3 +18,11 @@ north = 32.33
 diagonal_in = 55
 aspect = "16:9"
 orientation = "ew"
+
+[trim]  # ticket 05: ranges end 1 km past their crests; the open south side is a flat valley strip
+north = "crest"
+east = "crest"
+south = "strip"
+west = "crest"
+margin_m = 1000.0
+strip_mm = 60.0

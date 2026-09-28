@@ -74,7 +74,7 @@ def fetch_sources(config_path: str, only: str | None) -> None:
 PREVIEW_DIR = "docs/previews"
 
 
-def preview(config_path: str, sources_path: str) -> None:
+def preview(config_path: str, sources_path: str, build_path: str) -> None:
     from pathlib import Path
 
     from terrain.preview import render_preview
@@ -88,10 +88,20 @@ def preview(config_path: str, sources_path: str) -> None:
         sys.exit("Layout problem:\n  " + "\n  ".join(problems))
     imagery = src.imagery_path if src.imagery_path.exists() else None
     out = Path(PREVIEW_DIR) / f"{layout.name}.png"
-    render_preview(layout, src.dem_path, imagery, out)
+    outline = None
+    if Path(build_path).exists():
+        from terrain.ring import Ring, load_build
+
+        ring = Ring(layout, load_build(build_path), src.dem_path)
+        outline = ring.outline
+        before, after = outline.area_m2()
+    render_preview(layout, src.dem_path, imagery, out, outline)
     print(f"{layout.title}")
     for line in layout.summary():
         print(f"  {line}")
+    if outline is not None:
+        print(f"  printed area {after:.2f} m2 after trimming ({before:.2f} m2 untrimmed, "
+              f"{100 * (1 - after / before):.0f}% less)")
     print(f"  preview -> {out}" + ("" if imagery else " (shaded relief only: imagery not merged yet)"))
 
 
@@ -145,13 +155,13 @@ def main() -> None:
     parser.add_argument("--sources", default="config/sources.toml",
                         help="preview, ring: the sources config naming the merged DEM and imagery")
     parser.add_argument("--build", default="config/build.toml",
-                        help="ring: print settings and screen hardware")
+                        help="preview, ring: print settings and screen hardware")
     args = parser.parse_args()
     if args.command == "sources":
         fetch_sources(args.config, args.only)
         return
     if args.command == "preview":
-        preview(args.config, args.sources)
+        preview(args.config, args.sources, args.build)
         return
     if args.command == "ring":
         ring(args.config, args.sources, args.build)

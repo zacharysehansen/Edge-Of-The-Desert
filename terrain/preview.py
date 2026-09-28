@@ -41,7 +41,9 @@ def _read_grid(path: Path, bounds, res: float, bands: list[int]) -> np.ndarray |
     return data
 
 
-def render_preview(layout: Layout, dem_path: Path, imagery_path: Path | None, out_png: Path) -> None:
+def render_preview(layout: Layout, dem_path: Path, imagery_path: Path | None, out_png: Path,
+                   outline=None) -> None:
+    """`outline` (a terrain.trim.Outline), if given, draws the printed area's edge."""
     tx0, ty0, tx1, ty1 = layout.table_utm
     bounds = (tx0 - MARGIN_M, ty0 - MARGIN_M, tx1 + MARGIN_M, ty1 + MARGIN_M)
     elev = _read_grid(dem_path, bounds, PREVIEW_RES_M, [1])[0]
@@ -69,6 +71,15 @@ def render_preview(layout: Layout, dem_path: Path, imagery_path: Path | None, ou
                  (0, bottom, tw, -bottom), (0, th, tw, top - th)]:
         ax.add_patch(Rectangle(rect[:2], rect[2], rect[3], color="black", alpha=0.45, lw=0))
     ax.add_patch(Rectangle((0, 0), tw, th, fill=False, ec="white", lw=2.5, label="table edge"))
+    if outline is not None:
+        # The outline works in table mm; the axes are km from the table's corner.
+        gx = np.linspace(left, right, 900)
+        gy = np.linspace(bottom, top, int(900 * (top - bottom) / (right - left)))
+        to_mm = 1e6 / layout.scale
+        kept = outline.keep(gx * to_mm, gy * to_mm)
+        ax.contourf(gx, gy, (~kept).astype(float), levels=[0.5, 1.5], colors=["black"], alpha=0.35)
+        ax.contour(gx, gy, kept.astype(float), levels=[0.5], colors=["#ff5a36"], linewidths=2)
+        ax.plot([], [], color="#ff5a36", lw=2, label="printed terrain edge")
     sx0, sy0, sx1, sy1 = layout.screen_utm
     (a, b), (c, d) = km(sx0, sy0), km(sx1, sy1)
     ax.add_patch(Rectangle((a, b), c - a, d - b, fill=False, ec="#ffcc00", lw=2.5, label="screen"))
