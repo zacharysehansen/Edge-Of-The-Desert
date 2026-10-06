@@ -54,3 +54,4 @@ data/processed/*
 !README.md
 !data/Final/*.md
 .scratch/
+!docs/screenshot.png

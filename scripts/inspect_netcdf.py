@@ -2,7 +2,7 @@ import sys
 import xarray as xr
 
 if len(sys.argv) < 2:
-    print("Usage: python test.py <netcdf_file>")
+    print("Usage: python scripts/inspect_netcdf.py <netcdf_file>")
     sys.exit(1)
 
 path = sys.argv[1]
