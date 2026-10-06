@@ -20,6 +20,12 @@ class TileConfig:
     dem_url: str
     dem_path: Path
     output_dir: Path
+    # Optional [flush] table: one edge meets the screen glass the way the ring's lip does.
+    flush_edge: str | None = None
+    flush_edge_thickness_mm: float = 1.2
+    flush_blend_mm: float = 15.0
+    flush_datum_blend_mm: float = 200.0
+    flush_smoothing_mm: float = 20.0
 
     @property
     def ground_spacing_m(self) -> float:
@@ -37,6 +43,9 @@ def load_config(path: str | Path) -> TileConfig:
     patch, prn, src, out = raw["patch"], raw["print"], raw["source"], raw["output"]
     if not (patch["west"] < patch["east"] and patch["south"] < patch["north"]):
         raise ValueError("patch bounds must satisfy west < east and south < north")
+    flush = raw.get("flush", {})
+    if flush and flush["edge"] not in ("n", "s", "e", "w"):
+        raise ValueError('flush.edge must be one of "n", "s", "e", "w"')
     return TileConfig(
         name=patch["name"],
         west=patch["west"],
@@ -51,4 +60,9 @@ def load_config(path: str | Path) -> TileConfig:
         dem_url=src["dem_url"],
         dem_path=Path(src["dem_path"]),
         output_dir=Path(out["dir"]),
+        flush_edge=flush.get("edge"),
+        flush_edge_thickness_mm=flush.get("edge_thickness_mm", 1.2),
+        flush_blend_mm=flush.get("blend_mm", 15.0),
+        flush_datum_blend_mm=flush.get("datum_blend_mm", 200.0),
+        flush_smoothing_mm=flush.get("smoothing_mm", 20.0),
     )

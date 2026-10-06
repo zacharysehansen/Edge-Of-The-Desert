@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 import numpy as np
+from scipy.ndimage import gaussian_filter
 
 
 @dataclass(frozen=True)
@@ -67,6 +68,44 @@ def heightfield_to_mesh(elevation_m: np.ndarray, spacing_mm: float, scale: float
 
     faces = np.concatenate([top_faces, wall_faces, base_faces]).astype(np.int64)
     return Mesh(vertices, faces)
+
+
+def flush_edge_top(elevation_m: np.ndarray, spacing_mm: float, scale: float,
+                   vertical_exaggeration: float, base_thickness_mm: float, edge: str,
+                   edge_thickness_mm: float, blend_mm: float, datum_blend_mm: float,
+                   smoothing_mm: float) -> np.ndarray:
+    """Top heights (mm) for a tile whose `edge` ("n", "s", "e" or "w") meets the screen glass.
+
+    The same seam the ring uses (terrain/ring.py), along one straight edge: at the edge the
+    tile is `edge_thickness_mm` thick and level with the glass, over `blend_mm` it thickens
+    to the full base and the ground's bumps fade in, and over `datum_blend_mm` heights ease
+    from "above the smoothed ground at the edge" to "above the tile's lowest point".
+    Rows and columns match `elevation_m` (row 0 = north).
+    """
+    turns = {"s": 0, "w": 1, "n": 2, "e": 3}[edge]  # quarter turns that bring the edge to the bottom row
+    elev = np.rot90(elevation_m, turns)
+    smoothed = gaussian_filter(elev, smoothing_mm / spacing_mm, mode="nearest")
+    d = (elev.shape[0] - 1 - np.arange(elev.shape[0]))[:, None] * spacing_mm  # distance from the edge
+
+    def smoothstep(t):
+        t = np.clip(t, 0, 1)
+        return t * t * (3 - 2 * t)
+
+    w = 1 - smoothstep(d / datum_blend_mm)
+    datum = w * smoothed[-1][None, :] + (1 - w) * elev.min()
+    ease = smoothstep(d / blend_mm)
+    thickness = edge_thickness_mm + (base_thickness_mm - edge_thickness_mm) * ease
+    k = vertical_exaggeration / scale * 1000
+    top = np.maximum(thickness + ease * k * (elev - datum), edge_thickness_mm)
+    return np.rot90(top, -turns)
+
+
+def top_to_mesh(top_mm: np.ndarray, spacing_mm: float) -> Mesh:
+    """A solid with the given top heights (row 0 = north) over a flat base at z=0."""
+    nrows, ncols = top_mm.shape
+    xs, ys = np.arange(ncols) * spacing_mm, np.arange(nrows) * spacing_mm
+    return solid_from_fields(xs, ys, top_mm[::-1], np.zeros_like(top_mm),
+                             np.ones((nrows - 1, ncols - 1), dtype=bool))
 
 
 def solid_from_fields(xs: np.ndarray, ys: np.ndarray, top: np.ndarray, bottom: np.ndarray,

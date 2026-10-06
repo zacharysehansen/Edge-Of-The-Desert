@@ -8,7 +8,7 @@ import numpy as np
 from terrain.checks import watertight_problems
 from terrain.config import TileConfig, load_config
 from terrain.dem import fetch_patch, load_heightfield
-from terrain.mesh import heightfield_to_mesh
+from terrain.mesh import flush_edge_top, heightfield_to_mesh, top_to_mesh
 from terrain.stl import write_stl
 from terrain import sources
 from terrain.layout import load_layout
@@ -29,8 +29,14 @@ def tile(cfg: TileConfig, config_path: str) -> None:
         sys.exit(f"No DEM at {cfg.dem_path}. Download it first with:\n"
                  f"    python -m terrain fetch {config_path}")
     hf = load_heightfield(cfg.dem_path, cfg.west, cfg.south, cfg.east, cfg.north, cfg.ground_spacing_m)
-    mesh = heightfield_to_mesh(hf.elevation_m, cfg.mesh_resolution_mm, cfg.scale,
-                               cfg.vertical_exaggeration, cfg.base_thickness_mm)
+    if cfg.flush_edge:
+        top = flush_edge_top(hf.elevation_m, cfg.mesh_resolution_mm, cfg.scale, cfg.vertical_exaggeration,
+                             cfg.base_thickness_mm, cfg.flush_edge, cfg.flush_edge_thickness_mm,
+                             cfg.flush_blend_mm, cfg.flush_datum_blend_mm, cfg.flush_smoothing_mm)
+        mesh = top_to_mesh(top, cfg.mesh_resolution_mm)
+    else:
+        mesh = heightfield_to_mesh(hf.elevation_m, cfg.mesh_resolution_mm, cfg.scale,
+                                   cfg.vertical_exaggeration, cfg.base_thickness_mm)
     problems = watertight_problems(mesh)
     if problems:
         sys.exit("Mesh failed checks:\n  " + "\n  ".join(problems))
@@ -44,6 +50,9 @@ def tile(cfg: TileConfig, config_path: str) -> None:
     print(f"  footprint: {size[0]:.1f} x {size[1]:.1f} mm at 1:{cfg.scale:g}")
     print(f"  height:    {size[2]:.1f} mm ({cfg.base_thickness_mm:g} mm base + "
           f"{size[2] - cfg.base_thickness_mm:.1f} mm relief at {cfg.vertical_exaggeration:g}x)")
+    if cfg.flush_edge:
+        print(f"  flush:     {cfg.flush_edge} edge is {cfg.flush_edge_thickness_mm:g} mm thick at the glass, "
+              f"full base within {cfg.flush_blend_mm:g} mm")
     fits = size[0] <= cfg.bed_mm and size[1] <= cfg.bed_mm
     print(f"  bed:       {'fits' if fits else 'DOES NOT FIT'} a {cfg.bed_mm:g} mm bed")
 

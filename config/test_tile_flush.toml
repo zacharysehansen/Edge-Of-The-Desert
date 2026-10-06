@@ -1,0 +1,33 @@
+# Second test tile: the same Sabino Canyon patch as test_tile.toml, at 1.5x vertical
+# exaggeration, with its south (valley) edge flush with the screen glass the way the
+# ring's lip is. Print it beside the first tile to compare exaggeration and the seam.
+
+[patch]
+name = "catalina_front_sabino_flush_1.5x"
+west = -110.840
+east = -110.776
+south = 32.290
+north = 32.344
+
+[print]
+scale = 30000                # 1:30,000
+vertical_exaggeration = 1.5
+base_thickness_mm = 5.0
+mesh_resolution_mm = 0.5     # spacing of the height samples on the printed model
+bed_mm = 220.0
+
+[flush]
+# Same seam values as [lip] in build.toml.
+edge = "s"                   # the valley side; this edge sits against the glass
+edge_thickness_mm = 1.2      # thickness of the edge resting at glass level
+blend_mm = 15.0              # distance over which it thickens to the full base and the ground's bumps fade in
+datum_blend_mm = 200.0       # distance over which heights ease from "level with the glass" to "above the lowest point"
+smoothing_mm = 20.0          # smoothing of the ground along the edge before it sets the datum
+
+[source]
+# Shares the DEM patch with test_tile.toml.
+dem_url = "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n33w111/USGS_13_n33w111.tif"
+dem_path = "data/raw/dem/catalina_front_sabino.tif"
+
+[output]
+dir = "outputs/terrain"

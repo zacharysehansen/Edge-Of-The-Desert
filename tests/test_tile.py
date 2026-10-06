@@ -13,7 +13,7 @@ from rasterio.transform import from_origin
 from terrain.checks import watertight_problems
 from terrain.config import load_config
 from terrain.dem import load_heightfield
-from terrain.mesh import Mesh, heightfield_to_mesh
+from terrain.mesh import Mesh, flush_edge_top, heightfield_to_mesh, top_to_mesh
 from terrain.stl import write_stl
 
 REPO = Path(__file__).resolve().parent.parent
@@ -43,6 +43,19 @@ def test_mesh_is_watertight_and_sized():
     assert size[1] == pytest.approx(39 * 0.5)
     expected_relief = (elev.max() - elev.min()) * 2.5 / 30000 * 1000
     assert size[2] - 5 == pytest.approx(expected_relief)
+
+
+@pytest.mark.parametrize("edge", ["s", "n", "e", "w"])
+def test_flush_edge_meets_the_glass(edge):
+    rng = np.random.default_rng(1)
+    elev = 800 + rng.random((80, 90)) * 300
+    top = flush_edge_top(elev, 0.5, 30000, 1.5, 5.0, edge, 1.2, 15.0, 200.0, 20.0)
+    rim = {"s": top[-1], "n": top[0], "e": top[:, -1], "w": top[:, 0]}[edge]
+    assert np.allclose(rim, 1.2)  # the whole edge is the lip's tip, level with the glass
+    assert top.min() >= 1.2 - 1e-9
+    mesh = top_to_mesh(top, 0.5)
+    assert watertight_problems(mesh) == []
+    assert mesh.vertices[:, 2].min() == 0.0
 
 
 def test_check_catches_a_hole_and_a_flip():
