@@ -48,3 +48,9 @@ data/raw/*
 !data/raw/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
+
+# Planning notes and reports stay local
+*.md
+!README.md
+!data/Final/*.md
+.scratch/
