@@ -69,8 +69,5 @@ Current endpoint/source files in this folder:
   Columns: `year_month, usdm_dsci, usdm_sustainability`
   Coverage: monthly from `2000-01` through `2023-12`
 
-Intermediate HUC12-level files, summaries, and build artifacts remain in
-[`data/processed`](/home/zacharyhansen/Documents/GitHub/Edge-Of-The-Desert/data/processed).
-
-These datasets are documented in more detail in
-[`PHASE1_SETUP.md`](/home/zacharyhansen/Documents/GitHub/Edge-Of-The-Desert/PHASE1_SETUP.md).
+Intermediate HUC12-level files, summaries, and build artifacts are written to
+`data/processed/` when the pipeline runs (not tracked in git).
