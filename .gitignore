@@ -51,3 +51,9 @@ data/processed/*
 
 # Layout previews are shared with the team, so they are committed
 !docs/previews/*.png
+
+# Planning notes and reports stay local
+*.md
+!README.md
+!data/Final/*.md
+.scratch/
